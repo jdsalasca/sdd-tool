@@ -63,6 +63,8 @@ export function runDoctor(projectName?: string, reqId?: string): void {
       failures += 1;
       console.log(`Invalid: ${filePath}`);
       result.errors.forEach((error) => console.log(`- ${error}`));
+    } else {
+      console.log(`Valid: ${filePath}`);
     }
   }
 

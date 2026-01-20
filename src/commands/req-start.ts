@@ -94,4 +94,5 @@ export async function runReqStart(): Promise<void> {
   fs.appendFileSync(progressLog, logEntry, "utf-8");
 
   console.log(`Implementation plan generated in ${targetDir}`);
+  console.log(`Status updated to in-progress for ${projectName}`);
 }

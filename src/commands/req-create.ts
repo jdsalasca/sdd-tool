@@ -87,6 +87,10 @@ export async function runReqCreate(): Promise<void> {
   const changelogTemplate = loadTemplate("changelog");
   const changelog = renderTemplate(changelogTemplate, { date: new Date().toISOString() });
   fs.writeFileSync(path.join(requirementDir, "changelog.md"), changelog, "utf-8");
+  const progressLogPath = path.join(requirementDir, "progress-log.md");
+  if (!fs.existsSync(progressLogPath)) {
+    fs.writeFileSync(progressLogPath, "# Progress Log\n\n", "utf-8");
+  }
   console.log(`Created requirement in ${requirementDir}`);
   console.log(`Project metadata stored in ${path.join(workspace.root, projectName, "metadata.json")}`);
   console.log(`Project status: ${metadata.status}`);
