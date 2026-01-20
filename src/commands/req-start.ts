@@ -90,9 +90,15 @@ export async function runReqStart(): Promise<void> {
   fs.writeFileSync(path.join(decisionDir, "ADR-0001.md"), decisionRendered, "utf-8");
 
   const progressLog = path.join(targetDir, "progress-log.md");
+  if (!fs.existsSync(progressLog)) {
+    fs.writeFileSync(progressLog, "# Progress Log\n\n", "utf-8");
+  }
   const logEntry = `\n- ${new Date().toISOString()} started implementation for ${reqId}\n`;
   fs.appendFileSync(progressLog, logEntry, "utf-8");
   const changelog = path.join(targetDir, "changelog.md");
+  if (!fs.existsSync(changelog)) {
+    fs.writeFileSync(changelog, "# Changelog\n\n", "utf-8");
+  }
   const changeEntry = `\n- ${new Date().toISOString()} started implementation for ${reqId}\n`;
   fs.appendFileSync(changelog, changeEntry, "utf-8");
 

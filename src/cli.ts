@@ -73,6 +73,13 @@ req
     const { runReqList } = await import("./commands/req-list");
     await runReqList();
   });
+req
+  .command("status")
+  .description("Show a requirement status")
+  .action(async () => {
+    const { runReqStatus } = await import("./commands/req-status");
+    await runReqStatus();
+  });
 
 program
   .command("route")

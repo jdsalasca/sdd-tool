@@ -106,9 +106,15 @@ export async function runReqFinish(): Promise<void> {
     fs.renameSync(decisionLog, archiveRoot);
   }
   const progressLog = path.join(doneDir, "progress-log.md");
+  if (!fs.existsSync(progressLog)) {
+    fs.writeFileSync(progressLog, "# Progress Log\n\n", "utf-8");
+  }
   const logEntry = `\n- ${new Date().toISOString()} finished requirement ${reqId}\n`;
   fs.appendFileSync(progressLog, logEntry, "utf-8");
   const changelog = path.join(doneDir, "changelog.md");
+  if (!fs.existsSync(changelog)) {
+    fs.writeFileSync(changelog, "# Changelog\n\n", "utf-8");
+  }
   const changeEntry = `\n- ${new Date().toISOString()} finished requirement ${reqId}\n`;
   fs.appendFileSync(changelog, changeEntry, "utf-8");
   console.log(`Moved requirement to ${doneDir}`);
