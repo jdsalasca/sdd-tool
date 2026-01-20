@@ -3,12 +3,39 @@ param(
   [string]$ReqId
 )
 
-if (-not $Project -or -not $ReqId) {
-  Write-Host "Usage: .\\scripts\\e2e.ps1 -Project <name> -ReqId <REQ-...>"
+if (-not $Project) {
+  Write-Host "Usage: .\\scripts\\e2e.ps1 -Project <name> [-ReqId <REQ-...>]"
   exit 1
 }
 
 npm run build | Out-Null
+
+if (-not $ReqId) {
+  $createInput = @"
+$Project
+software
+E2E requirement
+scope in
+scope out
+acceptance
+security
+performance
+availability
+constraints
+risks
+links
+"@
+  $createOutput = $createInput | node dist/cli.js req create
+  $ReqId = $createOutput |
+    Select-String -Pattern "requirements[\\/]+backlog[\\/]+([^\\/]+)" |
+    ForEach-Object { $_.Matches[0].Groups[1].Value } |
+    Select-Object -Last 1
+  if (-not $ReqId) {
+    Write-Host "Failed to detect REQ-ID from create output."
+    Write-Host $createOutput
+    exit 1
+  }
+}
 
 $plan = @"
 $Project

@@ -4,12 +4,36 @@ set -euo pipefail
 PROJECT="${1:-}"
 REQ_ID="${2:-}"
 
-if [[ -z "$PROJECT" || -z "$REQ_ID" ]]; then
-  echo "Usage: ./scripts/e2e.sh <project> <REQ-ID>"
+if [[ -z "$PROJECT" ]]; then
+  echo "Usage: ./scripts/e2e.sh <project> [REQ-ID]"
   exit 1
 fi
 
 npm run build >/dev/null
+
+if [[ -z "$REQ_ID" ]]; then
+  CREATE_OUTPUT=$(cat <<EOF | node dist/cli.js req create
+$PROJECT
+software
+E2E requirement
+scope in
+scope out
+acceptance
+security
+performance
+availability
+constraints
+risks
+links
+EOF
+)
+  REQ_ID=$(echo "$CREATE_OUTPUT" | sed -n 's|.*requirements/backlog/\\([^/]*\\).*|\\1|p' | tail -n 1)
+  if [[ -z "$REQ_ID" ]]; then
+    echo "Failed to detect REQ-ID from create output."
+    echo "$CREATE_OUTPUT"
+    exit 1
+  fi
+fi
 
 cat <<EOF | node dist/cli.js req plan
 $PROJECT
