@@ -12,7 +12,7 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-tool init`
   - Initializes a workspace and config
 - `sdd-tool list`
-  - Lists flows, templates, and projects
+  - Lists flows, router flows, templates, prompt packs, and projects
 - `sdd-tool doctor`
   - Validates schemas, prompt packs, and templates
 
