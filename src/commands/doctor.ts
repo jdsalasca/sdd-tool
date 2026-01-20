@@ -3,6 +3,7 @@ import path from "path";
 import { getWorkspaceInfo } from "../workspace/index";
 import { validateJson } from "../validation/validate";
 import { validatePromptPacks } from "../router/validate-prompt-packs";
+import { validateTemplates } from "../templates/validate";
 
 function collectJsonFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) {
@@ -58,6 +59,12 @@ export function runDoctor(projectName?: string, reqId?: string): void {
     failures += promptResult.errors.length;
     console.log("Prompt pack validation failed:");
     promptResult.errors.forEach((error) => console.log(`- ${error}`));
+  }
+  const templateResult = validateTemplates();
+  if (!templateResult.valid) {
+    failures += templateResult.errors.length;
+    console.log("Template validation failed:");
+    templateResult.errors.forEach((error) => console.log(`- ${error}`));
   }
   for (const filePath of jsonFiles) {
     const schema = inferSchema(filePath);

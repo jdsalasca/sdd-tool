@@ -1,16 +1,29 @@
 #!/usr/bin/env node
+import fs from "fs";
+import path from "path";
 import { Command } from "commander";
 import { runHello } from "./commands/hello";
 import { runInit } from "./commands/init";
 import { runRoute } from "./commands/route";
 import { runDoctor } from "./commands/doctor";
+import { getRepoRoot } from "./paths";
 
 const program = new Command();
+
+function getVersion(): string {
+  try {
+    const pkgPath = path.join(getRepoRoot(), "package.json");
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as { version?: string };
+    return pkg.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
 
 program
   .name("sdd-tool")
   .description("SDD-first, AI-native CLI")
-  .version("0.1.0");
+  .version(getVersion());
 
 program
   .command("hello")
@@ -24,6 +37,14 @@ program
   .command("init")
   .description("Initialize workspace and config")
   .action(() => runInit());
+
+program
+  .command("list")
+  .description("List flows, templates, and projects")
+  .action(async () => {
+    const { runList } = await import("./commands/list");
+    runList();
+  });
 
 const req = program.command("req").description("Requirement lifecycle commands");
 req

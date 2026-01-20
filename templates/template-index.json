@@ -170,6 +170,43 @@
         "test_evidence",
         "remaining_risks"
       ]
+    },
+    {
+      "name": "pr-metrics",
+      "placeholders": [
+        "total_comments",
+        "blockers",
+        "avg_time_to_resolve",
+        "tests_run",
+        "notes"
+      ]
+    },
+    {
+      "name": "pr-comment-lifecycle",
+      "placeholders": [
+        "entries"
+      ]
+    },
+    {
+      "name": "pr-response-generator",
+      "placeholders": [
+        "pr_link",
+        "comment_id",
+        "severity",
+        "decision",
+        "evidence",
+        "response_text"
+      ]
+    },
+    {
+      "name": "pr-dispute-resolution",
+      "placeholders": [
+        "comment",
+        "context",
+        "evidence",
+        "response",
+        "follow_up"
+      ]
     }
   ]
 }
