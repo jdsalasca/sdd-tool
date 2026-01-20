@@ -69,6 +69,7 @@ program
 program
   .command("doctor")
   .description("Validate workspace artifacts and schemas")
-  .action(() => runDoctor());
+  .argument("[project]", "Optional project name to validate")
+  .action((project?: string) => runDoctor(project));
 
 program.parse(process.argv);

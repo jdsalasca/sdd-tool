@@ -85,5 +85,8 @@ export async function runReqRefine(): Promise<void> {
 
   const mdPath = reqPath.replace("requirement.json", "requirement.md");
   fs.writeFileSync(mdPath, rendered, "utf-8");
+  const changelogPath = path.join(path.dirname(reqPath), "changelog.md");
+  const logEntry = `\n- ${new Date().toISOString()} refined requirement ${updated.id}\n`;
+  fs.appendFileSync(changelogPath, logEntry, "utf-8");
   console.log(`Requirement updated at ${mdPath}`);
 }

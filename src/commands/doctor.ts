@@ -29,9 +29,10 @@ function inferSchema(filePath: string): string | null {
   return null;
 }
 
-export function runDoctor(): void {
+export function runDoctor(projectName?: string): void {
   const workspace = getWorkspaceInfo();
-  const jsonFiles = collectJsonFiles(workspace.root);
+  const root = projectName ? path.join(workspace.root, projectName) : workspace.root;
+  const jsonFiles = collectJsonFiles(root);
   if (jsonFiles.length === 0) {
     console.log("No JSON artifacts found in workspace.");
     return;
