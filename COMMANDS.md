@@ -14,7 +14,7 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-tool list`
   - Lists flows, templates, and projects
 - `sdd-tool doctor`
-  - Validates completeness and consistency
+  - Validates schemas, prompt packs, and templates
 
 ## Router
 - `sdd-tool route`
