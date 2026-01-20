@@ -126,7 +126,7 @@ The `hello` command is the entry point: it connects to AI, lists active projects
 ### Core
 - `sdd-tool hello` -- interactive session, project picker, full guided flow
 - `sdd-tool init` -- create SDD workspace and config
-- `sdd-tool list` -- list templates and flows
+- `sdd-tool list` -- list flows, templates, and projects
 - `sdd-tool doctor` -- validate completeness and consistency
 
 ### Router
