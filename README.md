@@ -147,6 +147,9 @@ The `hello` command is the entry point: it connects to AI, lists active projects
 - `sdd-tool gen best-practices`
 - `sdd-tool gen project-readme`
 
+### Test planning
+- `sdd-tool test plan`
+
 ### Flags
 - `--approve` -- run without extra confirmations
 - `--improve` -- re-open and enhance existing docs
