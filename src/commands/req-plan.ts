@@ -29,6 +29,12 @@ export async function runReqPlan(): Promise<void> {
     return;
   }
 
+  const requirementJsonPath = path.join(requirementDir, "requirement.json");
+  if (!fs.existsSync(requirementJsonPath)) {
+    console.log("Missing requirement.json. Run `req create` first.");
+    return;
+  }
+
   const wipDir = path.join(workspace.root, projectName, "requirements", "wip", reqId);
   if (requirementDir.includes(path.join("requirements", "backlog"))) {
     fs.mkdirSync(path.dirname(wipDir), { recursive: true });

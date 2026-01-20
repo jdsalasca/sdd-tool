@@ -5,7 +5,7 @@ import { getWorkspaceInfo } from "../workspace/index";
 
 const STATUSES = ["backlog", "wip", "in-progress", "done", "archived"];
 
-export async function runReqList(): Promise<void> {
+export async function runReqList(statusFilter?: string): Promise<void> {
   const projectName = await ask("Project name: ");
   if (!projectName) {
     console.log("Project name is required.");
@@ -19,7 +19,8 @@ export async function runReqList(): Promise<void> {
     return;
   }
 
-  for (const status of STATUSES) {
+  const statuses = statusFilter ? STATUSES.filter((status) => status === statusFilter) : STATUSES;
+  for (const status of statuses) {
     const dir = path.join(base, status);
     if (!fs.existsSync(dir)) {
       continue;

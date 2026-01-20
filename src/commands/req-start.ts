@@ -31,6 +31,14 @@ export async function runReqStart(): Promise<void> {
     return;
   }
 
+  const requiredSpecs = ["functional-spec.json", "technical-spec.json", "architecture.json", "test-plan.json"];
+  const missing = requiredSpecs.filter((spec) => !fs.existsSync(path.join(requirementDir, spec)));
+  if (missing.length > 0) {
+    console.log("Cannot start. Missing specs:");
+    missing.forEach((spec) => console.log(`- ${spec}`));
+    return;
+  }
+
   const inProgressDir = path.join(workspace.root, projectName, "requirements", "in-progress", reqId);
   if (!requirementDir.includes(path.join("requirements", "in-progress"))) {
     fs.mkdirSync(path.dirname(inProgressDir), { recursive: true });

@@ -69,9 +69,10 @@ req
 req
   .command("list")
   .description("List requirements by status")
-  .action(async () => {
+  .option("--status <status>", "Filter by status")
+  .action(async (options) => {
     const { runReqList } = await import("./commands/req-list");
-    await runReqList();
+    await runReqList(options.status);
   });
 req
   .command("status")
