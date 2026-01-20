@@ -1,0 +1,58 @@
+import fs from "fs";
+import path from "path";
+import { ask } from "../ui/prompt";
+import { loadTemplate, renderTemplate } from "../templates/render";
+import { formatList, parseList } from "../utils/list";
+import { validateJson } from "../validation/validate";
+import { appendProgress, findRequirementDir } from "./gen-utils";
+
+export async function runGenArchitecture(): Promise<void> {
+  const projectName = await ask("Project name: ");
+  const reqId = await ask("Requirement ID (REQ-...): ");
+  if (!projectName || !reqId) {
+    console.log("Project name and requirement ID are required.");
+    return;
+  }
+
+  const requirementDir = findRequirementDir(projectName, reqId);
+  if (!requirementDir) {
+    console.log("Requirement not found.");
+    return;
+  }
+
+  const context = await ask("Architecture context: ");
+  const containers = await ask("Containers - comma separated: ");
+  const components = await ask("Components - comma separated: ");
+  const deployment = await ask("Deployment - comma separated: ");
+  const diagrams = await ask("Diagrams - comma separated: ");
+
+  const architectureJson = {
+    context: context || "N/A",
+    containers: parseList(containers),
+    components: parseList(components),
+    deployment: parseList(deployment),
+    diagrams: parseList(diagrams)
+  };
+
+  const validation = validateJson("architecture.schema.json", architectureJson);
+  if (!validation.valid) {
+    console.log("Architecture validation failed:");
+    validation.errors.forEach((error) => console.log(`- ${error}`));
+    return;
+  }
+
+  const template = loadTemplate("architecture");
+  const rendered = renderTemplate(template, {
+    title: projectName,
+    context: context || "N/A",
+    containers: formatList(containers),
+    components: formatList(components),
+    deployment: formatList(deployment),
+    diagrams: formatList(diagrams)
+  });
+
+  fs.writeFileSync(path.join(requirementDir, "architecture.md"), rendered, "utf-8");
+  fs.writeFileSync(path.join(requirementDir, "architecture.json"), JSON.stringify(architectureJson, null, 2), "utf-8");
+  appendProgress(requirementDir, `generated architecture for ${reqId}`);
+  console.log(`Architecture generated in ${requirementDir}`);
+}

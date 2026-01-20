@@ -1,0 +1,70 @@
+import fs from "fs";
+import path from "path";
+import { ask } from "../ui/prompt";
+import { loadTemplate, renderTemplate } from "../templates/render";
+import { validateJson } from "../validation/validate";
+import { appendProgress, findRequirementDir } from "./gen-utils";
+
+export async function runGenProjectReadme(): Promise<void> {
+  const projectName = await ask("Project name: ");
+  const reqId = await ask("Requirement ID (REQ-...): ");
+  if (!projectName || !reqId) {
+    console.log("Project name and requirement ID are required.");
+    return;
+  }
+
+  const requirementDir = findRequirementDir(projectName, reqId);
+  if (!requirementDir) {
+    console.log("Requirement not found.");
+    return;
+  }
+
+  const overview = await ask("Project overview: ");
+  const howToRun = await ask("How to run: ");
+  const architectureSummary = await ask("Architecture summary: ");
+  const requirementsLink = await ask("Requirements link/path: ");
+  const functionalSpecLink = await ask("Functional spec link/path: ");
+  const technicalSpecLink = await ask("Technical spec link/path: ");
+  const architectureLink = await ask("Architecture link/path: ");
+  const testingNotes = await ask("Testing notes: ");
+
+  const projectReadmeJson = {
+    projectName,
+    overview: overview || "N/A",
+    howToRun: howToRun || "N/A",
+    architectureSummary: architectureSummary || "N/A",
+    specs: {
+      requirements: requirementsLink || "requirements/requirement.md",
+      functionalSpec: functionalSpecLink || "requirements/functional-spec.md",
+      technicalSpec: technicalSpecLink || "requirements/technical-spec.md",
+      architecture: architectureLink || "requirements/architecture.md"
+    },
+    testingNotes: testingNotes || "N/A"
+  };
+
+  const validation = validateJson("project-readme.schema.json", projectReadmeJson);
+  if (!validation.valid) {
+    console.log("Project README validation failed:");
+    validation.errors.forEach((error) => console.log(`- ${error}`));
+    return;
+  }
+
+  const template = loadTemplate("project-readme");
+  const rendered = renderTemplate(template, {
+    project_name: projectName,
+    overview: projectReadmeJson.overview,
+    how_to_run: projectReadmeJson.howToRun,
+    architecture_summary: projectReadmeJson.architectureSummary,
+    requirements_link: projectReadmeJson.specs.requirements,
+    functional_spec_link: projectReadmeJson.specs.functionalSpec,
+    technical_spec_link: projectReadmeJson.specs.technicalSpec,
+    architecture_link: projectReadmeJson.specs.architecture,
+    testing_notes: projectReadmeJson.testingNotes
+  });
+
+  fs.writeFileSync(path.join(requirementDir, "project-readme.md"), rendered, "utf-8");
+  fs.writeFileSync(path.join(requirementDir, "project-readme.json"), JSON.stringify(projectReadmeJson, null, 2), "utf-8");
+
+  appendProgress(requirementDir, `generated project readme for ${reqId}`);
+  console.log(`Project README generated in ${requirementDir}`);
+}
