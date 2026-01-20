@@ -88,6 +88,13 @@ req
     const { runReqLint } = await import("./commands/req-lint");
     await runReqLint();
   });
+req
+  .command("report")
+  .description("Show completeness report for a requirement")
+  .action(async () => {
+    const { runReqReport } = await import("./commands/req-report");
+    await runReqReport();
+  });
 
 program
   .command("route")
