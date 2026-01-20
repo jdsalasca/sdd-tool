@@ -55,6 +55,12 @@ Planned upgrade: **oclif**
 - Adapters: CLI commands, file I/O
 - Infrastructure: AI providers, filesystem, network
 
+## Codex local integration
+
+The CLI uses the local `codex` executable when available:
+- `sdd-tool ai status` checks availability
+- `sdd-tool ai exec "<prompt>"` runs `codex exec`
+
 ## Folder structure (proposed)
 
 ```

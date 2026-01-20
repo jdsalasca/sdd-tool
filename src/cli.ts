@@ -118,4 +118,21 @@ program
   .argument("[requirementId]", "Optional requirement ID to validate")
   .action((project?: string, requirementId?: string) => runDoctor(project, requirementId));
 
+const ai = program.command("ai").description("Codex provider commands");
+ai
+  .command("status")
+  .description("Check Codex CLI availability")
+  .action(async () => {
+    const { runAiStatus } = await import("./commands/ai-status");
+    runAiStatus();
+  });
+ai
+  .command("exec")
+  .description("Run Codex non-interactively")
+  .argument("[prompt...]", "Prompt to execute")
+  .action(async (prompt: string[]) => {
+    const { runAiExec } = await import("./commands/ai-exec");
+    await runAiExec(prompt.join(" ").trim());
+  });
+
 program.parse(process.argv);
