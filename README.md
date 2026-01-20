@@ -38,6 +38,8 @@ Deep process, commands, interactions, and diagrams live in:
 - `PACK_COVERAGE_REPORT.md`
 - `IMPLEMENTATION_PLAN.md`
 - `CLEAN_ARCHITECTURE_CHECKLIST.md`
+- `REQUIREMENTS_ALIGNMENT.md`
+- `GITFLOW.md`
 
 Examples and templates:
 - `examples/transcripts/`
