@@ -42,6 +42,18 @@ Command: `sdd-tool test plan`
 - Expand test cases and edge scenarios
 - Gate: critical paths, regressions, acceptance tests
 
+## Knowledge mode (learning sessions)
+Command: `sdd-tool learn start`
+- Capture topic, depth, format, focus areas
+- Create `brief.md`, `deep-dive.md`, `reading-list.md`, `qa.md`, `session.md`
+
+Command: `sdd-tool learn refine`
+- Adjust scope, format, and constraints
+- Update `session.md` and progress log
+
+Command: `sdd-tool learn deliver`
+- Write final brief, deep dive, reading list, and Q&A outputs
+
 ## 6) Completion (finish)
 Command: `sdd-tool req finish`
 - Seal requirement and specs
