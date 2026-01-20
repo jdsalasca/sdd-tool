@@ -92,6 +92,9 @@ export async function runReqStart(): Promise<void> {
   const progressLog = path.join(targetDir, "progress-log.md");
   const logEntry = `\n- ${new Date().toISOString()} started implementation for ${reqId}\n`;
   fs.appendFileSync(progressLog, logEntry, "utf-8");
+  const changelog = path.join(targetDir, "changelog.md");
+  const changeEntry = `\n- ${new Date().toISOString()} started implementation for ${reqId}\n`;
+  fs.appendFileSync(changelog, changeEntry, "utf-8");
 
   console.log(`Implementation plan generated in ${targetDir}`);
   console.log(`Status updated to in-progress for ${projectName}`);

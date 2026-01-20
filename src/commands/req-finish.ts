@@ -108,5 +108,8 @@ export async function runReqFinish(): Promise<void> {
   const progressLog = path.join(doneDir, "progress-log.md");
   const logEntry = `\n- ${new Date().toISOString()} finished requirement ${reqId}\n`;
   fs.appendFileSync(progressLog, logEntry, "utf-8");
+  const changelog = path.join(doneDir, "changelog.md");
+  const changeEntry = `\n- ${new Date().toISOString()} finished requirement ${reqId}\n`;
+  fs.appendFileSync(changelog, changeEntry, "utf-8");
   console.log(`Moved requirement to ${doneDir}`);
 }
