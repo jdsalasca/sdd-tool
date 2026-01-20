@@ -35,18 +35,23 @@ export async function runReqRefine(): Promise<void> {
 
   const raw = JSON.parse(fs.readFileSync(reqPath, "utf-8"));
   const objective = await ask(`Objective (${raw.objective}): `);
+  const actors = await ask("Actors - comma separated: ");
   const scopeIn = await ask("Scope (in) - comma separated: ");
   const scopeOut = await ask("Scope (out) - comma separated: ");
   const acceptance = await ask("Acceptance criteria - comma separated: ");
   const nfrSecurity = await ask("NFR security: ");
   const nfrPerformance = await ask("NFR performance: ");
   const nfrAvailability = await ask("NFR availability: ");
+  const constraints = await ask("Constraints - comma separated: ");
+  const risks = await ask("Risks - comma separated: ");
+  const links = await ask("Links - comma separated: ");
   const flags = getFlags();
   const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const updated = {
     ...raw,
     objective: objective || raw.objective,
+    actors: actors ? parseList(actors) : raw.actors,
     scope: {
       in: scopeIn ? parseList(scopeIn) : raw.scope.in,
       out: scopeOut ? parseList(scopeOut) : raw.scope.out
@@ -57,6 +62,9 @@ export async function runReqRefine(): Promise<void> {
       performance: nfrPerformance || raw.nfrs.performance,
       availability: nfrAvailability || raw.nfrs.availability
     },
+    constraints: constraints ? parseList(constraints) : raw.constraints,
+    risks: risks ? parseList(risks) : raw.risks,
+    links: links ? parseList(links) : raw.links,
     updatedAt: new Date().toISOString()
   };
 
@@ -74,7 +82,7 @@ export async function runReqRefine(): Promise<void> {
     title: updated.title,
     id: updated.id,
     objective: updated.objective,
-    actors: "N/A",
+    actors: formatList((updated.actors ?? []).join(", ")),
     scope_in: formatList(updated.scope.in.join(", ")),
     scope_out: formatList(updated.scope.out.join(", ")),
     acceptance_criteria: formatList(updated.acceptanceCriteria.join(", ")),
