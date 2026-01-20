@@ -118,6 +118,12 @@
       ]
     },
     {
+      "name": "changelog",
+      "placeholders": [
+        "date"
+      ]
+    },
+    {
       "name": "implementation-plan",
       "placeholders": [
         "title",

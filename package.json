@@ -1,0 +1,32 @@
+{
+  "name": "sdd-tool",
+  "version": "0.1.0",
+  "description": "SDD-first, AI-native CLI for end-to-end delivery.",
+  "bin": {
+    "sdd-tool": "dist/cli.js",
+    "sdd": "dist/cli.js"
+  },
+  "main": "dist/cli.js",
+  "types": "dist/cli.d.ts",
+  "files": [
+    "dist",
+    "router",
+    "templates",
+    "schemas",
+    "flows"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/cli.js",
+    "dev": "ts-node src/cli.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

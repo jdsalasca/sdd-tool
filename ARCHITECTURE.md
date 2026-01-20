@@ -13,12 +13,13 @@ This document defines how the CLI is structured, how commands are exposed, and h
 
 Use **Node.js + TypeScript** with a multi-command CLI framework.
 
-Recommended: **oclif**
+Current implementation: **commander**
+- Lightweight CLI for fast iteration
+- Easy to migrate to oclif later
+
+Planned upgrade: **oclif**
 - Mature multi-command structure
 - Built-in help, topics, and plugins
-- Scales well as commands grow
-
-Alternative: **commander** for a lighter CLI
 
 ## High-level modules
 
