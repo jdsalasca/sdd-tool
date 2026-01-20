@@ -40,6 +40,7 @@ Deep process, commands, interactions, and diagrams live in:
 - `CLEAN_ARCHITECTURE_CHECKLIST.md`
 - `REQUIREMENTS_ALIGNMENT.md`
 - `GITFLOW.md`
+- `RELEASE_PROCESS.md`
 
 Examples and templates:
 - `examples/transcripts/`
