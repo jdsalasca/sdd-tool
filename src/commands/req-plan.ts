@@ -29,6 +29,14 @@ export async function runReqPlan(): Promise<void> {
     return;
   }
 
+  const wipDir = path.join(workspace.root, projectName, "requirements", "wip", reqId);
+  if (requirementDir.includes(path.join("requirements", "backlog"))) {
+    fs.mkdirSync(path.dirname(wipDir), { recursive: true });
+    fs.renameSync(requirementDir, wipDir);
+  }
+
+  const targetDir = fs.existsSync(wipDir) ? wipDir : requirementDir;
+
   const overview = await ask("Functional overview: ");
   const useCases = await ask("Use cases - comma separated: ");
   const rules = await ask("Business rules - comma separated: ");
@@ -143,14 +151,14 @@ export async function runReqPlan(): Promise<void> {
     coverage_target: coverageTarget || "N/A"
   });
 
-  fs.writeFileSync(path.join(requirementDir, "functional-spec.md"), functionalRendered, "utf-8");
-  fs.writeFileSync(path.join(requirementDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2), "utf-8");
-  fs.writeFileSync(path.join(requirementDir, "technical-spec.md"), technicalRendered, "utf-8");
-  fs.writeFileSync(path.join(requirementDir, "technical-spec.json"), JSON.stringify(technicalJson, null, 2), "utf-8");
-  fs.writeFileSync(path.join(requirementDir, "architecture.md"), architectureRendered, "utf-8");
-  fs.writeFileSync(path.join(requirementDir, "architecture.json"), JSON.stringify(architectureJson, null, 2), "utf-8");
-  fs.writeFileSync(path.join(requirementDir, "test-plan.md"), testPlanRendered, "utf-8");
-  fs.writeFileSync(path.join(requirementDir, "test-plan.json"), JSON.stringify(testPlanJson, null, 2), "utf-8");
+  fs.writeFileSync(path.join(targetDir, "functional-spec.md"), functionalRendered, "utf-8");
+  fs.writeFileSync(path.join(targetDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2), "utf-8");
+  fs.writeFileSync(path.join(targetDir, "technical-spec.md"), technicalRendered, "utf-8");
+  fs.writeFileSync(path.join(targetDir, "technical-spec.json"), JSON.stringify(technicalJson, null, 2), "utf-8");
+  fs.writeFileSync(path.join(targetDir, "architecture.md"), architectureRendered, "utf-8");
+  fs.writeFileSync(path.join(targetDir, "architecture.json"), JSON.stringify(architectureJson, null, 2), "utf-8");
+  fs.writeFileSync(path.join(targetDir, "test-plan.md"), testPlanRendered, "utf-8");
+  fs.writeFileSync(path.join(targetDir, "test-plan.json"), JSON.stringify(testPlanJson, null, 2), "utf-8");
 
-  console.log(`Generated specs in ${requirementDir}`);
+  console.log(`Generated specs in ${targetDir}`);
 }

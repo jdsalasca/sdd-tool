@@ -65,5 +65,20 @@ export async function runReqStart(): Promise<void> {
 
   fs.writeFileSync(path.join(requirementDir, "implementation-plan.md"), rendered, "utf-8");
   fs.writeFileSync(path.join(requirementDir, "quality.json"), JSON.stringify(qualityJson, null, 2), "utf-8");
+
+  const decisionTemplate = loadTemplate("decision-log");
+  const decisionRendered = renderTemplate(decisionTemplate, {
+    id: "ADR-0001",
+    title: "Initial implementation plan",
+    status: "accepted",
+    context: "Implementation kickoff",
+    decision: "Proceed with planned milestones",
+    consequences: "Defines first iteration scope",
+    date: new Date().toISOString()
+  });
+  const decisionDir = path.join(requirementDir, "decision-log");
+  fs.mkdirSync(decisionDir, { recursive: true });
+  fs.writeFileSync(path.join(decisionDir, "ADR-0001.md"), decisionRendered, "utf-8");
+
   console.log(`Implementation plan generated in ${requirementDir}`);
 }
