@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Router Intent",
+  "type": "object",
+  "required": ["intent", "confidence", "flow", "domain"],
+  "properties": {
+    "intent": { "type": "string" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "flow": { "type": "string" },
+    "domain": { "$ref": "domain.schema.json" },
+    "signals": { "type": "array", "items": { "type": "string" } }
+  }
+}

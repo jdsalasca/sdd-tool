@@ -1,0 +1,7 @@
+{
+  "criticalPaths": ["create reservation", "release reservation"],
+  "edgeCases": ["insufficient stock", "duplicate request"],
+  "coverageTarget": "80%",
+  "acceptanceTests": ["reservation prevents oversell"],
+  "regressions": ["checkout flow passes"]
+}

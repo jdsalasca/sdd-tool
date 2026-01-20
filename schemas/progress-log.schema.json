@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Progress Log",
+  "type": "object",
+  "required": ["entries"],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date", "summary"],
+        "properties": {
+          "date": { "type": "string" },
+          "summary": { "type": "string" },
+          "risks": { "type": "array", "items": { "type": "string" } },
+          "nextSteps": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

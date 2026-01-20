@@ -1,0 +1,9 @@
+# End-to-end pack: Legal
+
+Included:
+- requirement.sample.md
+- functional-spec.sample.md
+- technical-spec.sample.md
+- architecture.sample.md
+- test-plan.sample.md
+- progress-log.sample.md

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent Role",
+  "type": "string",
+  "enum": [
+    "req_analyst",
+    "solution_architect",
+    "tech_lead",
+    "qa",
+    "docs_scribe",
+    "reviewer",
+    "researcher",
+    "critic",
+    "synthesizer",
+    "analyst"
+  ]
+}

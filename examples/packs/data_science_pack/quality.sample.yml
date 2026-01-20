@@ -1,0 +1,11 @@
+rules:
+  - reproducible-experiments
+  - fairness-checks
+thresholds:
+  coverage: "80%"
+  complexity: "10"
+profiles:
+  python:
+    - ruff
+    - black
+    - pytest

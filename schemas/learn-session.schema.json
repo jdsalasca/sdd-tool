@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Learn Session",
+  "type": "object",
+  "required": ["topic", "depth", "format", "focusAreas", "purpose"],
+  "properties": {
+    "topic": { "type": "string" },
+    "depth": { "type": "string", "enum": ["overview", "academic", "expert"] },
+    "format": { "type": "string", "enum": ["summary", "syllabus", "report", "qa"] },
+    "focusAreas": { "type": "array", "items": { "type": "string" } },
+    "constraints": { "type": "array", "items": { "type": "string" } },
+    "purpose": { "type": "string" },
+    "timeBudget": { "type": "string" }
+  }
+}

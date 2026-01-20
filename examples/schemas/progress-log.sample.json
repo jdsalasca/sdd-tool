@@ -1,0 +1,10 @@
+{
+  "entries": [
+    {
+      "date": "2025-01-20",
+      "summary": "Captured requirements and acceptance criteria",
+      "risks": ["Stale inventory data"],
+      "nextSteps": ["Generate specs", "Draft test plan"]
+    }
+  ]
+}

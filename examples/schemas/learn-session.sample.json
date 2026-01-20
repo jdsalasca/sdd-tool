@@ -1,0 +1,9 @@
+{
+  "topic": "Egypt",
+  "depth": "academic",
+  "format": "report",
+  "focusAreas": ["ancient history", "culture"],
+  "constraints": ["2 hour read"],
+  "purpose": "class presentation",
+  "timeBudget": "2 hours"
+}

@@ -1,0 +1,17 @@
+rules:
+  - single-responsibility
+  - explicit-error-handling
+  - lint-and-format-required
+  - tests-for-critical-flows
+thresholds:
+  coverage: "80%"
+  complexity: "10"
+profiles:
+  javascript:
+    - eslint
+    - prettier
+    - vitest
+  python:
+    - ruff
+    - black
+    - pytest

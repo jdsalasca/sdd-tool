@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Project Metadata",
+  "type": "object",
+  "required": ["id", "name", "domain", "status", "path", "updatedAt"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "domain": { "type": "string" },
+    "status": { "type": "string", "enum": ["backlog", "wip", "in-progress", "done", "archived"] },
+    "path": { "type": "string" },
+    "languageProfile": { "type": "string" },
+    "qualityProfile": { "type": "string" },
+    "updatedAt": { "type": "string" }
+  }
+}

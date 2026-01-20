@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Router Flow",
+  "type": "object",
+  "required": ["id", "entrySignals", "steps", "questions", "outputs", "gates", "agents"],
+  "properties": {
+    "id": { "type": "string" },
+    "entrySignals": { "type": "array", "items": { "type": "string" } },
+    "steps": { "type": "array", "items": { "type": "string" } },
+    "questions": { "type": "array", "items": { "type": "string" } },
+    "outputs": { "type": "array", "items": { "type": "string" } },
+    "gates": { "type": "array", "items": { "type": "string" } },
+    "agents": { "type": "array", "items": { "type": "string" } }
+  }
+}

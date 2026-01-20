@@ -1,0 +1,7 @@
+{
+  "intent": "bug_fix",
+  "confidence": 0.92,
+  "flow": "BUG_FIX",
+  "domain": "bug_fix",
+  "signals": ["bug", "issue", "stack trace"]
+}

@@ -1,0 +1,20 @@
+{
+  "gates": [
+    { "id": "objective_defined", "description": "Objective is defined" },
+    { "id": "scope_defined", "description": "Scope is defined" },
+    { "id": "acceptance_criteria_defined", "description": "Acceptance criteria defined" },
+    { "id": "nfrs_defined", "description": "NFRs defined" },
+    { "id": "test_plan_defined", "description": "Test plan defined" },
+    { "id": "quality_thresholds_defined", "description": "Quality thresholds defined" },
+    { "id": "repro_steps_defined", "description": "Repro steps captured" },
+    { "id": "comment_audit_complete", "description": "PR comment audit complete" },
+    { "id": "comment_severity_defined", "description": "PR comment severity classified" },
+    { "id": "rollout_defined", "description": "Rollout plan defined" },
+    { "id": "monitoring_defined", "description": "Monitoring plan defined" },
+    { "id": "accessibility_defined", "description": "Accessibility requirements defined" },
+    { "id": "source_quality_defined", "description": "Source reliability defined" },
+    { "id": "sensitivity_defined", "description": "Sensitivity analysis defined" },
+    { "id": "compliance_defined", "description": "Compliance constraints defined" },
+    { "id": "learning_format_defined", "description": "Learning output format defined" }
+  ]
+}

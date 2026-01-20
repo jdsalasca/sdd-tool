@@ -1,0 +1,169 @@
+{
+  "templates": [
+    {
+      "name": "requirement",
+      "placeholders": [
+        "title",
+        "id",
+        "objective",
+        "actors",
+        "scope_in",
+        "scope_out",
+        "acceptance_criteria",
+        "nfr_security",
+        "nfr_performance",
+        "nfr_availability",
+        "constraints",
+        "risks",
+        "links"
+      ]
+    },
+    {
+      "name": "functional-spec",
+      "placeholders": [
+        "title",
+        "overview",
+        "actors",
+        "use_cases",
+        "flows",
+        "rules",
+        "errors",
+        "acceptance_criteria"
+      ]
+    },
+    {
+      "name": "technical-spec",
+      "placeholders": [
+        "title",
+        "stack",
+        "interfaces",
+        "data_model",
+        "security",
+        "errors",
+        "performance",
+        "observability"
+      ]
+    },
+    {
+      "name": "architecture",
+      "placeholders": [
+        "title",
+        "context",
+        "containers",
+        "components",
+        "deployment",
+        "diagrams"
+      ]
+    },
+    {
+      "name": "test-plan",
+      "placeholders": [
+        "title",
+        "critical_paths",
+        "edge_cases",
+        "acceptance_tests",
+        "regressions",
+        "coverage_target"
+      ]
+    },
+    {
+      "name": "quality",
+      "placeholders": [
+        "rules",
+        "thresholds",
+        "profiles"
+      ]
+    },
+    {
+      "name": "decision-log",
+      "placeholders": [
+        "id",
+        "title",
+        "status",
+        "context",
+        "decision",
+        "consequences",
+        "date"
+      ]
+    },
+    {
+      "name": "progress-log",
+      "placeholders": [
+        "date",
+        "summary",
+        "risks",
+        "next_steps"
+      ]
+    },
+    {
+      "name": "project-readme",
+      "placeholders": [
+        "project_name",
+        "overview",
+        "how_to_run",
+        "architecture_summary",
+        "requirements_link",
+        "functional_spec_link",
+        "technical_spec_link",
+        "architecture_link",
+        "testing_notes"
+      ]
+    },
+    {
+      "name": "summary",
+      "placeholders": [
+        "objective",
+        "decisions",
+        "open_questions"
+      ]
+    },
+    {
+      "name": "implementation-plan",
+      "placeholders": [
+        "title",
+        "milestones",
+        "tasks",
+        "dependencies",
+        "risks"
+      ]
+    },
+    {
+      "name": "pr-comment-audit",
+      "placeholders": [
+        "title",
+        "pr_link",
+        "comment_inventory",
+        "valid_comments",
+        "debatable_comments",
+        "recommended_responses",
+        "follow_ups"
+      ]
+    },
+    {
+      "name": "pr-review-summary",
+      "placeholders": [
+        "title",
+        "pr_link",
+        "comment_audit",
+        "responses",
+        "planned_fixes",
+        "tests"
+      ]
+    },
+    {
+      "name": "pr-review-report",
+      "placeholders": [
+        "title",
+        "pr_link",
+        "summary",
+        "total_comments",
+        "resolved_comments",
+        "open_comments",
+        "key_decisions",
+        "changes_made",
+        "test_evidence",
+        "remaining_risks"
+      ]
+    }
+  ]
+}

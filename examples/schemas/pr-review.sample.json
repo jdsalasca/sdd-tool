@@ -1,0 +1,10 @@
+{
+  "prLink": "https://example.com/pull/45",
+  "comments": ["Missing null check", "Tests failing"],
+  "audit": {
+    "valid": ["Missing null check"],
+    "debatable": ["Tests failing"]
+  },
+  "responses": ["Added null check in src/service.ts"],
+  "tests": ["npm test", "npm run lint"]
+}

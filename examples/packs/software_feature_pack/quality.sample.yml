@@ -1,0 +1,11 @@
+rules:
+  - single-responsibility
+  - explicit-error-handling
+thresholds:
+  coverage: "80%"
+  complexity: "10"
+profiles:
+  javascript:
+    - eslint
+    - prettier
+    - vitest

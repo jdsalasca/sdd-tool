@@ -1,0 +1,9 @@
+{
+  "stack": ["node", "postgres", "redis"],
+  "interfaces": ["POST /reservations", "DELETE /reservations/{id}"],
+  "dataModel": ["reservations(id, sku, qty, expires_at, status)"],
+  "security": ["RBAC for reservation endpoints"],
+  "errors": ["409 insufficient stock", "404 missing reservation"],
+  "performance": ["1000 rps sustained"],
+  "observability": ["reservation lifecycle logs", "latency metrics"]
+}

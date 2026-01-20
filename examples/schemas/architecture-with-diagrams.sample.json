@@ -1,0 +1,10 @@
+{
+  "context": "Inventory reservation service",
+  "containers": ["API service", "Redis cache", "Postgres DB"],
+  "components": ["reservation controller", "reservation store"],
+  "deployment": ["k8s", "managed postgres"],
+  "diagrams": [
+    { "type": "context", "path": "examples/diagrams/context.sample.mmd", "format": "mermaid" },
+    { "type": "container", "path": "examples/diagrams/container.sample.mmd", "format": "mermaid" }
+  ]
+}

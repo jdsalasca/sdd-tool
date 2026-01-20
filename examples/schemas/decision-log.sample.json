@@ -1,0 +1,10 @@
+{
+  "id": "ADR-0003",
+  "title": "Use Redis for reservation holds",
+  "status": "accepted",
+  "context": "Need fast expiry and high throughput",
+  "decision": "Use Redis for reservation hold state",
+  "consequences": "Add Redis dependency and monitoring",
+  "date": "2025-01-20",
+  "supersedes": ""
+}

@@ -1,0 +1,6 @@
+{
+  "gates": [
+    { "id": "objective_defined", "description": "Objective is defined" },
+    { "id": "scope_defined", "description": "Scope is defined" }
+  ]
+}

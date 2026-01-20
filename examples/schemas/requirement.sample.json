@@ -1,0 +1,25 @@
+{
+  "id": "REQ-0007",
+  "title": "Inventory Reservation API",
+  "objective": "Prevent overselling by reserving stock for checkout.",
+  "status": "backlog",
+  "actors": ["warehouse_staff", "checkout_service"],
+  "scope": {
+    "in": ["create reservation", "release reservation", "expiration"],
+    "out": ["payment integration"]
+  },
+  "acceptanceCriteria": [
+    "Reservation created in under 200ms",
+    "Stock is not oversold",
+    "Reservations expire automatically"
+  ],
+  "nfrs": {
+    "security": "RBAC for reservation endpoints",
+    "performance": "1000 rps sustained",
+    "availability": "99.9%"
+  },
+  "constraints": ["Must work with existing inventory DB"],
+  "risks": ["Stale inventory data"],
+  "links": ["https://example.com/issue/77"],
+  "updatedAt": "2025-01-20"
+}

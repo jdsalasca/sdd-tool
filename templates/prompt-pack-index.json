@@ -1,0 +1,127 @@
+{
+  "packs": [
+    {
+      "id": "discovery.core",
+      "questions": [
+        "What is the objective?",
+        "Who are the users and actors?",
+        "What is in scope and out of scope?",
+        "What are the acceptance criteria?",
+        "What NFRs apply (security, performance, availability)?",
+        "What are the critical paths and edge cases?",
+        "What coverage and complexity thresholds apply?"
+      ],
+      "gates": [
+        "objective_defined",
+        "scope_defined",
+        "acceptance_criteria_defined",
+        "nfrs_defined",
+        "test_plan_defined",
+        "quality_thresholds_defined"
+      ]
+    },
+    {
+      "id": "bug_fix.core",
+      "questions": [
+        "Expected vs actual behavior?",
+        "Steps to reproduce?",
+        "Environment and version?",
+        "Severity and impact?"
+      ],
+      "gates": [
+        "repro_steps_defined"
+      ]
+    },
+    {
+      "id": "pr_review.core",
+      "questions": [
+        "PR link and target branch?",
+        "Blocking comments?",
+        "Tests required?"
+      ],
+      "gates": [
+        "comment_audit_complete"
+      ]
+    },
+    {
+      "id": "review.severity",
+      "questions": [
+        "Which comments are blockers vs minor?",
+        "Which comments affect correctness or safety?"
+      ],
+      "gates": [
+        "comment_severity_defined"
+      ]
+    },
+    {
+      "id": "release.rollout",
+      "questions": [
+        "What is the rollout plan?",
+        "What metrics define success?"
+      ],
+      "gates": [
+        "rollout_defined"
+      ]
+    },
+    {
+      "id": "data.monitoring",
+      "questions": [
+        "How will model drift be monitored?",
+        "What alerts are required?"
+      ],
+      "gates": [
+        "monitoring_defined"
+      ]
+    },
+    {
+      "id": "design.accessibility",
+      "questions": [
+        "What accessibility standards apply?",
+        "What contrast or usability checks are required?"
+      ],
+      "gates": [
+        "accessibility_defined"
+      ]
+    },
+    {
+      "id": "humanities.sources",
+      "questions": [
+        "What sources are acceptable?",
+        "How will source reliability be assessed?"
+      ],
+      "gates": [
+        "source_quality_defined"
+      ]
+    },
+    {
+      "id": "business.sensitivity",
+      "questions": [
+        "What sensitivity analysis is required?",
+        "What assumptions are most risky?"
+      ],
+      "gates": [
+        "sensitivity_defined"
+      ]
+    },
+    {
+      "id": "legal.compliance",
+      "questions": [
+        "What compliance constraints apply?",
+        "What retention/audit rules are required?"
+      ],
+      "gates": [
+        "compliance_defined"
+      ]
+    },
+    {
+      "id": "learn.format",
+      "questions": [
+        "What output format do you want?",
+        "What depth is required?"
+      ],
+      "gates": [
+        "learning_format_defined"
+      ]
+    }
+  ]
+}

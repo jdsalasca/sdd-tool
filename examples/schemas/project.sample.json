@@ -1,0 +1,10 @@
+{
+  "id": "proj-001",
+  "name": "inventory-reservation",
+  "domain": "software",
+  "status": "backlog",
+  "path": "/workspaces/inventory-reservation",
+  "languageProfile": "javascript",
+  "qualityProfile": "default",
+  "updatedAt": "2025-01-20"
+}

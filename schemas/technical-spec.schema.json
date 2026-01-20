@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Technical Spec",
+  "type": "object",
+  "required": ["stack", "interfaces", "dataModel", "security", "errors"],
+  "properties": {
+    "stack": { "type": "array", "items": { "type": "string" } },
+    "interfaces": { "type": "array", "items": { "type": "string" } },
+    "dataModel": { "type": "array", "items": { "type": "string" } },
+    "security": { "type": "array", "items": { "type": "string" } },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "performance": { "type": "array", "items": { "type": "string" } },
+    "observability": { "type": "array", "items": { "type": "string" } }
+  }
+}

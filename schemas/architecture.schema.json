@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Architecture",
+  "type": "object",
+  "required": ["context", "containers", "components"],
+  "properties": {
+    "context": { "type": "string" },
+    "containers": { "type": "array", "items": { "type": "string" } },
+    "components": { "type": "array", "items": { "type": "string" } },
+    "deployment": { "type": "array", "items": { "type": "string" } },
+    "diagrams": { "type": "array", "items": { "type": "string" } }
+  }
+}

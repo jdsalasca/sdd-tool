@@ -1,0 +1,7 @@
+{
+  "context": "Inventory reservation service",
+  "containers": ["API service", "Redis cache", "Postgres DB"],
+  "components": ["reservation controller", "reservation store"],
+  "deployment": ["k8s", "managed postgres"],
+  "diagrams": ["context.mmd", "container.mmd"]
+}

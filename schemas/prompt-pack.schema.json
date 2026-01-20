@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Prompt Pack",
+  "type": "object",
+  "required": ["id", "questions", "gates"],
+  "properties": {
+    "id": { "type": "string" },
+    "questions": { "type": "array", "items": { "type": "string" } },
+    "gates": { "type": "array", "items": { "type": "string" } },
+    "followUps": { "type": "array", "items": { "type": "string" } }
+  }
+}

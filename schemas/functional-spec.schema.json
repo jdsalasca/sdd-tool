@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Functional Spec",
+  "type": "object",
+  "required": ["overview", "useCases", "rules", "acceptanceCriteria"],
+  "properties": {
+    "overview": { "type": "string" },
+    "actors": { "type": "array", "items": { "type": "string" } },
+    "useCases": { "type": "array", "items": { "type": "string" } },
+    "flows": { "type": "array", "items": { "type": "string" } },
+    "rules": { "type": "array", "items": { "type": "string" } },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "acceptanceCriteria": { "type": "array", "items": { "type": "string" } }
+  }
+}

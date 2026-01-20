@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Quality Contract",
+  "type": "object",
+  "required": ["rules", "profiles", "thresholds"],
+  "properties": {
+    "rules": { "type": "array", "items": { "type": "string" } },
+    "thresholds": {
+      "type": "object",
+      "properties": {
+        "coverage": { "type": "string" },
+        "complexity": { "type": "string" }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Test Plan",
+  "type": "object",
+  "required": ["criticalPaths", "edgeCases", "coverageTarget", "acceptanceTests"],
+  "properties": {
+    "criticalPaths": { "type": "array", "items": { "type": "string" } },
+    "edgeCases": { "type": "array", "items": { "type": "string" } },
+    "coverageTarget": { "type": "string" },
+    "acceptanceTests": { "type": "array", "items": { "type": "string" } },
+    "regressions": { "type": "array", "items": { "type": "string" } }
+  }
+}

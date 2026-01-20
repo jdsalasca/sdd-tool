@@ -1,0 +1,9 @@
+{
+  "overview": "Reservation API for checkout flow",
+  "actors": ["warehouse_staff", "checkout_service"],
+  "useCases": ["create reservation", "release reservation"],
+  "flows": ["reserve -> hold -> expire"],
+  "rules": ["expiration after 30 minutes"],
+  "errors": ["insufficient stock"],
+  "acceptanceCriteria": ["reservation prevents oversell"]
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Domain",
+  "type": "string",
+  "enum": [
+    "software",
+    "bug_fix",
+    "pr_review",
+    "data_science",
+    "design",
+    "art",
+    "history",
+    "sociology",
+    "economics",
+    "legal",
+    "education",
+    "business",
+    "learning"
+  ]
+}

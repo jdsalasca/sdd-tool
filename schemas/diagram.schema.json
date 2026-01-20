@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Diagram",
+  "type": "object",
+  "required": ["type", "path"],
+  "properties": {
+    "type": { "type": "string", "enum": ["context", "container", "component"] },
+    "path": { "type": "string" },
+    "format": { "type": "string", "enum": ["mermaid", "plantuml"] }
+  }
+}

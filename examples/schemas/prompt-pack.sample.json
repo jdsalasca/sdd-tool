@@ -1,0 +1,20 @@
+{
+  "id": "discovery.core",
+  "questions": [
+    "What is the objective?",
+    "Who are the users and actors?",
+    "What is in scope and out of scope?",
+    "What are the acceptance criteria?",
+    "What NFRs apply?"
+  ],
+  "gates": [
+    "objective_defined",
+    "scope_defined",
+    "acceptance_criteria_defined",
+    "nfrs_defined"
+  ],
+  "followUps": [
+    "Provide measurable success metrics.",
+    "Provide constraints and deadlines."
+  ]
+}

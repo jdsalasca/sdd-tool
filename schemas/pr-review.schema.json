@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PR Review",
+  "type": "object",
+  "required": ["prLink", "comments", "audit", "responses", "tests"],
+  "properties": {
+    "prLink": { "type": "string" },
+    "comments": { "type": "array", "items": { "type": "string" } },
+    "audit": {
+      "type": "object",
+      "required": ["valid", "debatable"],
+      "properties": {
+        "valid": { "type": "array", "items": { "type": "string" } },
+        "debatable": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "responses": { "type": "array", "items": { "type": "string" } },
+    "tests": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Template Metadata",
+  "type": "object",
+  "required": ["name", "placeholders"],
+  "properties": {
+    "name": { "type": "string" },
+    "placeholders": { "type": "array", "items": { "type": "string" } }
+  }
+}
