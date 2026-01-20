@@ -126,6 +126,43 @@ req
     await runReqExport();
   });
 
+const pr = program.command("pr").description("PR review workflow commands");
+pr
+  .command("start")
+  .description("Initialize PR review artifacts")
+  .action(async () => {
+    const { runPrStart } = await import("./commands/pr-start");
+    await runPrStart();
+  });
+pr
+  .command("audit")
+  .description("Update PR comment audit")
+  .action(async () => {
+    const { runPrAudit } = await import("./commands/pr-audit");
+    await runPrAudit();
+  });
+pr
+  .command("respond")
+  .description("Generate a response for a PR comment")
+  .action(async () => {
+    const { runPrRespond } = await import("./commands/pr-respond");
+    await runPrRespond();
+  });
+pr
+  .command("finish")
+  .description("Finalize PR review summary")
+  .action(async () => {
+    const { runPrFinish } = await import("./commands/pr-finish");
+    await runPrFinish();
+  });
+pr
+  .command("report")
+  .description("Generate PR review report")
+  .action(async () => {
+    const { runPrReport } = await import("./commands/pr-report");
+    await runPrReport();
+  });
+
 program
   .command("route")
   .description("Classify intent and select a flow")
