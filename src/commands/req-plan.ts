@@ -163,5 +163,8 @@ export async function runReqPlan(): Promise<void> {
   fs.writeFileSync(path.join(targetDir, "test-plan.md"), testPlanRendered, "utf-8");
   fs.writeFileSync(path.join(targetDir, "test-plan.json"), JSON.stringify(testPlanJson, null, 2), "utf-8");
 
+  const progressLog = path.join(targetDir, "progress-log.md");
+  const logEntry = `\n- ${new Date().toISOString()} generated specs for ${reqId}\n`;
+  fs.appendFileSync(progressLog, logEntry, "utf-8");
   console.log(`Generated specs in ${targetDir}`);
 }

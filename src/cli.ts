@@ -66,6 +66,13 @@ req
     const { runReqArchive } = await import("./commands/req-archive");
     await runReqArchive();
   });
+req
+  .command("list")
+  .description("List requirements by status")
+  .action(async () => {
+    const { runReqList } = await import("./commands/req-list");
+    await runReqList();
+  });
 
 program
   .command("route")

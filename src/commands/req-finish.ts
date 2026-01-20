@@ -105,5 +105,8 @@ export async function runReqFinish(): Promise<void> {
     fs.mkdirSync(path.dirname(archiveRoot), { recursive: true });
     fs.renameSync(decisionLog, archiveRoot);
   }
+  const progressLog = path.join(doneDir, "progress-log.md");
+  const logEntry = `\n- ${new Date().toISOString()} finished requirement ${reqId}\n`;
+  fs.appendFileSync(progressLog, logEntry, "utf-8");
   console.log(`Moved requirement to ${doneDir}`);
 }

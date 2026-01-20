@@ -89,5 +89,9 @@ export async function runReqStart(): Promise<void> {
   fs.mkdirSync(decisionDir, { recursive: true });
   fs.writeFileSync(path.join(decisionDir, "ADR-0001.md"), decisionRendered, "utf-8");
 
+  const progressLog = path.join(targetDir, "progress-log.md");
+  const logEntry = `\n- ${new Date().toISOString()} started implementation for ${reqId}\n`;
+  fs.appendFileSync(progressLog, logEntry, "utf-8");
+
   console.log(`Implementation plan generated in ${targetDir}`);
 }
