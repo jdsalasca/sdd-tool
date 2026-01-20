@@ -1,9 +1,10 @@
 import { classifyIntent } from "../router/intent";
-import { getWorkspaceInfo, listProjects } from "../workspace/index";
+import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
 import { ask } from "../ui/prompt";
 
 export async function runHello(input: string): Promise<void> {
   const workspace = getWorkspaceInfo();
+  ensureWorkspace(workspace);
   const projects = listProjects(workspace);
 
   console.log("Hello from sdd-tool.");

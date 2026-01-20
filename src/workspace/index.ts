@@ -12,12 +12,26 @@ export type WorkspaceInfo = {
   indexPath: string;
 };
 
+type WorkspaceIndex = {
+  projects: Array<{ name: string; status: string }>;
+};
+
 export function getWorkspaceInfo(): WorkspaceInfo {
   const root = process.env.APPDATA
     ? path.join(process.env.APPDATA, "sdd-tool", "workspaces")
     : path.join(os.homedir(), ".config", "sdd-tool", "workspaces");
   const indexPath = path.join(root, "workspaces.json");
   return { root, indexPath };
+}
+
+export function ensureWorkspace(workspace: WorkspaceInfo): void {
+  if (!fs.existsSync(workspace.root)) {
+    fs.mkdirSync(workspace.root, { recursive: true });
+  }
+  if (!fs.existsSync(workspace.indexPath)) {
+    const emptyIndex: WorkspaceIndex = { projects: [] };
+    fs.writeFileSync(workspace.indexPath, JSON.stringify(emptyIndex, null, 2), "utf-8");
+  }
 }
 
 export function listProjects(workspace: WorkspaceInfo): ProjectSummary[] {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { runHello } from "./commands/hello";
+import { runInit } from "./commands/init";
 import { runRoute } from "./commands/route";
 
 const program = new Command();
@@ -15,6 +16,11 @@ program
   .description("Start an interactive session and route intent")
   .argument("[input...]", "Optional input to classify")
   .action((input: string[]) => runHello(input.join(" ").trim()));
+
+program
+  .command("init")
+  .description("Initialize workspace and config")
+  .action(() => runInit());
 
 program
   .command("route")
