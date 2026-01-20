@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
-import { getWorkspaceInfo } from "../workspace/index";
+import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 
 function findRequirementDir(workspaceRoot: string, project: string, reqId: string): string | null {
   const backlog = path.join(workspaceRoot, project, "requirements", "backlog", reqId);
@@ -31,5 +31,6 @@ export async function runReqFinish(): Promise<void> {
   const doneDir = path.join(workspace.root, projectName, "requirements", "done", reqId);
   fs.mkdirSync(path.dirname(doneDir), { recursive: true });
   fs.renameSync(requirementDir, doneDir);
+  updateProjectStatus(workspace, projectName, "done");
   console.log(`Moved requirement to ${doneDir}`);
 }

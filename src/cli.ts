@@ -39,6 +39,13 @@ req
     await runReqPlan();
   });
 req
+  .command("refine")
+  .description("Refine an existing requirement")
+  .action(async () => {
+    const { runReqRefine } = await import("./commands/req-refine");
+    await runReqRefine();
+  });
+req
   .command("start")
   .description("Generate implementation plan and quality contract")
   .action(async () => {

@@ -82,3 +82,26 @@ export function createProject(workspace: WorkspaceInfo, name: string, domain: st
 
   return metadata;
 }
+
+export function updateProjectStatus(workspace: WorkspaceInfo, name: string, status: string): void {
+  ensureWorkspace(workspace);
+  const indexRaw = fs.readFileSync(workspace.indexPath, "utf-8");
+  const index = JSON.parse(indexRaw) as WorkspaceIndex;
+  index.projects = index.projects ?? [];
+  const existing = index.projects.find((project) => project.name === name);
+  if (existing) {
+    existing.status = status;
+  } else {
+    index.projects.push({ name, status });
+  }
+  fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
+
+  const projectRoot = path.join(workspace.root, name);
+  const metadataPath = path.join(projectRoot, "metadata.json");
+  if (fs.existsSync(metadataPath)) {
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as ProjectMetadata;
+    metadata.status = status;
+    metadata.updatedAt = new Date().toISOString();
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");
+  }
+}
