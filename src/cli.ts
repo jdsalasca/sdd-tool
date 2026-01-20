@@ -230,6 +230,29 @@ gen
     await runGenProjectReadme();
   });
 
+const learn = program.command("learn").description("Learning mode commands");
+learn
+  .command("start")
+  .description("Start a learning session")
+  .action(async () => {
+    const { runLearnStart } = await import("./commands/learn-start");
+    await runLearnStart();
+  });
+learn
+  .command("refine")
+  .description("Refine a learning session")
+  .action(async () => {
+    const { runLearnRefine } = await import("./commands/learn-refine");
+    await runLearnRefine();
+  });
+learn
+  .command("deliver")
+  .description("Deliver learning outputs")
+  .action(async () => {
+    const { runLearnDeliver } = await import("./commands/learn-deliver");
+    await runLearnDeliver();
+  });
+
 program
   .command("route")
   .description("Classify intent and select a flow")

@@ -150,6 +150,11 @@ The `hello` command is the entry point: it connects to AI, lists active projects
 ### Test planning
 - `sdd-tool test plan`
 
+### Learning mode
+- `sdd-tool learn start`
+- `sdd-tool learn refine`
+- `sdd-tool learn deliver`
+
 ### Flags
 - `--approve` -- run without extra confirmations
 - `--improve` -- re-open and enhance existing docs
