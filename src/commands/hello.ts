@@ -1,7 +1,8 @@
 import { classifyIntent } from "../router/intent";
 import { getWorkspaceInfo, listProjects } from "../workspace/index";
+import { ask } from "../ui/prompt";
 
-export function runHello(input: string): void {
+export async function runHello(input: string): Promise<void> {
   const workspace = getWorkspaceInfo();
   const projects = listProjects(workspace);
 
@@ -13,15 +14,18 @@ export function runHello(input: string): void {
     projects.forEach((project) => {
       console.log(`- ${project.name} (${project.status})`);
     });
+    const choice = await ask("Start new or continue? (new/continue) ");
+    console.log(`Selected: ${choice || "new"}`);
   } else {
     console.log("No active projects found.");
   }
 
-  if (input) {
-    const intent = classifyIntent(input);
-    console.log(`Detected intent: ${intent.intent} -> ${intent.flow}`);
-    console.log("Next: run `sdd-tool route <your input>` to view details.");
-  } else {
-    console.log("Tip: add a description after `hello` to classify intent.");
+  const text = input || (await ask("Describe what you want to do: "));
+  if (!text) {
+    console.log("No input provided. Try again with a short description.");
+    return;
   }
+  const intent = classifyIntent(text);
+  console.log(`Detected intent: ${intent.intent} -> ${intent.flow}`);
+  console.log("Next: run `sdd-tool route <your input>` to view details.");
 }

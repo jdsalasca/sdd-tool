@@ -29,7 +29,7 @@ export function classifyIntent(input: string): RouterIntent {
     intent: "generic",
     confidence: 0.3,
     flow: "GENERIC",
-    domain: "software",
+    domain: "generic",
     signals: []
   };
 }
