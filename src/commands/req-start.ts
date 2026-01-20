@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
-import { getWorkspaceInfo } from "../workspace/index";
+import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList } from "../utils/list";
 import { validateJson } from "../validation/validate";
@@ -31,6 +31,15 @@ export async function runReqStart(): Promise<void> {
     return;
   }
 
+  const inProgressDir = path.join(workspace.root, projectName, "requirements", "in-progress", reqId);
+  if (!requirementDir.includes(path.join("requirements", "in-progress"))) {
+    fs.mkdirSync(path.dirname(inProgressDir), { recursive: true });
+    fs.renameSync(requirementDir, inProgressDir);
+    updateProjectStatus(workspace, projectName, "in-progress");
+  }
+
+  const targetDir = fs.existsSync(inProgressDir) ? inProgressDir : requirementDir;
+
   const milestones = await ask("Milestones - comma separated: ");
   const tasks = await ask("Tasks - comma separated: ");
   const dependencies = await ask("Dependencies - comma separated: ");
@@ -45,7 +54,7 @@ export async function runReqStart(): Promise<void> {
     risks: formatList(risks)
   });
 
-  const qualityPath = path.join(requirementDir, "quality.yml");
+  const qualityPath = path.join(targetDir, "quality.yml");
   if (!fs.existsSync(qualityPath)) {
     const qualityTemplate = loadTemplate("quality");
     fs.writeFileSync(qualityPath, qualityTemplate, "utf-8");
@@ -63,8 +72,8 @@ export async function runReqStart(): Promise<void> {
     return;
   }
 
-  fs.writeFileSync(path.join(requirementDir, "implementation-plan.md"), rendered, "utf-8");
-  fs.writeFileSync(path.join(requirementDir, "quality.json"), JSON.stringify(qualityJson, null, 2), "utf-8");
+  fs.writeFileSync(path.join(targetDir, "implementation-plan.md"), rendered, "utf-8");
+  fs.writeFileSync(path.join(targetDir, "quality.json"), JSON.stringify(qualityJson, null, 2), "utf-8");
 
   const decisionTemplate = loadTemplate("decision-log");
   const decisionRendered = renderTemplate(decisionTemplate, {
@@ -76,9 +85,9 @@ export async function runReqStart(): Promise<void> {
     consequences: "Defines first iteration scope",
     date: new Date().toISOString()
   });
-  const decisionDir = path.join(requirementDir, "decision-log");
+  const decisionDir = path.join(targetDir, "decision-log");
   fs.mkdirSync(decisionDir, { recursive: true });
   fs.writeFileSync(path.join(decisionDir, "ADR-0001.md"), decisionRendered, "utf-8");
 
-  console.log(`Implementation plan generated in ${requirementDir}`);
+  console.log(`Implementation plan generated in ${targetDir}`);
 }

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
 import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
+import { loadTemplate, renderTemplate } from "../templates/render";
 import { validateJson } from "../validation/validate";
 
 function findRequirementDir(workspaceRoot: string, project: string, reqId: string): string | null {
@@ -54,5 +55,26 @@ export async function runReqFinish(): Promise<void> {
   fs.mkdirSync(path.dirname(doneDir), { recursive: true });
   fs.renameSync(requirementDir, doneDir);
   updateProjectStatus(workspace, projectName, "done");
+
+  const overview = await ask("Project overview (for README): ");
+  const howToRun = await ask("How to run (for README): ");
+  const archSummary = await ask("Architecture summary (for README): ");
+  const testingNotes = await ask("Testing notes (for README): ");
+
+  const readmeTemplate = loadTemplate("project-readme");
+  const readmeRendered = renderTemplate(readmeTemplate, {
+    project_name: projectName,
+    overview: overview || "N/A",
+    how_to_run: howToRun || "N/A",
+    architecture_summary: archSummary || "N/A",
+    requirements_link: `requirements/done/${reqId}/requirement.md`,
+    functional_spec_link: `requirements/done/${reqId}/functional-spec.md`,
+    technical_spec_link: `requirements/done/${reqId}/technical-spec.md`,
+    architecture_link: `requirements/done/${reqId}/architecture.md`,
+    testing_notes: testingNotes || "N/A"
+  });
+
+  const projectRoot = path.join(workspace.root, projectName);
+  fs.writeFileSync(path.join(projectRoot, "project-readme.md"), readmeRendered, "utf-8");
   console.log(`Moved requirement to ${doneDir}`);
 }

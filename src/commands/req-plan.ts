@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
-import { getWorkspaceInfo } from "../workspace/index";
+import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
@@ -33,6 +33,7 @@ export async function runReqPlan(): Promise<void> {
   if (requirementDir.includes(path.join("requirements", "backlog"))) {
     fs.mkdirSync(path.dirname(wipDir), { recursive: true });
     fs.renameSync(requirementDir, wipDir);
+    updateProjectStatus(workspace, projectName, "wip");
   }
 
   const targetDir = fs.existsSync(wipDir) ? wipDir : requirementDir;
