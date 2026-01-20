@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
+import { getFlags } from "../context/flags";
 import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
@@ -76,6 +77,8 @@ export async function runReqPlan(): Promise<void> {
   const acceptanceTests = await ask("Acceptance tests - comma separated: ");
   const regressions = await ask("Regression tests - comma separated: ");
   const coverageTarget = await ask("Coverage target: ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const functionalJson = {
     overview: overview || "N/A",
@@ -182,6 +185,10 @@ export async function runReqPlan(): Promise<void> {
   }
   const logEntry = `\n- ${new Date().toISOString()} generated specs for ${reqId}\n`;
   fs.appendFileSync(progressLog, logEntry, "utf-8");
+  if (flags.improve) {
+    const improveEntry = `\n- ${new Date().toISOString()} improve: ${improveNote || "refinement requested"}\n`;
+    fs.appendFileSync(progressLog, improveEntry, "utf-8");
+  }
 
   const changelog = path.join(targetDir, "changelog.md");
   if (!fs.existsSync(changelog)) {

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
+import { getFlags } from "../context/flags";
 import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList } from "../utils/list";
@@ -67,6 +68,8 @@ export async function runReqStart(): Promise<void> {
   const tasks = await ask("Tasks - comma separated: ");
   const dependencies = await ask("Dependencies - comma separated: ");
   const risks = await ask("Risks - comma separated: ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const implementationTemplate = loadTemplate("implementation-plan");
   const rendered = renderTemplate(implementationTemplate, {
@@ -118,6 +121,10 @@ export async function runReqStart(): Promise<void> {
   }
   const logEntry = `\n- ${new Date().toISOString()} started implementation for ${reqId}\n`;
   fs.appendFileSync(progressLog, logEntry, "utf-8");
+  if (flags.improve) {
+    const improveEntry = `\n- ${new Date().toISOString()} improve: ${improveNote || "refinement requested"}\n`;
+    fs.appendFileSync(progressLog, improveEntry, "utf-8");
+  }
   const changelog = path.join(targetDir, "changelog.md");
   if (!fs.existsSync(changelog)) {
     fs.writeFileSync(changelog, "# Changelog\n\n", "utf-8");

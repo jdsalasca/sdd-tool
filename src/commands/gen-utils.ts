@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { getWorkspaceInfo } from "../workspace/index";
+import { getFlags } from "../context/flags";
 
 export function findRequirementDir(projectName: string, reqId: string): string | null {
   const workspace = getWorkspaceInfo();
@@ -26,4 +27,13 @@ export function appendProgress(dir: string, message: string): void {
   ensureProgressLog(dir);
   const logEntry = `\n- ${new Date().toISOString()} ${message}\n`;
   fs.appendFileSync(path.join(dir, "progress-log.md"), logEntry, "utf-8");
+}
+
+export function appendImprove(dir: string, note?: string): void {
+  const flags = getFlags();
+  if (!flags.improve) {
+    return;
+  }
+  const message = note && note.trim().length > 0 ? `improve: ${note.trim()}` : "improve: refinement requested";
+  appendProgress(dir, message);
 }

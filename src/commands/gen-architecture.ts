@@ -4,7 +4,8 @@ import { ask } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
-import { appendProgress, findRequirementDir } from "./gen-utils";
+import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
+import { getFlags } from "../context/flags";
 
 export async function runGenArchitecture(): Promise<void> {
   const projectName = await ask("Project name: ");
@@ -25,6 +26,8 @@ export async function runGenArchitecture(): Promise<void> {
   const components = await ask("Components - comma separated: ");
   const deployment = await ask("Deployment - comma separated: ");
   const diagrams = await ask("Diagrams - comma separated: ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const architectureJson = {
     context: context || "N/A",
@@ -54,5 +57,6 @@ export async function runGenArchitecture(): Promise<void> {
   fs.writeFileSync(path.join(requirementDir, "architecture.md"), rendered, "utf-8");
   fs.writeFileSync(path.join(requirementDir, "architecture.json"), JSON.stringify(architectureJson, null, 2), "utf-8");
   appendProgress(requirementDir, `generated architecture for ${reqId}`);
+  appendImprove(requirementDir, improveNote);
   console.log(`Architecture generated in ${requirementDir}`);
 }

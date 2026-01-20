@@ -2,7 +2,8 @@ import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
 import { validateJson } from "../validation/validate";
-import { appendProgress, findRequirementDir } from "./gen-utils";
+import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
+import { getFlags } from "../context/flags";
 
 function renderQualityYaml(rules: string[], coverage: string, complexity: string): string {
   const ruleLines = rules.length > 0 ? rules.map((rule) => `  - ${rule}`).join("\n") : "  - N/A";
@@ -34,6 +35,8 @@ export async function runGenBestPractices(): Promise<void> {
   const rules = await ask("Quality rules - comma separated: ");
   const coverage = await ask("Coverage threshold (e.g., 80%): ");
   const complexity = await ask("Complexity threshold (e.g., 10): ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const qualityJson = {
     rules: rules ? rules.split(",").map((rule) => rule.trim()).filter((rule) => rule) : [],
@@ -62,5 +65,6 @@ export async function runGenBestPractices(): Promise<void> {
   fs.writeFileSync(path.join(requirementDir, "quality.json"), JSON.stringify(qualityJson, null, 2), "utf-8");
 
   appendProgress(requirementDir, `generated quality contract for ${reqId}`);
+  appendImprove(requirementDir, improveNote);
   console.log(`Quality contract generated in ${requirementDir}`);
 }

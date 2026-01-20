@@ -4,7 +4,8 @@ import { ask } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
-import { appendProgress, findRequirementDir } from "./gen-utils";
+import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
+import { getFlags } from "../context/flags";
 
 export async function runGenTechnicalSpec(): Promise<void> {
   const projectName = await ask("Project name: ");
@@ -27,6 +28,8 @@ export async function runGenTechnicalSpec(): Promise<void> {
   const errors = await ask("Error handling - comma separated: ");
   const performance = await ask("Performance - comma separated: ");
   const observability = await ask("Observability - comma separated: ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const technicalJson = {
     stack: parseList(stack),
@@ -60,5 +63,6 @@ export async function runGenTechnicalSpec(): Promise<void> {
   fs.writeFileSync(path.join(requirementDir, "technical-spec.md"), rendered, "utf-8");
   fs.writeFileSync(path.join(requirementDir, "technical-spec.json"), JSON.stringify(technicalJson, null, 2), "utf-8");
   appendProgress(requirementDir, `generated technical spec for ${reqId}`);
+  appendImprove(requirementDir, improveNote);
   console.log(`Technical spec generated in ${requirementDir}`);
 }

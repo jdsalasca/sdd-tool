@@ -1,6 +1,6 @@
 import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
-import { ask } from "../ui/prompt";
+import { ask, confirm } from "../ui/prompt";
 import { getPromptPackById, loadPromptPacks } from "../router/prompt-packs";
 import { mapAnswersToRequirement } from "../router/prompt-map";
 import { runReqCreate } from "./req-create";
@@ -55,8 +55,8 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       const mapped = mapAnswersToRequirement(answers);
       console.log("\nDraft requirement fields:");
       console.log(JSON.stringify(mapped, null, 2));
-      const confirm = await ask("Generate requirement draft now? (y/n) ");
-      if (confirm.toLowerCase() === "y") {
+      const ok = await confirm("Generate requirement draft now? (y/n) ");
+      if (ok) {
         await runReqCreate(mapped);
       }
     }
