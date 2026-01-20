@@ -163,6 +163,15 @@ pr
     await runPrReport();
   });
 
+const test = program.command("test").description("Test planning commands");
+test
+  .command("plan")
+  .description("Generate or update a test plan")
+  .action(async () => {
+    const { runTestPlan } = await import("./commands/test-plan");
+    await runTestPlan();
+  });
+
 program
   .command("route")
   .description("Classify intent and select a flow")

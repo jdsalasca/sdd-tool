@@ -34,6 +34,9 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-tool pr finish`
 - `sdd-tool pr report`
 
+## Test planning
+- `sdd-tool test plan`
+
 ## Generators
 - `sdd-tool gen requirements`
 - `sdd-tool gen functional-spec`
