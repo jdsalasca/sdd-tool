@@ -3,7 +3,8 @@ import path from "path";
 import { ask } from "../ui/prompt";
 import { createProject, getWorkspaceInfo } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
-import { formatList } from "../utils/list";
+import { formatList, parseList } from "../utils/list";
+import { validateJson } from "../validation/validate";
 
 function generateId(): string {
   const now = new Date();
@@ -30,6 +31,36 @@ export async function runReqCreate(): Promise<void> {
   const workspace = getWorkspaceInfo();
   const metadata = createProject(workspace, projectName, domain || "software");
   const reqId = generateId();
+  const status = "backlog";
+
+  const requirementJson = {
+    id: reqId,
+    title: projectName,
+    objective: objective || "N/A",
+    status,
+    actors: [],
+    scope: {
+      in: parseList(scopeIn),
+      out: parseList(scopeOut)
+    },
+    acceptanceCriteria: parseList(acceptance),
+    nfrs: {
+      security: nfrSecurity || "N/A",
+      performance: nfrPerformance || "N/A",
+      availability: nfrAvailability || "N/A"
+    },
+    constraints: parseList(constraints),
+    risks: parseList(risks),
+    links: parseList(links),
+    updatedAt: new Date().toISOString()
+  };
+
+  const validation = validateJson("requirement.schema.json", requirementJson);
+  if (!validation.valid) {
+    console.log("Requirement validation failed:");
+    validation.errors.forEach((error) => console.log(`- ${error}`));
+    return;
+  }
 
   const requirementDir = path.join(workspace.root, projectName, "requirements", "backlog", reqId);
   fs.mkdirSync(requirementDir, { recursive: true });
@@ -52,6 +83,7 @@ export async function runReqCreate(): Promise<void> {
   });
 
   fs.writeFileSync(path.join(requirementDir, "requirement.md"), rendered, "utf-8");
+  fs.writeFileSync(path.join(requirementDir, "requirement.json"), JSON.stringify(requirementJson, null, 2), "utf-8");
   console.log(`Created requirement in ${requirementDir}`);
   console.log(`Project metadata stored in ${path.join(workspace.root, projectName, "metadata.json")}`);
   console.log(`Project status: ${metadata.status}`);

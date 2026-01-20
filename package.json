@@ -21,6 +21,7 @@
     "dev": "ts-node src/cli.ts"
   },
   "dependencies": {
+    "ajv": "^8.17.1",
     "commander": "^12.1.0"
   },
   "devDependencies": {
