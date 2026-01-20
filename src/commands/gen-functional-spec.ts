@@ -22,6 +22,7 @@ export async function runGenFunctionalSpec(): Promise<void> {
   }
 
   const overview = await ask("Functional overview: ");
+  const actors = await ask("Actors - comma separated: ");
   const useCases = await ask("Use cases - comma separated: ");
   const flows = await ask("Flows - comma separated: ");
   const rules = await ask("Business rules - comma separated: ");
@@ -32,7 +33,7 @@ export async function runGenFunctionalSpec(): Promise<void> {
 
   const functionalJson = {
     overview: overview || "N/A",
-    actors: [],
+    actors: parseList(actors),
     useCases: parseList(useCases),
     flows: parseList(flows),
     rules: parseList(rules),
@@ -51,7 +52,7 @@ export async function runGenFunctionalSpec(): Promise<void> {
   const rendered = renderTemplate(template, {
     title: projectName,
     overview: overview || "N/A",
-    actors: "N/A",
+    actors: formatList(actors),
     use_cases: formatList(useCases),
     flows: formatList(flows),
     rules: formatList(rules),

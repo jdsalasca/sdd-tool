@@ -53,7 +53,9 @@ export async function runReqPlan(): Promise<void> {
   const targetDir = fs.existsSync(wipDir) ? wipDir : requirementDir;
 
   const overview = await ask("Functional overview: ");
+  const actors = await ask("Actors - comma separated: ");
   const useCases = await ask("Use cases - comma separated: ");
+  const flows = await ask("Flows - comma separated: ");
   const rules = await ask("Business rules - comma separated: ");
   const errors = await ask("Errors - comma separated: ");
   const acceptance = await ask("Acceptance criteria - comma separated: ");
@@ -82,9 +84,9 @@ export async function runReqPlan(): Promise<void> {
 
   const functionalJson = {
     overview: overview || "N/A",
-    actors: [],
+    actors: parseList(actors),
     useCases: parseList(useCases),
-    flows: [],
+    flows: parseList(flows),
     rules: parseList(rules),
     errors: parseList(errors),
     acceptanceCriteria: parseList(acceptance)
@@ -136,9 +138,9 @@ export async function runReqPlan(): Promise<void> {
   const functionalRendered = renderTemplate(functionalTemplate, {
     title: projectName,
     overview: overview || "N/A",
-    actors: "N/A",
+    actors: formatList(actors),
     use_cases: formatList(useCases),
-    flows: "N/A",
+    flows: formatList(flows),
     rules: formatList(rules),
     errors: formatList(errors),
     acceptance_criteria: formatList(acceptance)

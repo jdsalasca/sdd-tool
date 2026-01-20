@@ -27,6 +27,7 @@ export type RequirementDraft = {
 export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
   const projectName = await ask("Project name: ");
   const domain = await ask("Domain (software, legal, design, learning, etc): ");
+  const actors = await ask("Actors - comma separated: ");
   const objective = draft?.objective ?? (await ask("Objective: "));
   const scopeIn = draft?.scope_in ?? (await ask("Scope (in) - comma separated: "));
   const scopeOut = draft?.scope_out ?? (await ask("Scope (out) - comma separated: "));
@@ -48,7 +49,7 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     title: projectName,
     objective: objective || "N/A",
     status,
-    actors: [],
+    actors: parseList(actors),
     scope: {
       in: parseList(scopeIn),
       out: parseList(scopeOut)
@@ -80,7 +81,7 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     title: projectName,
     id: reqId,
     objective: objective || "N/A",
-    actors: "N/A",
+    actors: formatList(actors),
     scope_in: formatList(scopeIn),
     scope_out: formatList(scopeOut),
     acceptance_criteria: formatList(acceptance),
