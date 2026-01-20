@@ -3,7 +3,8 @@ import path from "path";
 import { ask } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { validateJson } from "../validation/validate";
-import { appendProgress, findRequirementDir } from "./gen-utils";
+import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
+import { getFlags } from "../context/flags";
 
 export async function runGenProjectReadme(): Promise<void> {
   const projectName = await ask("Project name: ");
@@ -27,6 +28,8 @@ export async function runGenProjectReadme(): Promise<void> {
   const technicalSpecLink = await ask("Technical spec link/path: ");
   const architectureLink = await ask("Architecture link/path: ");
   const testingNotes = await ask("Testing notes: ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const projectReadmeJson = {
     projectName,
@@ -66,5 +69,6 @@ export async function runGenProjectReadme(): Promise<void> {
   fs.writeFileSync(path.join(requirementDir, "project-readme.json"), JSON.stringify(projectReadmeJson, null, 2), "utf-8");
 
   appendProgress(requirementDir, `generated project readme for ${reqId}`);
+  appendImprove(requirementDir, improveNote);
   console.log(`Project README generated in ${requirementDir}`);
 }

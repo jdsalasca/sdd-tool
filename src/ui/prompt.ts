@@ -1,5 +1,6 @@
 import fs from "fs";
 import readline from "readline";
+import { getFlags } from "../context/flags";
 
 let queuedAnswers: string[] | null = null;
 
@@ -34,4 +35,14 @@ export function ask(question: string): Promise<string> {
       resolve(answer.trim());
     });
   });
+}
+
+export async function confirm(question: string): Promise<boolean> {
+  const flags = getFlags();
+  if (flags.approve) {
+    return true;
+  }
+  const response = await ask(question);
+  const normalized = response.trim().toLowerCase();
+  return normalized === "y" || normalized === "yes";
 }

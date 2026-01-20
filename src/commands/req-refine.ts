@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
+import { getFlags } from "../context/flags";
 import { getWorkspaceInfo } from "../workspace/index";
 import { renderTemplate, loadTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
@@ -40,6 +41,8 @@ export async function runReqRefine(): Promise<void> {
   const nfrSecurity = await ask("NFR security: ");
   const nfrPerformance = await ask("NFR performance: ");
   const nfrAvailability = await ask("NFR availability: ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const updated = {
     ...raw,
@@ -88,5 +91,13 @@ export async function runReqRefine(): Promise<void> {
   const changelogPath = path.join(path.dirname(reqPath), "changelog.md");
   const logEntry = `\n- ${new Date().toISOString()} refined requirement ${updated.id}\n`;
   fs.appendFileSync(changelogPath, logEntry, "utf-8");
+  if (flags.improve) {
+    const progressLog = path.join(path.dirname(reqPath), "progress-log.md");
+    if (!fs.existsSync(progressLog)) {
+      fs.writeFileSync(progressLog, "# Progress Log\n\n", "utf-8");
+    }
+    const improveEntry = `\n- ${new Date().toISOString()} improve: ${improveNote || "refinement requested"}\n`;
+    fs.appendFileSync(progressLog, improveEntry, "utf-8");
+  }
   console.log(`Requirement updated at ${mdPath}`);
 }

@@ -7,6 +7,7 @@ import { runInit } from "./commands/init";
 import { runRoute } from "./commands/route";
 import { runDoctor } from "./commands/doctor";
 import { getRepoRoot } from "./paths";
+import { setFlags } from "./context/flags";
 
 const program = new Command();
 
@@ -23,7 +24,20 @@ function getVersion(): string {
 program
   .name("sdd-tool")
   .description("SDD-first, AI-native CLI")
-  .version(getVersion());
+  .version(getVersion())
+  .option("--approve", "Skip confirmations if gates pass")
+  .option("--improve", "Trigger self-audit and regenerate")
+  .option("--parallel", "Generate in parallel when supported");
+
+program.hook("preAction", (thisCommand, actionCommand) => {
+  const opts =
+    typeof actionCommand.optsWithGlobals === "function" ? actionCommand.optsWithGlobals() : thisCommand.opts();
+  setFlags({
+    approve: Boolean(opts.approve),
+    improve: Boolean(opts.improve),
+    parallel: Boolean(opts.parallel)
+  });
+});
 
 program
   .command("hello")

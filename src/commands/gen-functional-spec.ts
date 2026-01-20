@@ -4,7 +4,8 @@ import { ask } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
-import { appendProgress, findRequirementDir } from "./gen-utils";
+import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
+import { getFlags } from "../context/flags";
 
 export async function runGenFunctionalSpec(): Promise<void> {
   const projectName = await ask("Project name: ");
@@ -26,6 +27,8 @@ export async function runGenFunctionalSpec(): Promise<void> {
   const rules = await ask("Business rules - comma separated: ");
   const errors = await ask("Errors - comma separated: ");
   const acceptance = await ask("Acceptance criteria - comma separated: ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const functionalJson = {
     overview: overview || "N/A",
@@ -59,5 +62,6 @@ export async function runGenFunctionalSpec(): Promise<void> {
   fs.writeFileSync(path.join(requirementDir, "functional-spec.md"), rendered, "utf-8");
   fs.writeFileSync(path.join(requirementDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2), "utf-8");
   appendProgress(requirementDir, `generated functional spec for ${reqId}`);
+  appendImprove(requirementDir, improveNote);
   console.log(`Functional spec generated in ${requirementDir}`);
 }
