@@ -16,7 +16,9 @@ program
   .command("hello")
   .description("Start an interactive session and route intent")
   .argument("[input...]", "Optional input to classify")
-  .action((input: string[]) => runHello(input.join(" ").trim()));
+  .option("--questions", "Run prompt questions for detected intent")
+  .option("--auto", "Generate a requirement draft after questions")
+  .action((input: string[], options) => runHello(input.join(" ").trim(), options.questions || options.auto));
 
 program
   .command("init")

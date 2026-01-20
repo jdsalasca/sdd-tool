@@ -14,16 +14,26 @@ function generateId(): string {
   return `REQ-${stamp}`;
 }
 
-export async function runReqCreate(): Promise<void> {
+export type RequirementDraft = {
+  objective?: string;
+  scope_in?: string;
+  scope_out?: string;
+  acceptance_criteria?: string;
+  nfr_security?: string;
+  nfr_performance?: string;
+  nfr_availability?: string;
+};
+
+export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
   const projectName = await ask("Project name: ");
   const domain = await ask("Domain (software, legal, design, learning, etc): ");
-  const objective = await ask("Objective: ");
-  const scopeIn = await ask("Scope (in) - comma separated: ");
-  const scopeOut = await ask("Scope (out) - comma separated: ");
-  const acceptance = await ask("Acceptance criteria - comma separated: ");
-  const nfrSecurity = await ask("NFR security: ");
-  const nfrPerformance = await ask("NFR performance: ");
-  const nfrAvailability = await ask("NFR availability: ");
+  const objective = draft?.objective ?? (await ask("Objective: "));
+  const scopeIn = draft?.scope_in ?? (await ask("Scope (in) - comma separated: "));
+  const scopeOut = draft?.scope_out ?? (await ask("Scope (out) - comma separated: "));
+  const acceptance = draft?.acceptance_criteria ?? (await ask("Acceptance criteria - comma separated: "));
+  const nfrSecurity = draft?.nfr_security ?? (await ask("NFR security: "));
+  const nfrPerformance = draft?.nfr_performance ?? (await ask("NFR performance: "));
+  const nfrAvailability = draft?.nfr_availability ?? (await ask("NFR availability: "));
   const constraints = await ask("Constraints - comma separated: ");
   const risks = await ask("Risks - comma separated: ");
   const links = await ask("Links - comma separated: ");
