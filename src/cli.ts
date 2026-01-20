@@ -38,6 +38,20 @@ req
     const { runReqPlan } = await import("./commands/req-plan");
     await runReqPlan();
   });
+req
+  .command("start")
+  .description("Generate implementation plan and quality contract")
+  .action(async () => {
+    const { runReqStart } = await import("./commands/req-start");
+    await runReqStart();
+  });
+req
+  .command("finish")
+  .description("Finalize and archive a requirement")
+  .action(async () => {
+    const { runReqFinish } = await import("./commands/req-finish");
+    await runReqFinish();
+  });
 
 program
   .command("route")

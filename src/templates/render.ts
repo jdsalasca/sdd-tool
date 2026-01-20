@@ -4,7 +4,9 @@ import { getRepoRoot } from "../paths";
 
 export function loadTemplate(name: string): string {
   const root = getRepoRoot();
-  const filePath = path.join(root, "templates", `${name}.md`);
+  const mdPath = path.join(root, "templates", `${name}.md`);
+  const ymlPath = path.join(root, "templates", `${name}.yml`);
+  const filePath = fs.existsSync(mdPath) ? mdPath : ymlPath;
   return fs.readFileSync(filePath, "utf-8");
 }
 
