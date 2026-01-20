@@ -21,3 +21,27 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: node dist/cli.js --help
+
+  e2e-unix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
+      - run: ./scripts/e2e.sh e2e-ci REQ-0001
+
+  e2e-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
+      - run: powershell -ExecutionPolicy Bypass -File scripts/e2e.ps1 -Project e2e-ci -ReqId REQ-0001
