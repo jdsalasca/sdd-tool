@@ -7,6 +7,14 @@ export type ProjectSummary = {
   status: string;
 };
 
+export type ProjectMetadata = {
+  name: string;
+  status: string;
+  domain: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type WorkspaceInfo = {
   root: string;
   indexPath: string;
@@ -44,4 +52,33 @@ export function listProjects(workspace: WorkspaceInfo): ProjectSummary[] {
     name: project.name ?? "unknown",
     status: project.status ?? "unknown"
   }));
+}
+
+export function createProject(workspace: WorkspaceInfo, name: string, domain: string): ProjectMetadata {
+  ensureWorkspace(workspace);
+  const projectRoot = path.join(workspace.root, name);
+  if (!fs.existsSync(projectRoot)) {
+    fs.mkdirSync(projectRoot, { recursive: true });
+  }
+
+  const requirementsRoot = path.join(projectRoot, "requirements", "backlog");
+  fs.mkdirSync(requirementsRoot, { recursive: true });
+
+  const now = new Date().toISOString();
+  const metadata: ProjectMetadata = {
+    name,
+    status: "backlog",
+    domain,
+    createdAt: now,
+    updatedAt: now
+  };
+  fs.writeFileSync(path.join(projectRoot, "metadata.json"), JSON.stringify(metadata, null, 2), "utf-8");
+
+  const indexRaw = fs.readFileSync(workspace.indexPath, "utf-8");
+  const index = JSON.parse(indexRaw) as WorkspaceIndex;
+  index.projects = index.projects ?? [];
+  index.projects.push({ name, status: "backlog" });
+  fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
+
+  return metadata;
 }

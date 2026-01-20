@@ -9,7 +9,11 @@
   "main": "dist/cli.js",
   "types": "dist/cli.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "router",
+    "templates",
+    "schemas",
+    "flows"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

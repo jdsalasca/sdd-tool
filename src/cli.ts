@@ -22,6 +22,15 @@ program
   .description("Initialize workspace and config")
   .action(() => runInit());
 
+const req = program.command("req").description("Requirement lifecycle commands");
+req
+  .command("create")
+  .description("Create a new requirement")
+  .action(async () => {
+    const { runReqCreate } = await import("./commands/req-create");
+    await runReqCreate();
+  });
+
 program
   .command("route")
   .description("Classify intent and select a flow")
