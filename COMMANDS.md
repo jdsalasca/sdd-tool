@@ -55,7 +55,7 @@ This file defines the command set, intent, and expected behavior.
 - `--improve`   Trigger self-audit and regenerate
 - `--project`   Select or name the project
 - `--output`    Override workspace output
-- `--parallel`  Generate in parallel
+- `--parallel`  Generate in parallel (supported: `req plan`)
 
 ## Error handling
 - If a gate fails, the command provides missing items and re-prompts.

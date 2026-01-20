@@ -172,14 +172,25 @@ export async function runReqPlan(): Promise<void> {
     coverage_target: coverageTarget || "N/A"
   });
 
-  fs.writeFileSync(path.join(targetDir, "functional-spec.md"), functionalRendered, "utf-8");
-  fs.writeFileSync(path.join(targetDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2), "utf-8");
-  fs.writeFileSync(path.join(targetDir, "technical-spec.md"), technicalRendered, "utf-8");
-  fs.writeFileSync(path.join(targetDir, "technical-spec.json"), JSON.stringify(technicalJson, null, 2), "utf-8");
-  fs.writeFileSync(path.join(targetDir, "architecture.md"), architectureRendered, "utf-8");
-  fs.writeFileSync(path.join(targetDir, "architecture.json"), JSON.stringify(architectureJson, null, 2), "utf-8");
-  fs.writeFileSync(path.join(targetDir, "test-plan.md"), testPlanRendered, "utf-8");
-  fs.writeFileSync(path.join(targetDir, "test-plan.json"), JSON.stringify(testPlanJson, null, 2), "utf-8");
+  const flags = getFlags();
+  const writes = [
+    [path.join(targetDir, "functional-spec.md"), functionalRendered],
+    [path.join(targetDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2)],
+    [path.join(targetDir, "technical-spec.md"), technicalRendered],
+    [path.join(targetDir, "technical-spec.json"), JSON.stringify(technicalJson, null, 2)],
+    [path.join(targetDir, "architecture.md"), architectureRendered],
+    [path.join(targetDir, "architecture.json"), JSON.stringify(architectureJson, null, 2)],
+    [path.join(targetDir, "test-plan.md"), testPlanRendered],
+    [path.join(targetDir, "test-plan.json"), JSON.stringify(testPlanJson, null, 2)]
+  ] as const;
+
+  if (flags.parallel) {
+    await Promise.all(
+      writes.map(([filePath, content]) => fs.promises.writeFile(filePath, content, "utf-8"))
+    );
+  } else {
+    writes.forEach(([filePath, content]) => fs.writeFileSync(filePath, content, "utf-8"));
+  }
 
   const progressLog = path.join(targetDir, "progress-log.md");
   if (!fs.existsSync(progressLog)) {
