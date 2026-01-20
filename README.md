@@ -460,6 +460,15 @@ Each project is self-contained and resumable:
     in-progress/
     done/
     archived/
+  pr-reviews/
+    PR-123/
+      pr-comment-audit.md
+      pr-review-summary.md
+      pr-review-report.md
+      pr-metrics.md
+      pr-comment-lifecycle.md
+      guides/
+      responses/
   decision-log/
   progress-log.md
   quality.yml

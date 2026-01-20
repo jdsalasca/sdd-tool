@@ -54,7 +54,7 @@ export function listProjects(workspace: WorkspaceInfo): ProjectSummary[] {
   }));
 }
 
-export function createProject(workspace: WorkspaceInfo, name: string, domain: string): ProjectMetadata {
+export function ensureProject(workspace: WorkspaceInfo, name: string, domain: string): ProjectMetadata {
   ensureWorkspace(workspace);
   const projectRoot = path.join(workspace.root, name);
   if (!fs.existsSync(projectRoot)) {
@@ -64,23 +64,38 @@ export function createProject(workspace: WorkspaceInfo, name: string, domain: st
   const requirementsRoot = path.join(projectRoot, "requirements", "backlog");
   fs.mkdirSync(requirementsRoot, { recursive: true });
 
-  const now = new Date().toISOString();
-  const metadata: ProjectMetadata = {
-    name,
-    status: "backlog",
-    domain,
-    createdAt: now,
-    updatedAt: now
-  };
-  fs.writeFileSync(path.join(projectRoot, "metadata.json"), JSON.stringify(metadata, null, 2), "utf-8");
+  const metadataPath = path.join(projectRoot, "metadata.json");
+  let metadata: ProjectMetadata;
+  if (fs.existsSync(metadataPath)) {
+    metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as ProjectMetadata;
+  } else {
+    const now = new Date().toISOString();
+    metadata = {
+      name,
+      status: "backlog",
+      domain,
+      createdAt: now,
+      updatedAt: now
+    };
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");
+  }
 
   const indexRaw = fs.readFileSync(workspace.indexPath, "utf-8");
   const index = JSON.parse(indexRaw) as WorkspaceIndex;
   index.projects = index.projects ?? [];
-  index.projects.push({ name, status: "backlog" });
+  const existing = index.projects.find((project) => project.name === name);
+  if (existing) {
+    existing.status = metadata.status;
+  } else {
+    index.projects.push({ name, status: metadata.status });
+  }
   fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
 
   return metadata;
+}
+
+export function createProject(workspace: WorkspaceInfo, name: string, domain: string): ProjectMetadata {
+  return ensureProject(workspace, name, domain);
 }
 
 export function updateProjectStatus(workspace: WorkspaceInfo, name: string, status: string): void {
