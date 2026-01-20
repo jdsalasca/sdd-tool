@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { runHello } from "./commands/hello";
 import { runInit } from "./commands/init";
 import { runRoute } from "./commands/route";
+import { runDoctor } from "./commands/doctor";
 
 const program = new Command();
 
@@ -36,5 +37,10 @@ program
   .description("Classify intent and select a flow")
   .argument("<input...>", "Input text to classify")
   .action((input: string[]) => runRoute(input.join(" ").trim()));
+
+program
+  .command("doctor")
+  .description("Validate workspace artifacts and schemas")
+  .action(() => runDoctor());
 
 program.parse(process.argv);
