@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Project README",
+  "type": "object",
+  "required": ["projectName", "overview", "howToRun", "architectureSummary", "specs", "testingNotes"],
+  "properties": {
+    "projectName": { "type": "string" },
+    "overview": { "type": "string" },
+    "howToRun": { "type": "string" },
+    "architectureSummary": { "type": "string" },
+    "specs": {
+      "type": "object",
+      "required": ["requirements", "functionalSpec", "technicalSpec", "architecture"],
+      "properties": {
+        "requirements": { "type": "string" },
+        "functionalSpec": { "type": "string" },
+        "technicalSpec": { "type": "string" },
+        "architecture": { "type": "string" }
+      }
+    },
+    "testingNotes": { "type": "string" }
+  }
+}
