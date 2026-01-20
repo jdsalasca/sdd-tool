@@ -2,6 +2,8 @@ import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
 import { ask } from "../ui/prompt";
 import { getPromptPackById, loadPromptPacks } from "../router/prompt-packs";
+import { mapAnswersToRequirement } from "../router/prompt-map";
+import { runReqCreate } from "./req-create";
 
 export async function runHello(input: string, runQuestions?: boolean): Promise<void> {
   const workspace = getWorkspaceInfo();
@@ -34,12 +36,28 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   if (runQuestions) {
     const packs = loadPromptPacks();
     const packIds = FLOW_PROMPT_PACKS[intent.flow] ?? [];
+    const answers: Record<string, string> = {};
     for (const packId of packIds) {
       const pack = getPromptPackById(packs, packId);
       if (!pack) continue;
       console.log(`\n[${pack.id}]`);
       for (const question of pack.questions) {
-        await ask(`${question} `);
+        const response = await ask(`${question} `);
+        answers[question] = response;
+      }
+    }
+    console.log("\nCaptured answers:");
+    Object.entries(answers).forEach(([question, response]) => {
+      console.log(`- ${question} -> ${response}`);
+    });
+
+    if (runQuestions && Object.keys(answers).length > 0) {
+      const mapped = mapAnswersToRequirement(answers);
+      console.log("\nDraft requirement fields:");
+      console.log(JSON.stringify(mapped, null, 2));
+      const confirm = await ask("Generate requirement draft now? (y/n) ");
+      if (confirm.toLowerCase() === "y") {
+        await runReqCreate(mapped);
       }
     }
   }
