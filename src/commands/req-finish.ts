@@ -74,7 +74,29 @@ export async function runReqFinish(): Promise<void> {
     testing_notes: testingNotes || "N/A"
   });
 
+  const readmeJson = {
+    projectName,
+    overview: overview || "N/A",
+    howToRun: howToRun || "N/A",
+    architectureSummary: archSummary || "N/A",
+    specs: {
+      requirements: `requirements/done/${reqId}/requirement.md`,
+      functionalSpec: `requirements/done/${reqId}/functional-spec.md`,
+      technicalSpec: `requirements/done/${reqId}/technical-spec.md`,
+      architecture: `requirements/done/${reqId}/architecture.md`
+    },
+    testingNotes: testingNotes || "N/A"
+  };
+
+  const readmeValidation = validateJson("project-readme.schema.json", readmeJson);
+  if (!readmeValidation.valid) {
+    console.log("Project README validation failed:");
+    readmeValidation.errors.forEach((error) => console.log(`- ${error}`));
+    return;
+  }
+
   const projectRoot = path.join(workspace.root, projectName);
   fs.writeFileSync(path.join(projectRoot, "project-readme.md"), readmeRendered, "utf-8");
+  fs.writeFileSync(path.join(projectRoot, "project-readme.json"), JSON.stringify(readmeJson, null, 2), "utf-8");
   console.log(`Moved requirement to ${doneDir}`);
 }

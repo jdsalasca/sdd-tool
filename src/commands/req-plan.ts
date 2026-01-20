@@ -110,6 +110,8 @@ export async function runReqPlan(): Promise<void> {
     return;
   }
 
+  console.log("Spec validation passed.");
+
   const functionalTemplate = loadTemplate("functional-spec");
   const technicalTemplate = loadTemplate("technical-spec");
   const architectureTemplate = loadTemplate("architecture");

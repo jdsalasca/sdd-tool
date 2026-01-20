@@ -26,6 +26,8 @@ function inferSchema(filePath: string): string | null {
   if (filePath.endsWith("functional-spec.json")) return "functional-spec.schema.json";
   if (filePath.endsWith("architecture.json")) return "architecture.schema.json";
   if (filePath.endsWith("test-plan.json")) return "test-plan.schema.json";
+  if (filePath.endsWith("quality.json")) return "quality.schema.json";
+  if (filePath.endsWith("project-readme.json")) return "project-readme.schema.json";
   return null;
 }
 

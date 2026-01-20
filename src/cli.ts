@@ -59,6 +59,13 @@ req
     const { runReqFinish } = await import("./commands/req-finish");
     await runReqFinish();
   });
+req
+  .command("archive")
+  .description("Archive a completed requirement")
+  .action(async () => {
+    const { runReqArchive } = await import("./commands/req-archive");
+    await runReqArchive();
+  });
 
 program
   .command("route")
