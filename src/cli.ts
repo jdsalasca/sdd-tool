@@ -95,6 +95,13 @@ req
     const { runReqReport } = await import("./commands/req-report");
     await runReqReport();
   });
+req
+  .command("export")
+  .description("Export requirement artifacts to a directory")
+  .action(async () => {
+    const { runReqExport } = await import("./commands/req-export");
+    await runReqExport();
+  });
 
 program
   .command("route")

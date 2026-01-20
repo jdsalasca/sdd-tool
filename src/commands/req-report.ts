@@ -9,7 +9,8 @@ const REQUIRED_FILES = [
   "technical-spec.json",
   "architecture.json",
   "test-plan.json",
-  "quality.json"
+  "quality.json",
+  "project-readme.json"
 ];
 
 export async function runReqReport(): Promise<void> {
