@@ -172,6 +172,50 @@ test
     await runTestPlan();
   });
 
+const gen = program.command("gen").description("Artifact generation commands");
+gen
+  .command("requirements")
+  .description("Generate a requirement")
+  .action(async () => {
+    const { runGenRequirements } = await import("./commands/gen-requirements");
+    await runGenRequirements();
+  });
+gen
+  .command("functional-spec")
+  .description("Generate a functional spec")
+  .action(async () => {
+    const { runGenFunctionalSpec } = await import("./commands/gen-functional-spec");
+    await runGenFunctionalSpec();
+  });
+gen
+  .command("technical-spec")
+  .description("Generate a technical spec")
+  .action(async () => {
+    const { runGenTechnicalSpec } = await import("./commands/gen-technical-spec");
+    await runGenTechnicalSpec();
+  });
+gen
+  .command("architecture")
+  .description("Generate an architecture spec")
+  .action(async () => {
+    const { runGenArchitecture } = await import("./commands/gen-architecture");
+    await runGenArchitecture();
+  });
+gen
+  .command("best-practices")
+  .description("Generate quality contract")
+  .action(async () => {
+    const { runGenBestPractices } = await import("./commands/gen-best-practices");
+    await runGenBestPractices();
+  });
+gen
+  .command("project-readme")
+  .description("Generate project README")
+  .action(async () => {
+    const { runGenProjectReadme } = await import("./commands/gen-project-readme");
+    await runGenProjectReadme();
+  });
+
 program
   .command("route")
   .description("Classify intent and select a flow")
