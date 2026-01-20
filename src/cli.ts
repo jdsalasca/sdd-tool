@@ -81,6 +81,13 @@ req
     const { runReqStatus } = await import("./commands/req-status");
     await runReqStatus();
   });
+req
+  .command("lint")
+  .description("Validate artifacts for a requirement")
+  .action(async () => {
+    const { runReqLint } = await import("./commands/req-lint");
+    await runReqLint();
+  });
 
 program
   .command("route")
