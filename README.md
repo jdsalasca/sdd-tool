@@ -51,6 +51,10 @@ Examples and templates:
 - `templates/`
 - `schemas/`
 
+Automation:
+- `scripts/e2e.ps1`
+- `scripts/e2e.sh`
+
 ### AI gets wings through structure
 - **Question banks** enforce clarity before planning.
 - **Quality contracts** enforce clean code across languages.
