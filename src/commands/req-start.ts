@@ -31,12 +31,27 @@ export async function runReqStart(): Promise<void> {
     return;
   }
 
-  const requiredSpecs = ["functional-spec.json", "technical-spec.json", "architecture.json", "test-plan.json"];
-  const missing = requiredSpecs.filter((spec) => !fs.existsSync(path.join(requirementDir, spec)));
+  const requiredSpecs = [
+    { file: "functional-spec.json", schema: "functional-spec.schema.json" },
+    { file: "technical-spec.json", schema: "technical-spec.schema.json" },
+    { file: "architecture.json", schema: "architecture.schema.json" },
+    { file: "test-plan.json", schema: "test-plan.schema.json" }
+  ];
+  const missing = requiredSpecs.filter((spec) => !fs.existsSync(path.join(requirementDir, spec.file)));
   if (missing.length > 0) {
     console.log("Cannot start. Missing specs:");
-    missing.forEach((spec) => console.log(`- ${spec}`));
+    missing.forEach((spec) => console.log(`- ${spec.file}`));
     return;
+  }
+
+  for (const spec of requiredSpecs) {
+    const data = JSON.parse(fs.readFileSync(path.join(requirementDir, spec.file), "utf-8"));
+    const result = validateJson(spec.schema, data);
+    if (!result.valid) {
+      console.log(`Spec validation failed for ${spec.file}:`);
+      result.errors.forEach((error) => console.log(`- ${error}`));
+      return;
+    }
   }
 
   const inProgressDir = path.join(workspace.root, projectName, "requirements", "in-progress", reqId);

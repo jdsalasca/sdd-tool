@@ -34,6 +34,13 @@ export async function runReqPlan(): Promise<void> {
     console.log("Missing requirement.json. Run `req create` first.");
     return;
   }
+  const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
+  const requirementValidation = validateJson("requirement.schema.json", requirementJson);
+  if (!requirementValidation.valid) {
+    console.log("Requirement validation failed:");
+    requirementValidation.errors.forEach((error) => console.log(`- ${error}`));
+    return;
+  }
 
   const wipDir = path.join(workspace.root, projectName, "requirements", "wip", reqId);
   if (requirementDir.includes(path.join("requirements", "backlog"))) {
