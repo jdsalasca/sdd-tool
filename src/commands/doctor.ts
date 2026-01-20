@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { getWorkspaceInfo } from "../workspace/index";
 import { validateJson } from "../validation/validate";
+import { validatePromptPacks } from "../router/validate-prompt-packs";
 
 function collectJsonFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) {
@@ -52,6 +53,12 @@ export function runDoctor(projectName?: string, reqId?: string): void {
   }
 
   let failures = 0;
+  const promptResult = validatePromptPacks();
+  if (!promptResult.valid) {
+    failures += promptResult.errors.length;
+    console.log("Prompt pack validation failed:");
+    promptResult.errors.forEach((error) => console.log(`- ${error}`));
+  }
   for (const filePath of jsonFiles) {
     const schema = inferSchema(filePath);
     if (!schema) {

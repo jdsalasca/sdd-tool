@@ -1,8 +1,9 @@
-import { classifyIntent } from "../router/intent";
+import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
 import { ask } from "../ui/prompt";
+import { getPromptPackById, loadPromptPacks } from "../router/prompt-packs";
 
-export async function runHello(input: string): Promise<void> {
+export async function runHello(input: string, runQuestions?: boolean): Promise<void> {
   const workspace = getWorkspaceInfo();
   ensureWorkspace(workspace);
   const projects = listProjects(workspace);
@@ -29,4 +30,17 @@ export async function runHello(input: string): Promise<void> {
   const intent = classifyIntent(text);
   console.log(`Detected intent: ${intent.intent} -> ${intent.flow}`);
   console.log("Next: run `sdd-tool route <your input>` to view details.");
+
+  if (runQuestions) {
+    const packs = loadPromptPacks();
+    const packIds = FLOW_PROMPT_PACKS[intent.flow] ?? [];
+    for (const packId of packIds) {
+      const pack = getPromptPackById(packs, packId);
+      if (!pack) continue;
+      console.log(`\n[${pack.id}]`);
+      for (const question of pack.questions) {
+        await ask(`${question} `);
+      }
+    }
+  }
 }
