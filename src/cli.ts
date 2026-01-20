@@ -31,6 +31,13 @@ req
     const { runReqCreate } = await import("./commands/req-create");
     await runReqCreate();
   });
+req
+  .command("plan")
+  .description("Generate specs for a requirement")
+  .action(async () => {
+    const { runReqPlan } = await import("./commands/req-plan");
+    await runReqPlan();
+  });
 
 program
   .command("route")
