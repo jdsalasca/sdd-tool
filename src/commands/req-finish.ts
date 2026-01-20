@@ -98,5 +98,12 @@ export async function runReqFinish(): Promise<void> {
   const projectRoot = path.join(workspace.root, projectName);
   fs.writeFileSync(path.join(projectRoot, "project-readme.md"), readmeRendered, "utf-8");
   fs.writeFileSync(path.join(projectRoot, "project-readme.json"), JSON.stringify(readmeJson, null, 2), "utf-8");
+
+  const decisionLog = path.join(doneDir, "decision-log");
+  if (fs.existsSync(decisionLog)) {
+    const archiveRoot = path.join(projectRoot, "decision-log", reqId);
+    fs.mkdirSync(path.dirname(archiveRoot), { recursive: true });
+    fs.renameSync(decisionLog, archiveRoot);
+  }
   console.log(`Moved requirement to ${doneDir}`);
 }

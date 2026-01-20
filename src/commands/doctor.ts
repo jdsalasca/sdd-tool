@@ -31,9 +31,20 @@ function inferSchema(filePath: string): string | null {
   return null;
 }
 
-export function runDoctor(projectName?: string): void {
+export function runDoctor(projectName?: string, reqId?: string): void {
   const workspace = getWorkspaceInfo();
-  const root = projectName ? path.join(workspace.root, projectName) : workspace.root;
+  let root = projectName ? path.join(workspace.root, projectName) : workspace.root;
+  if (projectName && reqId) {
+    const base = path.join(workspace.root, projectName, "requirements");
+    const candidates = [
+      path.join(base, "backlog", reqId),
+      path.join(base, "wip", reqId),
+      path.join(base, "in-progress", reqId),
+      path.join(base, "done", reqId),
+      path.join(base, "archived", reqId)
+    ];
+    root = candidates.find((candidate) => fs.existsSync(candidate)) ?? root;
+  }
   const jsonFiles = collectJsonFiles(root);
   if (jsonFiles.length === 0) {
     console.log("No JSON artifacts found in workspace.");
