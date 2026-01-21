@@ -13,6 +13,7 @@
 - docs/GITFLOW.md
 - docs/CHANGELOG.md
 - docs/CONTRIBUTING.md
+- docs/MAINTENANCE.md
 - .github/PULL_REQUEST_TEMPLATE.md
 
 ## Architecture and design
