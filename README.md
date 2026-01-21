@@ -1,6 +1,10 @@
 # sdd-cli
 
-SDD-first, AI-native CLI to take a requirement from discovery to "done" with clean code, tests, and traceable docs. Built for teams that want a repeatable, end-to-end delivery framework powered by intelligent prompts and multi-agent coordination.
+Specification-driven delivery CLI that turns requirements into specs, architecture, tests, and traceable docs.
+
+## Repository overview
+
+This repo hosts the CLI implementation, domain flows, templates, schemas, and structured documentation for the SDD workflow.
 
 ## Vision (think pyramids)
 
@@ -16,31 +20,34 @@ Deep process, commands, interactions, and diagrams live in:
 - `docs/ARCHITECTURE.md`
 - `docs/SDD_CHECKLIST.md`
 - `docs/GLOSSARY.md`
-- `docs/FLOW_COVERAGE.md`
 - `docs/VALIDATION_CHECKLIST.md`
 - `docs/FLOW_TEMPLATE_MAP.md`
 - `docs/GATE_PROMPT_MATRIX.md`
 - `docs/TEMPLATE_LINT_RULES.md`
-- `docs/GATE_COVERAGE_REPORT.md`
 - `docs/FLOW_GATE_MAP.md`
-- `docs/SPEC_COMPLETENESS_REPORT.md`
 - `docs/FLOW_COMPLIANCE_CHECKLIST.md`
 - `docs/RELEASE_READINESS_CHECKLIST.md`
-- `docs/QUALITY_SCORE_RUBRIC.md`
 - `docs/AUTOMATION_OUTLINE.md`
-- `docs/PROMPT_COVERAGE_REPORT.md`
 - `docs/GATE_SCHEMA_MAP.md`
 - `docs/GATE_TEMPLATE_MAP.md`
 - `docs/KNOWLEDGE_MODE_CHECKLIST.md`
-- `docs/GATE_TEMPLATE_COVERAGE_REPORT.md`
 - `docs/DOMAIN_COMPLETENESS_CHECKLIST.md`
-- `docs/PROMPT_AUDIT_REPORT.md`
-- `docs/PACK_COVERAGE_REPORT.md`
 - `docs/IMPLEMENTATION_PLAN.md`
 - `docs/CLEAN_ARCHITECTURE_CHECKLIST.md`
 - `docs/REQUIREMENTS_ALIGNMENT.md`
 - `docs/GITFLOW.md`
 - `docs/RELEASE_PROCESS.md`
+
+Reports live in:
+- `docs/reports/E2E_REPORT.md`
+- `docs/reports/FLOW_COVERAGE.md`
+- `docs/reports/GATE_COVERAGE_REPORT.md`
+- `docs/reports/GATE_TEMPLATE_COVERAGE_REPORT.md`
+- `docs/reports/PACK_COVERAGE_REPORT.md`
+- `docs/reports/PROMPT_AUDIT_REPORT.md`
+- `docs/reports/PROMPT_COVERAGE_REPORT.md`
+- `docs/reports/QUALITY_SCORE_RUBRIC.md`
+- `docs/reports/SPEC_COMPLETENESS_REPORT.md`
 
 Examples and templates:
 - `examples/transcripts/`
@@ -567,37 +574,4 @@ These are opinionated, real-world flows that demonstrate how the CLI should be u
 - Jobs to be Done: https://www.intercom.com/blog/jtbd/
 - Design Thinking: https://www.interaction-design.org/literature/topics/design-thinking
 - CRISP-DM: https://www.ibm.com/docs/en/spss-modeler/18.2.2?topic=dm-crisp
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

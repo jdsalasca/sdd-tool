@@ -13,12 +13,13 @@ This document confirms that requirements, specs, gates, and artifacts align.
 - Gates to prompts: `docs/GATE_PROMPT_MATRIX.md`
 - Gates to schemas: `docs/GATE_SCHEMA_MAP.md`
 - Gates to templates: `docs/GATE_TEMPLATE_MAP.md`
-- Flow coverage: `docs/FLOW_COVERAGE.md`
+- Flow coverage: `docs/reports/FLOW_COVERAGE.md`
 
 ## Alignment status
 - All flows mapped to templates and gates
 - All templates indexed with placeholders
 - All schemas have sample JSON
+
 
 
 
