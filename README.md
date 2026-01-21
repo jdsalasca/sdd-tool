@@ -1,4 +1,4 @@
-# sdd-tool
+# sdd-cli
 
 SDD-first, AI-native CLI to take a requirement from discovery to "done" with clean code, tests, and traceable docs. Built for teams that want a repeatable, end-to-end delivery framework powered by intelligent prompts and multi-agent coordination.
 
@@ -6,41 +6,41 @@ SDD-first, AI-native CLI to take a requirement from discovery to "done" with cle
 
 Build the foundation once, then lift everything else. The tool provides a durable structure: requirements, architecture, technical specs, quality gates, test plans, and decision logs. AI gets "wings" by being guided, constrained, and accountable at every step.
 
-Mission and vision live in `MISSION.md` and `VISION.md`.
+Mission and vision live in `docs/MISSION.md` and `docs/VISION.md`.
 
 Deep process, commands, interactions, and diagrams live in:
-- `PROCESS.md`
-- `COMMANDS.md`
-- `INTERACTIONS.md`
-- `DIAGRAMS.md`
-- `ARCHITECTURE.md`
-- `SDD_CHECKLIST.md`
-- `GLOSSARY.md`
-- `FLOW_COVERAGE.md`
-- `VALIDATION_CHECKLIST.md`
-- `FLOW_TEMPLATE_MAP.md`
-- `GATE_PROMPT_MATRIX.md`
-- `TEMPLATE_LINT_RULES.md`
-- `GATE_COVERAGE_REPORT.md`
-- `FLOW_GATE_MAP.md`
-- `SPEC_COMPLETENESS_REPORT.md`
-- `FLOW_COMPLIANCE_CHECKLIST.md`
-- `RELEASE_READINESS_CHECKLIST.md`
-- `QUALITY_SCORE_RUBRIC.md`
-- `AUTOMATION_OUTLINE.md`
-- `PROMPT_COVERAGE_REPORT.md`
-- `GATE_SCHEMA_MAP.md`
-- `GATE_TEMPLATE_MAP.md`
-- `KNOWLEDGE_MODE_CHECKLIST.md`
-- `GATE_TEMPLATE_COVERAGE_REPORT.md`
-- `DOMAIN_COMPLETENESS_CHECKLIST.md`
-- `PROMPT_AUDIT_REPORT.md`
-- `PACK_COVERAGE_REPORT.md`
-- `IMPLEMENTATION_PLAN.md`
-- `CLEAN_ARCHITECTURE_CHECKLIST.md`
-- `REQUIREMENTS_ALIGNMENT.md`
-- `GITFLOW.md`
-- `RELEASE_PROCESS.md`
+- `docs/PROCESS.md`
+- `docs/COMMANDS.md`
+- `docs/INTERACTIONS.md`
+- `docs/DIAGRAMS.md`
+- `docs/ARCHITECTURE.md`
+- `docs/SDD_CHECKLIST.md`
+- `docs/GLOSSARY.md`
+- `docs/FLOW_COVERAGE.md`
+- `docs/VALIDATION_CHECKLIST.md`
+- `docs/FLOW_TEMPLATE_MAP.md`
+- `docs/GATE_PROMPT_MATRIX.md`
+- `docs/TEMPLATE_LINT_RULES.md`
+- `docs/GATE_COVERAGE_REPORT.md`
+- `docs/FLOW_GATE_MAP.md`
+- `docs/SPEC_COMPLETENESS_REPORT.md`
+- `docs/FLOW_COMPLIANCE_CHECKLIST.md`
+- `docs/RELEASE_READINESS_CHECKLIST.md`
+- `docs/QUALITY_SCORE_RUBRIC.md`
+- `docs/AUTOMATION_OUTLINE.md`
+- `docs/PROMPT_COVERAGE_REPORT.md`
+- `docs/GATE_SCHEMA_MAP.md`
+- `docs/GATE_TEMPLATE_MAP.md`
+- `docs/KNOWLEDGE_MODE_CHECKLIST.md`
+- `docs/GATE_TEMPLATE_COVERAGE_REPORT.md`
+- `docs/DOMAIN_COMPLETENESS_CHECKLIST.md`
+- `docs/PROMPT_AUDIT_REPORT.md`
+- `docs/PACK_COVERAGE_REPORT.md`
+- `docs/IMPLEMENTATION_PLAN.md`
+- `docs/CLEAN_ARCHITECTURE_CHECKLIST.md`
+- `docs/REQUIREMENTS_ALIGNMENT.md`
+- `docs/GITFLOW.md`
+- `docs/RELEASE_PROCESS.md`
 
 Examples and templates:
 - `examples/transcripts/`
@@ -93,10 +93,10 @@ npm install -g sdd-cli
 
 Then:
 ```
-sdd-tool hello
+sdd-cli hello
 ```
 
-Package name on npm is `sdd-cli` (CLI commands remain `sdd-tool` and `sdd`).
+Package name on npm is `sdd-cli` (CLI commands remain `sdd-cli` and `sdd`).
 
 Project names must use letters, numbers, spaces, `-` or `_`, and cannot include path separators.
 
@@ -105,60 +105,60 @@ The `hello` command is the entry point: it connects to AI, lists active projects
 ## The happy path (end-to-end flow)
 
 1) **Start**  
-   `sdd-tool hello` connects to AI, shows active projects, and asks if you want to start new or continue.
+   `sdd-cli hello` connects to AI, shows active projects, and asks if you want to start new or continue.
    It also asks for project name, domain, output location, language profile, and quality level.
 
 2) **Discover**  
    Guided prompts produce `requirements/backlog/REQ-0001/requirement.md`.
 
 3) **Refine**  
-   `sdd-tool req refine` resolves ambiguity, missing metrics, and risks.
+   `sdd-cli req refine` resolves ambiguity, missing metrics, and risks.
 
 4) **Plan (WIP)**  
-   `sdd-tool req plan` creates functional spec, tech spec, and architecture drafts.
+   `sdd-cli req plan` creates functional spec, tech spec, and architecture drafts.
 
 5) **Implement**  
-   `sdd-tool req start` generates the implementation plan and activates quality gates.
+   `sdd-cli req start` generates the implementation plan and activates quality gates.
 
 6) **Verify**  
-   `sdd-tool test plan` defines scenarios and coverage targets.
+   `sdd-cli test plan` defines scenarios and coverage targets.
 
 7) **Finish**  
-   `sdd-tool req finish` seals the requirement, versioned docs, and decision logs.
+   `sdd-cli req finish` seals the requirement, versioned docs, and decision logs.
 
 ## Commands (proposed)
 
 ### Core
-- `sdd-tool hello` -- interactive session, project picker, full guided flow
-- `sdd-tool init` -- create SDD workspace and config
-- `sdd-tool list` -- list flows, router flows, templates, prompt packs, and projects
-- `sdd-tool doctor` -- validate completeness and consistency
+- `sdd-cli hello` -- interactive session, project picker, full guided flow
+- `sdd-cli init` -- create SDD workspace and config
+- `sdd-cli list` -- list flows, router flows, templates, prompt packs, and projects
+- `sdd-cli doctor` -- validate completeness and consistency
 
 ### Router
-- `sdd-tool route` -- classify user intent and route to the right flow
+- `sdd-cli route` -- classify user intent and route to the right flow
 
 ### Requirement lifecycle
-- `sdd-tool req create`
-- `sdd-tool req refine`
-- `sdd-tool req plan`
-- `sdd-tool req start`
-- `sdd-tool req finish`
+- `sdd-cli req create`
+- `sdd-cli req refine`
+- `sdd-cli req plan`
+- `sdd-cli req start`
+- `sdd-cli req finish`
 
 ### Generators
-- `sdd-tool gen requirements`
-- `sdd-tool gen functional-spec`
-- `sdd-tool gen technical-spec`
-- `sdd-tool gen architecture`
-- `sdd-tool gen best-practices`
-- `sdd-tool gen project-readme`
+- `sdd-cli gen requirements`
+- `sdd-cli gen functional-spec`
+- `sdd-cli gen technical-spec`
+- `sdd-cli gen architecture`
+- `sdd-cli gen best-practices`
+- `sdd-cli gen project-readme`
 
 ### Test planning
-- `sdd-tool test plan`
+- `sdd-cli test plan`
 
 ### Learning mode
-- `sdd-tool learn start`
-- `sdd-tool learn refine`
-- `sdd-tool learn deliver`
+- `sdd-cli learn start`
+- `sdd-cli learn refine`
+- `sdd-cli learn deliver`
 
 ### Flags
 - `--approve` -- run without extra confirmations
@@ -173,8 +173,8 @@ The `hello` command is the entry point: it connects to AI, lists active projects
 By default, the tool writes to a dedicated workspace, not into your repo:
 
 - Default (global workspace):  
-  - Windows: `%APPDATA%/sdd-tool/workspaces/<project>`  
-  - macOS/Linux: `~/.config/sdd-tool/workspaces/<project>`
+  - Windows: `%APPDATA%/sdd-cli/workspaces/<project>`  
+  - macOS/Linux: `~/.config/sdd-cli/workspaces/<project>`
 
 Optional:
 - `--output ./docs/sdd` to keep SDD next to the repo
@@ -214,7 +214,7 @@ docs/
 - Domain rules add extra checks (compliance, audit, bias, safety).
 
 ### Consistency gate
-`sdd-tool doctor` ensures every requirement has matching specs, tests, and ADRs.
+`sdd-cli doctor` ensures every requirement has matching specs, tests, and ADRs.
 
 ## Clean code across any language
 
@@ -276,7 +276,7 @@ AI should not guess. It should be guided, constrained, and verified.
 The router identifies the user intent and routes to the correct flow, prompts, and artifacts.
 
 ### Example
-User: `sdd-tool hello`  
+User: `sdd-cli hello`  
 User input: "I have a bug: <link>. How to solve?"
 
 Router actions:
@@ -343,9 +343,9 @@ The tool is not only for software requirements. It can also run **knowledge jour
 4) **Deliver layered outputs**: executive summary, deep dive, references, and follow-up prompts.
 
 ### Commands (proposed)
-- `sdd-tool learn start` -- begin a guided research session
-- `sdd-tool learn refine` -- refine scope or depth
-- `sdd-tool learn deliver` -- produce final output package
+- `sdd-cli learn start` -- begin a guided research session
+- `sdd-cli learn refine` -- refine scope or depth
+- `sdd-cli learn deliver` -- produce final output package
 
 ### Interview prompts (examples)
 - Why do you want to learn this topic?
@@ -378,25 +378,25 @@ This mode uses the same "AI wings" principle: clarify, commit, design, prove, de
 
 ### MVP commands
 Core:
-- `sdd-tool hello`
-- `sdd-tool init`
-- `sdd-tool list`
-- `sdd-tool doctor`
+- `sdd-cli hello`
+- `sdd-cli init`
+- `sdd-cli list`
+- `sdd-cli doctor`
 
 Requirements:
-- `sdd-tool req create`
-- `sdd-tool req refine`
-- `sdd-tool req plan`
-- `sdd-tool req start`
-- `sdd-tool req finish`
+- `sdd-cli req create`
+- `sdd-cli req refine`
+- `sdd-cli req plan`
+- `sdd-cli req start`
+- `sdd-cli req finish`
 
 Generators:
-- `sdd-tool gen requirements`
-- `sdd-tool gen functional-spec`
-- `sdd-tool gen technical-spec`
-- `sdd-tool gen architecture`
-- `sdd-tool gen best-practices`
-- `sdd-tool gen project-readme`
+- `sdd-cli gen requirements`
+- `sdd-cli gen functional-spec`
+- `sdd-cli gen technical-spec`
+- `sdd-cli gen architecture`
+- `sdd-cli gen best-practices`
+- `sdd-cli gen project-readme`
 
 ### MVP prompts (must-ask list)
 Discovery:
@@ -567,3 +567,37 @@ These are opinionated, real-world flows that demonstrate how the CLI should be u
 - Jobs to be Done: https://www.intercom.com/blog/jtbd/
 - Design Thinking: https://www.interaction-design.org/literature/topics/design-thinking
 - CRISP-DM: https://www.ibm.com/docs/en/spss-modeler/18.2.2?topic=dm-crisp
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

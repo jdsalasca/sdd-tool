@@ -1,6 +1,6 @@
 # Transcript: Software feature
 
-User: sdd-tool hello
+User: sdd-cli hello
 App: New or continue?
 User: New. I want to build an API for inventory reservations.
 App: Who is the user and what problem are we solving?
@@ -16,3 +16,4 @@ User: 99.9% success rate, zero oversell incidents.
 App: Approve requirements and move to specs?
 User: Yes
 App: Requirements and specs generated. Continue to architecture?
+

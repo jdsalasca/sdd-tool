@@ -1,8 +1,8 @@
 # Release readiness checklist
 
 ## Pre-release
-- All flows pass `FLOW_COMPLIANCE_CHECKLIST.md`
-- Templates validated by `TEMPLATE_LINT_RULES.md`
+- All flows pass `docs/FLOW_COMPLIANCE_CHECKLIST.md`
+- Templates validated by `docs/TEMPLATE_LINT_RULES.md`
 - Schemas validated with sample JSON
 - Diagrams rendered or validated
 
@@ -15,3 +15,5 @@
 - npm package version bumped
 - `bin` entry verified
 - Basic install/run test executed
+
+

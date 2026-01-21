@@ -11,7 +11,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   ensureWorkspace(workspace);
   const projects = listProjects(workspace);
 
-  console.log("Hello from sdd-tool.");
+  console.log("Hello from sdd-cli.");
   console.log(`Workspace: ${workspace.root}`);
 
   const flags = getFlags();
@@ -46,7 +46,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   }
   const intent = classifyIntent(text);
   console.log(`Detected intent: ${intent.intent} -> ${intent.flow}`);
-  console.log("Next: run `sdd-tool route <your input>` to view details.");
+  console.log("Next: run `sdd-cli route <your input>` to view details.");
 
   if (runQuestions) {
     const packs = loadPromptPacks();
@@ -77,3 +77,4 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     }
   }
 }
+

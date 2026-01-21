@@ -1,17 +1,17 @@
 {
   "name": "sdd-cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "SDD-first, AI-native CLI for end-to-end delivery.",
-  "homepage": "https://github.com/jdsalasca/sdd-tool#readme",
+  "homepage": "https://github.com/jdsalasca/sdd-cli#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jdsalasca/sdd-tool.git"
+    "url": "git+https://github.com/jdsalasca/sdd-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/jdsalasca/sdd-tool/issues"
+    "url": "https://github.com/jdsalasca/sdd-cli/issues"
   },
   "bin": {
-    "sdd-tool": "dist/cli.js",
+    "sdd-cli": "dist/cli.js",
     "sdd": "dist/cli.js"
   },
   "main": "dist/cli.js",

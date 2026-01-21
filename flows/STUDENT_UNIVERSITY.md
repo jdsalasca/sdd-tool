@@ -14,7 +14,7 @@ Plan and deliver a project or research task with clear milestones, requirements,
 - `requirement.md` with assignment constraints
 - `functional-spec.md` for user stories or research tasks
 - `technical-spec.md` for tools and stack
-- `architecture.md` for system or study design
+- `docs/ARCHITECTURE.md` for system or study design
 - `test-plan.md` or validation plan
 
 ## Risk and compliance
@@ -31,3 +31,4 @@ Plan and deliver a project or research task with clear milestones, requirements,
 - Milestone plan
 - Research log
 - Final submission checklist
+

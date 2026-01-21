@@ -14,7 +14,7 @@ Manage applications, documents, approvals, and communication with clear audit tr
 - `requirement.md` with eligibility and decision rules
 - `functional-spec.md` for intake, review, and decision workflows
 - `technical-spec.md` for document verification and notifications
-- `architecture.md` including workflow engine and queueing
+- `docs/ARCHITECTURE.md` including workflow engine and queueing
 - `test-plan.md` for fairness and correctness checks
 
 ## Risk and compliance
@@ -31,3 +31,4 @@ Manage applications, documents, approvals, and communication with clear audit tr
 - Application pipeline dashboard
 - Document verification checklist
 - Decision audit report
+

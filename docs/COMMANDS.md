@@ -3,62 +3,62 @@
 This file defines the command set, intent, and expected behavior.
 
 ## Entry
-- `sdd-tool hello`
+- `sdd-cli hello`
   - Starts an interactive session
   - Lists active projects
   - Routes to correct flow
 
 ## Workspace
-- `sdd-tool init`
+- `sdd-cli init`
   - Initializes a workspace and config
-- `sdd-tool list`
+- `sdd-cli list`
   - Lists flows, router flows, templates, prompt packs, and projects
-- `sdd-tool doctor`
+- `sdd-cli doctor`
   - Validates schemas, prompt packs, and templates
 
 ## Router
-- `sdd-tool route`
+- `sdd-cli route`
   - Classifies intent and selects a flow
 
 ## Requirements lifecycle
-- `sdd-tool req create`
-- `sdd-tool req refine`
-- `sdd-tool req plan`
-- `sdd-tool req start`
-- `sdd-tool req finish`
-- `sdd-tool req archive`
-- `sdd-tool req list`
-- `sdd-tool req status`
-- `sdd-tool req lint`
-- `sdd-tool req report`
-- `sdd-tool req export`
+- `sdd-cli req create`
+- `sdd-cli req refine`
+- `sdd-cli req plan`
+- `sdd-cli req start`
+- `sdd-cli req finish`
+- `sdd-cli req archive`
+- `sdd-cli req list`
+- `sdd-cli req status`
+- `sdd-cli req lint`
+- `sdd-cli req report`
+- `sdd-cli req export`
 
 ## PR review
-- `sdd-tool pr start`
-- `sdd-tool pr audit`
-- `sdd-tool pr respond`
-- `sdd-tool pr finish`
-- `sdd-tool pr report`
+- `sdd-cli pr start`
+- `sdd-cli pr audit`
+- `sdd-cli pr respond`
+- `sdd-cli pr finish`
+- `sdd-cli pr report`
 
 ## Test planning
-- `sdd-tool test plan`
+- `sdd-cli test plan`
 
 ## Generators
-- `sdd-tool gen requirements`
-- `sdd-tool gen functional-spec`
-- `sdd-tool gen technical-spec`
-- `sdd-tool gen architecture`
-- `sdd-tool gen best-practices`
-- `sdd-tool gen project-readme`
+- `sdd-cli gen requirements`
+- `sdd-cli gen functional-spec`
+- `sdd-cli gen technical-spec`
+- `sdd-cli gen architecture`
+- `sdd-cli gen best-practices`
+- `sdd-cli gen project-readme`
 
 ## Learning mode
-- `sdd-tool learn start`
-- `sdd-tool learn refine`
-- `sdd-tool learn deliver`
+- `sdd-cli learn start`
+- `sdd-cli learn refine`
+- `sdd-cli learn deliver`
 
 ## AI provider
-- `sdd-tool ai status`
-- `sdd-tool ai exec`
+- `sdd-cli ai status`
+- `sdd-cli ai exec`
 
 ## Common flags
 - `--approve`   Skip confirmations if gates pass
@@ -73,3 +73,4 @@ This file defines the command set, intent, and expected behavior.
 
 ## Error handling
 - If validation fails, the command reports errors and stops.
+

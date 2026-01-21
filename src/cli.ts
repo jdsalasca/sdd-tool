@@ -22,7 +22,7 @@ function getVersion(): string {
 }
 
 program
-  .name("sdd-tool")
+  .name("sdd-cli")
   .description("SDD-first, AI-native CLI")
   .version(getVersion())
   .option("--approve", "Skip confirmations if gates pass")
@@ -288,3 +288,4 @@ ai
   });
 
 program.parse(process.argv);
+

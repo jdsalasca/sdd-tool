@@ -35,8 +35,8 @@ export function getWorkspaceInfo(): WorkspaceInfo {
   const root = flags.output
     ? path.resolve(flags.output)
     : process.env.APPDATA
-      ? path.join(process.env.APPDATA, "sdd-tool", "workspaces")
-      : path.join(os.homedir(), ".config", "sdd-tool", "workspaces");
+      ? path.join(process.env.APPDATA, "sdd-cli", "workspaces")
+      : path.join(os.homedir(), ".config", "sdd-cli", "workspaces");
   const indexPath = path.join(root, "workspaces.json");
   return { root, indexPath };
 }
@@ -156,3 +156,4 @@ export function updateProjectStatus(workspace: WorkspaceInfo, name: string, stat
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");
   }
 }
+

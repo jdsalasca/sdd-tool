@@ -21,7 +21,7 @@
 - `requirement.md`
 - `functional-spec.md`
 - `technical-spec.md`
-- `architecture.md`
+- `docs/ARCHITECTURE.md`
 - `test-plan.md` (access and audit checks)
 
 ## Scripted Q/A tree
@@ -56,3 +56,4 @@ A: No -> refine
 
 ## Agents
 - Legal Analyst, Compliance, QA
+

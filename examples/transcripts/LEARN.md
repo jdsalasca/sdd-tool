@@ -1,6 +1,6 @@
 # Transcript: Learn mode
 
-User: sdd-tool hello
+User: sdd-cli hello
 App: Start new or continue?
 User: New. I want to learn about Egypt.
 App: Why do you want to learn this topic?
@@ -14,3 +14,4 @@ User: 2 hours.
 App: Approve research plan and scope?
 User: Yes
 App: Generated brief, deep-dive, reading list, and Q&A in your workspace.
+

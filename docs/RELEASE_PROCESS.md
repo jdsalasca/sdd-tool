@@ -1,6 +1,6 @@
 # Release process
 
-This document defines the Gitflow release steps for sdd-tool.
+This document defines the Gitflow release steps for sdd-cli.
 
 ## Steps
 1) Create a feature branch from `develop`
@@ -11,3 +11,4 @@ This document defines the Gitflow release steps for sdd-tool.
 6) Merge release PR to `main`
 7) Tag `vX.Y.Z` and create GitHub release
 8) Merge `main` back into `develop`
+

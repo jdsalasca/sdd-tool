@@ -1,6 +1,6 @@
 # Transcript: PR review
 
-User: sdd-tool hello
+User: sdd-cli hello
 App: New or continue?
 User: New. I have a PR with review comments: https://example.com/pull/45
 App: Do you approve opening the PR link?
@@ -13,3 +13,4 @@ User: The reviewer says the API is unused, but it is called in another module.
 App: I can propose responses and fixes. Approve plan to address comments and generate specs?
 User: Yes
 App: Generated requirement, technical spec, and test plan. Continue to implementation?
+

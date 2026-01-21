@@ -48,7 +48,7 @@ export async function runReqPlan(): Promise<void> {
   if (!gates.ok) {
     console.log("Requirement gates failed. Please update the requirement first:");
     gates.missing.forEach((field) => console.log(`- ${field}`));
-    console.log("Run `sdd-tool req refine` to complete missing fields.");
+    console.log("Run `sdd-cli req refine` to complete missing fields.");
     return;
   }
   const requirementValidation = validateJson("requirement.schema.json", requirementJson);
@@ -198,7 +198,7 @@ export async function runReqPlan(): Promise<void> {
     [path.join(targetDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2)],
     [path.join(targetDir, "technical-spec.md"), technicalRendered],
     [path.join(targetDir, "technical-spec.json"), JSON.stringify(technicalJson, null, 2)],
-    [path.join(targetDir, "architecture.md"), architectureRendered],
+    [path.join(targetDir, "docs/ARCHITECTURE.md"), architectureRendered],
     [path.join(targetDir, "architecture.json"), JSON.stringify(architectureJson, null, 2)],
     [path.join(targetDir, "test-plan.md"), testPlanRendered],
     [path.join(targetDir, "test-plan.json"), JSON.stringify(testPlanJson, null, 2)]
@@ -231,5 +231,7 @@ export async function runReqPlan(): Promise<void> {
   fs.appendFileSync(changelog, changeEntry, "utf-8");
   console.log(`Generated specs in ${targetDir}`);
 }
+
+
 
 

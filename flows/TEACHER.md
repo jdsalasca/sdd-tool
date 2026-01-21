@@ -14,7 +14,7 @@ Create a system for lesson planning, assessments, and feedback with clear learni
 - `requirement.md` with learning objectives and scope
 - `functional-spec.md` covering lesson, assignment, and grading flows
 - `technical-spec.md` for integrations (LMS, email, calendars)
-- `architecture.md` for content storage and versioning
+- `docs/ARCHITECTURE.md` for content storage and versioning
 - `test-plan.md` with grading accuracy and accessibility checks
 
 ## Risk and compliance
@@ -31,3 +31,4 @@ Create a system for lesson planning, assessments, and feedback with clear learni
 - Lesson plan templates
 - Grading rubric engine
 - Student progress analytics
+

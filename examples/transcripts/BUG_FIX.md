@@ -1,6 +1,6 @@
 # Transcript: Bug fix
 
-User: sdd-tool hello
+User: sdd-cli hello
 App: Welcome back. I found 2 active projects. Start new or continue?
 User: New. I have a bug: https://example.com/issues/123
 App: Do you approve opening that link?
@@ -24,3 +24,4 @@ User: Path 3
 App: Approve moving to requirements and specs?
 User: Yes
 App: Generated requirement, technical spec, and test plan in backlog. Continue to planning?
+

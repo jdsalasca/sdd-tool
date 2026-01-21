@@ -14,7 +14,7 @@ Build or extend an ecommerce platform with reliable checkout and inventory integ
 - `requirement.md` with revenue and conversion goals
 - `functional-spec.md` for browse, cart, checkout, returns
 - `technical-spec.md` for payment and order integrations
-- `architecture.md` for scaling and availability
+- `docs/ARCHITECTURE.md` for scaling and availability
 - `test-plan.md` for checkout and payment validation
 
 ## Risk and compliance
@@ -31,3 +31,4 @@ Build or extend an ecommerce platform with reliable checkout and inventory integ
 - Checkout flow diagram
 - Fraud prevention checklist
 - Post-purchase email templates
+

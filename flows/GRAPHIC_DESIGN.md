@@ -14,7 +14,7 @@ Deliver a visual system (brand, UI, or campaign) with clear requirements and cri
 - `requirement.md` with audience and goals
 - `functional-spec.md` for usage scenarios
 - `technical-spec.md` for file formats and delivery specs
-- `architecture.md` for design system structure
+- `docs/ARCHITECTURE.md` for design system structure
 - `test-plan.md` for accessibility and brand consistency checks
 
 ## Risk and compliance
@@ -31,3 +31,4 @@ Deliver a visual system (brand, UI, or campaign) with clear requirements and cri
 - Brand guidelines
 - Component library
 - Asset delivery checklist
+

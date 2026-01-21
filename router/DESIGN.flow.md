@@ -21,7 +21,7 @@
 - `requirement.md`
 - `functional-spec.md`
 - `technical-spec.md`
-- `architecture.md`
+- `docs/ARCHITECTURE.md`
 - `test-plan.md`
 
 ## Scripted Q/A tree
@@ -56,3 +56,4 @@ A: No -> refine
 
 ## Agents
 - Creative Lead, Design Systems, Critic
+

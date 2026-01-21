@@ -14,7 +14,7 @@ Design a study or analysis of social behavior with clear methods and ethical saf
 - `requirement.md` with research scope
 - `functional-spec.md` for research workflow
 - `technical-spec.md` for data collection and analysis tools
-- `architecture.md` for dataset and analysis pipeline
+- `docs/ARCHITECTURE.md` for dataset and analysis pipeline
 - `test-plan.md` for validity and bias checks
 
 ## Risk and compliance
@@ -31,3 +31,4 @@ Design a study or analysis of social behavior with clear methods and ethical saf
 - Ethics checklist
 - Survey or interview guide
 - Data analysis plan
+

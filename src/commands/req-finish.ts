@@ -84,7 +84,7 @@ export async function runReqFinish(): Promise<void> {
     requirements_link: `requirements/done/${reqId}/requirement.md`,
     functional_spec_link: `requirements/done/${reqId}/functional-spec.md`,
     technical_spec_link: `requirements/done/${reqId}/technical-spec.md`,
-    architecture_link: `requirements/done/${reqId}/architecture.md`,
+    architecture_link: `requirements/done/${reqId}/docs/ARCHITECTURE.md`,
     testing_notes: testingNotes || "N/A"
   });
 
@@ -97,7 +97,7 @@ export async function runReqFinish(): Promise<void> {
       requirements: `requirements/done/${reqId}/requirement.md`,
       functionalSpec: `requirements/done/${reqId}/functional-spec.md`,
       technicalSpec: `requirements/done/${reqId}/technical-spec.md`,
-      architecture: `requirements/done/${reqId}/architecture.md`
+      architecture: `requirements/done/${reqId}/docs/ARCHITECTURE.md`
     },
     testingNotes: testingNotes || "N/A"
   };
@@ -133,5 +133,6 @@ export async function runReqFinish(): Promise<void> {
   fs.appendFileSync(changelog, changeEntry, "utf-8");
   console.log(`Moved requirement to ${doneDir}`);
 }
+
 
 
