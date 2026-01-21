@@ -14,9 +14,9 @@ Command: `sdd-tool hello`
 ## 1) Discovery (create)
 Command: `sdd-tool req create`
 - Ask mandatory discovery questions
-- Generate `requirement.md` in backlog
-- Create `summary.md` and `progress-log.md`
-- Gate: scope, acceptance criteria, NFRs required
+- Generate `requirement.md` and `requirement.json` in backlog
+- Create `changelog.md` and `progress-log.md`
+- Validate against `requirement.schema.json`
 
 ## 2) Refinement (refine)
 Command: `sdd-tool req refine`
@@ -28,22 +28,21 @@ Command: `sdd-tool req refine`
 ## 3) Planning (wip)
 Command: `sdd-tool req plan`
 - Generate functional, technical, and architecture specs
-- Create initial diagrams (text-based)
+- Record diagram references (text-based)
 - Update requirement status to `wip`
-- Gate: acceptance criteria and NFRs must be satisfied
+- Validate specs against schemas
 
 ## 4) Implementation readiness (start)
 Command: `sdd-tool req start`
 - Generate implementation plan
 - Activate quality contract `quality.yml`
-- Generate test plan
 - Update requirement status to `in-progress`
-- Gate: test plan and quality thresholds defined
+- Gate: required specs and quality contract exist
 
 ## 5) Verification (verify)
 Command: `sdd-tool test plan`
 - Expand test cases and edge scenarios
-- Gate: critical paths, regressions, acceptance tests
+- Validate test plan against schema
 
 ## Knowledge mode (learning sessions)
 Command: `sdd-tool learn start`
@@ -88,9 +87,8 @@ Command: `sdd-tool hello`
 - Offer next recommended step
 
 ## Global gates
-- No planning without acceptance criteria
-- No implementation without test plan
-- No completion without quality checks
+- Schema validation on generated artifacts
+- Required specs enforced before `req start`
 
 ## Outputs by stage
 - Discovery: `requirement.md`, `summary.md`

@@ -26,6 +26,12 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-tool req plan`
 - `sdd-tool req start`
 - `sdd-tool req finish`
+- `sdd-tool req archive`
+- `sdd-tool req list`
+- `sdd-tool req status`
+- `sdd-tool req lint`
+- `sdd-tool req report`
+- `sdd-tool req export`
 
 ## PR review
 - `sdd-tool pr start`
@@ -50,13 +56,18 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-tool learn refine`
 - `sdd-tool learn deliver`
 
+## AI provider
+- `sdd-tool ai status`
+- `sdd-tool ai exec`
+
 ## Common flags
 - `--approve`   Skip confirmations if gates pass
 - `--improve`   Trigger self-audit and regenerate
-- `--project`   Select or name the project
-- `--output`    Override workspace output
 - `--parallel`  Generate in parallel (supported: `req plan`)
 
+## Hello flags
+- `--questions` Run prompt questions for detected intent
+- `--auto`      Generate a requirement draft after questions
+
 ## Error handling
-- If a gate fails, the command provides missing items and re-prompts.
-- If external links are requested, explicit approval is required.
+- If validation fails, the command reports errors and stops.
