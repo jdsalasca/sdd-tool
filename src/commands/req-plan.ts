@@ -44,10 +44,11 @@ export async function runReqPlan(): Promise<void> {
     return;
   }
   const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
-  const gates = checkRequirementGates(requirementJson);
+  let gates = checkRequirementGates(requirementJson);
   if (!gates.ok) {
-    console.log("Requirement gates failed. Missing:");
+    console.log("Requirement gates failed. Please update the requirement first:");
     gates.missing.forEach((field) => console.log(`- ${field}`));
+    console.log("Run `sdd-tool req refine` to complete missing fields.");
     return;
   }
   const requirementValidation = validateJson("requirement.schema.json", requirementJson);

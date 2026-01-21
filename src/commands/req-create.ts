@@ -29,13 +29,13 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
   const projectName = await askProjectName();
   const domain = await ask("Domain (software, legal, design, learning, etc): ");
   const actors = await ask("Actors - comma separated: ");
-  const objective = draft?.objective ?? (await ask("Objective: "));
-  const scopeIn = draft?.scope_in ?? (await ask("Scope (in) - comma separated: "));
-  const scopeOut = draft?.scope_out ?? (await ask("Scope (out) - comma separated: "));
-  const acceptance = draft?.acceptance_criteria ?? (await ask("Acceptance criteria - comma separated: "));
-  const nfrSecurity = draft?.nfr_security ?? (await ask("NFR security: "));
-  const nfrPerformance = draft?.nfr_performance ?? (await ask("NFR performance: "));
-  const nfrAvailability = draft?.nfr_availability ?? (await ask("NFR availability: "));
+  let objective = draft?.objective ?? (await ask("Objective: "));
+  let scopeIn = draft?.scope_in ?? (await ask("Scope (in) - comma separated: "));
+  let scopeOut = draft?.scope_out ?? (await ask("Scope (out) - comma separated: "));
+  let acceptance = draft?.acceptance_criteria ?? (await ask("Acceptance criteria - comma separated: "));
+  let nfrSecurity = draft?.nfr_security ?? (await ask("NFR security: "));
+  let nfrPerformance = draft?.nfr_performance ?? (await ask("NFR performance: "));
+  let nfrAvailability = draft?.nfr_availability ?? (await ask("NFR availability: "));
   const constraints = await ask("Constraints - comma separated: ");
   const risks = await ask("Risks - comma separated: ");
   const links = await ask("Links - comma separated: ");
@@ -52,7 +52,7 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
   const reqId = generateId();
   const status = "backlog";
 
-  const requirementJson = {
+  let requirementJson = {
     id: reqId,
     title: project.name,
     objective: objective || "N/A",
@@ -74,11 +74,39 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     updatedAt: new Date().toISOString()
   };
 
-  const gates = checkRequirementGates(requirementJson);
+  let gates = checkRequirementGates(requirementJson);
   if (!gates.ok) {
-    console.log("Requirement gates failed. Missing:");
-    gates.missing.forEach((field) => console.log(`- ${field}`));
-    return;
+    console.log("Requirement gates failed. Please provide missing fields:");
+    for (const field of gates.missing) {
+      if (field === "objective") objective = await ask("Objective: ");
+      if (field === "scope.in") scopeIn = await ask("Scope (in) - comma separated: ");
+      if (field === "scope.out") scopeOut = await ask("Scope (out) - comma separated: ");
+      if (field === "acceptanceCriteria") acceptance = await ask("Acceptance criteria - comma separated: ");
+      if (field === "nfrs.security") nfrSecurity = await ask("NFR security: ");
+      if (field === "nfrs.performance") nfrPerformance = await ask("NFR performance: ");
+      if (field === "nfrs.availability") nfrAvailability = await ask("NFR availability: ");
+    }
+    requirementJson = {
+      ...requirementJson,
+      objective: objective || "N/A",
+      scope: {
+        in: parseList(scopeIn),
+        out: parseList(scopeOut)
+      },
+      acceptanceCriteria: parseList(acceptance),
+      nfrs: {
+        security: nfrSecurity || "N/A",
+        performance: nfrPerformance || "N/A",
+        availability: nfrAvailability || "N/A"
+      },
+      updatedAt: new Date().toISOString()
+    };
+    gates = checkRequirementGates(requirementJson);
+    if (!gates.ok) {
+      console.log("Requirement gates still failing. Missing:");
+      gates.missing.forEach((field) => console.log(`- ${field}`));
+      return;
+    }
   }
 
   const validation = validateJson("requirement.schema.json", requirementJson);

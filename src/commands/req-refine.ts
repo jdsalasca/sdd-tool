@@ -56,7 +56,7 @@ export async function runReqRefine(): Promise<void> {
   const flags = getFlags();
   const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
-  const updated = {
+  let updated = {
     ...raw,
     objective: objective || raw.objective,
     actors: actors ? parseList(actors) : raw.actors,
@@ -76,11 +76,45 @@ export async function runReqRefine(): Promise<void> {
     updatedAt: new Date().toISOString()
   };
 
-  const gates = checkRequirementGates(updated);
+  let gates = checkRequirementGates(updated);
   if (!gates.ok) {
-    console.log("Requirement gates failed. Missing:");
-    gates.missing.forEach((field) => console.log(`- ${field}`));
-    return;
+    console.log("Requirement gates failed. Please provide missing fields:");
+    for (const field of gates.missing) {
+      if (field === "objective") {
+        updated.objective = await ask(`Objective (${updated.objective}): `);
+      }
+      if (field === "scope.in") {
+        const response = await ask("Scope (in) - comma separated: ");
+        updated.scope.in = response ? parseList(response) : updated.scope.in;
+      }
+      if (field === "scope.out") {
+        const response = await ask("Scope (out) - comma separated: ");
+        updated.scope.out = response ? parseList(response) : updated.scope.out;
+      }
+      if (field === "acceptanceCriteria") {
+        const response = await ask("Acceptance criteria - comma separated: ");
+        updated.acceptanceCriteria = response ? parseList(response) : updated.acceptanceCriteria;
+      }
+      if (field === "nfrs.security") {
+        const response = await ask("NFR security: ");
+        updated.nfrs.security = response || updated.nfrs.security;
+      }
+      if (field === "nfrs.performance") {
+        const response = await ask("NFR performance: ");
+        updated.nfrs.performance = response || updated.nfrs.performance;
+      }
+      if (field === "nfrs.availability") {
+        const response = await ask("NFR availability: ");
+        updated.nfrs.availability = response || updated.nfrs.availability;
+      }
+    }
+    updated.updatedAt = new Date().toISOString();
+    gates = checkRequirementGates(updated);
+    if (!gates.ok) {
+      console.log("Requirement gates still failing. Missing:");
+      gates.missing.forEach((field) => console.log(`- ${field}`));
+      return;
+    }
   }
 
   const validation = validateJson("requirement.schema.json", updated);
