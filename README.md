@@ -80,6 +80,7 @@ Key properties:
 - Architecture (C4, containers, components, deployment)
 - Best practices and quality gates
 - Test plan and acceptance criteria
+- Summary (objective, key decisions, open questions)
 - Decision log (ADR-style)
 - Progress log
 - Project README aligned to the SDD
