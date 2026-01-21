@@ -63,6 +63,8 @@ This file defines the command set, intent, and expected behavior.
 ## Common flags
 - `--approve`   Skip confirmations if gates pass
 - `--improve`   Trigger self-audit and regenerate
+- `--project`   Select or name the project
+- `--output`    Override workspace output root
 - `--parallel`  Generate in parallel (supported: `req plan`)
 
 ## Hello flags
