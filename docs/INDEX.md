@@ -11,6 +11,7 @@
 - docs/INTERACTIONS.md
 - docs/RELEASE_PROCESS.md
 - docs/GITFLOW.md
+- docs/CHANGELOG.md
 
 ## Architecture and design
 - docs/ARCHITECTURE.md
@@ -45,6 +46,7 @@
 - docs/RELEASE_READINESS_CHECKLIST.md
 - docs/DOMAIN_COMPLETENESS_CHECKLIST.md
 - docs/KNOWLEDGE_MODE_CHECKLIST.md
+- docs/STYLE.md
 
 ## Automation
 - docs/AUTOMATION_OUTLINE.md
