@@ -13,6 +13,7 @@
 - docs/GITFLOW.md
 - docs/CHANGELOG.md
 - docs/CONTRIBUTING.md
+- .github/PULL_REQUEST_TEMPLATE.md
 
 ## Architecture and design
 - docs/ARCHITECTURE.md
@@ -48,6 +49,11 @@
 - docs/DOMAIN_COMPLETENESS_CHECKLIST.md
 - docs/KNOWLEDGE_MODE_CHECKLIST.md
 - docs/STYLE.md
+
+## Repository automation
+- .github/ISSUE_TEMPLATE/bug_report.md
+- .github/ISSUE_TEMPLATE/feature_request.md
+- CODEOWNERS
 
 ## Automation
 - docs/AUTOMATION_OUTLINE.md

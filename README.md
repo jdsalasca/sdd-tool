@@ -14,6 +14,7 @@ Mission and vision live in `docs/MISSION.md` and `docs/VISION.md`.
 
 Start with `docs/INDEX.md` for a full documentation map and `docs/STYLE.md` for formatting guidance.
 Contributing guidelines live in `docs/CONTRIBUTING.md`.
+Use the PR template in `.github/PULL_REQUEST_TEMPLATE.md`.
 
 Deep process, commands, interactions, and diagrams live in:
 - `docs/PROCESS.md`
