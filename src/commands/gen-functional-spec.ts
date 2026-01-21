@@ -6,6 +6,7 @@ import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
 import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
 import { getFlags } from "../context/flags";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 export async function runGenFunctionalSpec(): Promise<void> {
   const projectName = await ask("Project name: ");
@@ -15,7 +16,15 @@ export async function runGenFunctionalSpec(): Promise<void> {
     return;
   }
 
-  const requirementDir = findRequirementDir(projectName, reqId);
+  const workspace = getWorkspaceInfo();
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const requirementDir = findRequirementDir(project.name, reqId);
   if (!requirementDir) {
     console.log("Requirement not found.");
     return;
@@ -50,7 +59,7 @@ export async function runGenFunctionalSpec(): Promise<void> {
 
   const template = loadTemplate("functional-spec");
   const rendered = renderTemplate(template, {
-    title: projectName,
+    title: project.name,
     overview: overview || "N/A",
     actors: formatList(actors),
     use_cases: formatList(useCases),

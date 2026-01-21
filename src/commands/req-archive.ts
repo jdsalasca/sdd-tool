@@ -1,10 +1,10 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
-import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
+import { getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 
-function findDoneRequirement(workspaceRoot: string, project: string, reqId: string): string | null {
-  const done = path.join(workspaceRoot, project, "requirements", "done", reqId);
+function findDoneRequirement(projectRoot: string, reqId: string): string | null {
+  const done = path.join(projectRoot, "requirements", "done", reqId);
   return fs.existsSync(done) ? done : null;
 }
 
@@ -17,15 +17,22 @@ export async function runReqArchive(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const doneDir = findDoneRequirement(workspace.root, projectName, reqId);
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const doneDir = findDoneRequirement(project.root, reqId);
   if (!doneDir) {
     console.log("Requirement not found in done.");
     return;
   }
 
-  const archiveDir = path.join(workspace.root, projectName, "requirements", "archived", reqId);
+  const archiveDir = path.join(project.root, "requirements", "archived", reqId);
   fs.mkdirSync(path.dirname(archiveDir), { recursive: true });
   fs.renameSync(doneDir, archiveDir);
-  updateProjectStatus(workspace, projectName, "archived");
+  updateProjectStatus(workspace, project.name, "archived");
   console.log(`Archived requirement in ${archiveDir}`);
 }

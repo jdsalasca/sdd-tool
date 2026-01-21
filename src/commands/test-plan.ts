@@ -1,14 +1,14 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
-import { getWorkspaceInfo } from "../workspace/index";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
 import { getFlags } from "../context/flags";
 
-function findRequirementDir(workspaceRoot: string, project: string, reqId: string): string | null {
-  const base = path.join(workspaceRoot, project, "requirements");
+function findRequirementDir(projectRoot: string, reqId: string): string | null {
+  const base = path.join(projectRoot, "requirements");
   const statuses = ["backlog", "wip", "in-progress", "done", "archived"];
   for (const status of statuses) {
     const candidate = path.join(base, status, reqId);
@@ -28,7 +28,14 @@ export async function runTestPlan(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const requirementDir = findRequirementDir(workspace.root, projectName, reqId);
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
     console.log("Requirement not found.");
     return;
@@ -59,7 +66,7 @@ export async function runTestPlan(): Promise<void> {
 
   const template = loadTemplate("test-plan");
   const rendered = renderTemplate(template, {
-    title: projectName,
+    title: project.name,
     critical_paths: formatList(criticalPaths),
     edge_cases: formatList(edgeCases),
     acceptance_tests: formatList(acceptanceTests),

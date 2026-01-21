@@ -2,13 +2,13 @@ import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
 import { getFlags } from "../context/flags";
-import { getWorkspaceInfo } from "../workspace/index";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { renderTemplate, loadTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
 
-function findRequirementFile(workspaceRoot: string, project: string, reqId: string): string | null {
-  const base = path.join(workspaceRoot, project, "requirements");
+function findRequirementFile(projectRoot: string, reqId: string): string | null {
+  const base = path.join(projectRoot, "requirements");
   const candidates = [
     path.join(base, "backlog", reqId, "requirement.json"),
     path.join(base, "wip", reqId, "requirement.json"),
@@ -27,7 +27,14 @@ export async function runReqRefine(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const reqPath = findRequirementFile(workspace.root, projectName, reqId);
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const reqPath = findRequirementFile(project.root, reqId);
   if (!reqPath) {
     console.log("Requirement not found.");
     return;

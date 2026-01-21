@@ -10,7 +10,13 @@ export async function runLearnRefine(): Promise<void> {
     console.log("Project name is required.");
     return;
   }
-  const sessions = listLearnSessions(projectName);
+  let sessions: string[] = [];
+  try {
+    sessions = listLearnSessions(projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
   if (sessions.length > 0) {
     console.log("Available sessions:");
     sessions.forEach((session) => console.log(`- ${session}`));
@@ -21,7 +27,13 @@ export async function runLearnRefine(): Promise<void> {
     return;
   }
 
-  const loaded = loadLearnSession(projectName, sessionId);
+  let loaded;
+  try {
+    loaded = loadLearnSession(projectName, sessionId);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
   if (!loaded) {
     console.log("Learning session not found.");
     return;
@@ -34,14 +46,20 @@ export async function runLearnRefine(): Promise<void> {
   const timeAvailable = await ask(`Time available (${loaded.session.timeAvailable}): `);
   const constraints = await ask("Constraints - comma separated: ");
 
-  const updated = updateLearnSession(projectName, sessionId, {
-    purpose: purpose || loaded.session.purpose,
-    depth: depth || loaded.session.depth,
-    format: format || loaded.session.format,
-    focusAreas: focusAreas ? parseList(focusAreas) : loaded.session.focusAreas,
-    timeAvailable: timeAvailable || loaded.session.timeAvailable,
-    constraints: constraints ? parseList(constraints) : loaded.session.constraints
-  });
+  let updated;
+  try {
+    updated = updateLearnSession(projectName, sessionId, {
+      purpose: purpose || loaded.session.purpose,
+      depth: depth || loaded.session.depth,
+      format: format || loaded.session.format,
+      focusAreas: focusAreas ? parseList(focusAreas) : loaded.session.focusAreas,
+      timeAvailable: timeAvailable || loaded.session.timeAvailable,
+      constraints: constraints ? parseList(constraints) : loaded.session.constraints
+    });
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
 
   if (!updated) {
     console.log("Failed to update session.");

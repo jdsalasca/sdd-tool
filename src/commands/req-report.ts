@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
-import { getWorkspaceInfo } from "../workspace/index";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 const REQUIRED_FILES = [
   "requirement.json",
@@ -22,7 +22,14 @@ export async function runReqReport(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const base = path.join(workspace.root, projectName, "requirements");
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const base = path.join(project.root, "requirements");
   const statuses = ["backlog", "wip", "in-progress", "done", "archived"];
   const dir = statuses.map((status) => path.join(base, status, reqId)).find((candidate) => fs.existsSync(candidate));
   if (!dir) {

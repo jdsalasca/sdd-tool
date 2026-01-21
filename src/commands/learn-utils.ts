@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { getWorkspaceInfo, ensureProject } from "../workspace/index";
+import { ensureProject, getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 export type LearnSession = {
   id: string;
@@ -30,7 +30,8 @@ export function createLearnSession(
   domain = "learning"
 ): { session: LearnSession; dir: string } {
   const workspace = getWorkspaceInfo();
-  ensureProject(workspace, projectName, domain);
+  const project = getProjectInfo(workspace, projectName);
+  ensureProject(workspace, project.name, domain);
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "").slice(0, 13);
   const id = `LEARN-${sanitizeId(topic)}-${stamp}`;
@@ -48,7 +49,7 @@ export function createLearnSession(
     updatedAt: now
   };
 
-  const sessionDir = path.join(workspace.root, projectName, "learning", id);
+  const sessionDir = path.join(project.root, "learning", id);
   fs.mkdirSync(sessionDir, { recursive: true });
   fs.writeFileSync(path.join(sessionDir, "session.json"), JSON.stringify(session, null, 2), "utf-8");
 
@@ -57,7 +58,8 @@ export function createLearnSession(
 
 export function loadLearnSession(projectName: string, sessionId: string): { session: LearnSession; dir: string } | null {
   const workspace = getWorkspaceInfo();
-  const sessionDir = path.join(workspace.root, projectName, "learning", sessionId);
+  const project = getProjectInfo(workspace, projectName);
+  const sessionDir = path.join(project.root, "learning", sessionId);
   const sessionPath = path.join(sessionDir, "session.json");
   if (!fs.existsSync(sessionPath)) {
     return null;
@@ -68,7 +70,8 @@ export function loadLearnSession(projectName: string, sessionId: string): { sess
 
 export function listLearnSessions(projectName: string): string[] {
   const workspace = getWorkspaceInfo();
-  const root = path.join(workspace.root, projectName, "learning");
+  const project = getProjectInfo(workspace, projectName);
+  const root = path.join(project.root, "learning");
   if (!fs.existsSync(root)) {
     return [];
   }

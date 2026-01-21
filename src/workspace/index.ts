@@ -20,6 +20,11 @@ export type WorkspaceInfo = {
   indexPath: string;
 };
 
+export type ProjectInfo = {
+  name: string;
+  root: string;
+};
+
 type WorkspaceIndex = {
   projects: Array<{ name: string; status: string }>;
 };
@@ -42,6 +47,31 @@ export function ensureWorkspace(workspace: WorkspaceInfo): void {
   }
 }
 
+export function normalizeProjectName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error("Project name is required.");
+  }
+  if (trimmed.includes("..") || trimmed.includes("/") || trimmed.includes("\\")) {
+    throw new Error("Project name cannot contain path separators.");
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(trimmed)) {
+    throw new Error("Project name must use letters, numbers, spaces, '-' or '_' only.");
+  }
+  return trimmed;
+}
+
+export function getProjectInfo(workspace: WorkspaceInfo, name: string): ProjectInfo {
+  const normalized = normalizeProjectName(name);
+  const resolvedRoot = path.resolve(workspace.root);
+  const projectRoot = path.resolve(workspace.root, normalized);
+  const rootPrefix = `${resolvedRoot}${path.sep}`;
+  if (projectRoot !== resolvedRoot && !projectRoot.startsWith(rootPrefix)) {
+    throw new Error("Project name resolves outside the workspace.");
+  }
+  return { name: normalized, root: projectRoot };
+}
+
 export function listProjects(workspace: WorkspaceInfo): ProjectSummary[] {
   if (!fs.existsSync(workspace.indexPath)) {
     return [];
@@ -56,7 +86,8 @@ export function listProjects(workspace: WorkspaceInfo): ProjectSummary[] {
 
 export function ensureProject(workspace: WorkspaceInfo, name: string, domain: string): ProjectMetadata {
   ensureWorkspace(workspace);
-  const projectRoot = path.join(workspace.root, name);
+  const project = getProjectInfo(workspace, name);
+  const projectRoot = project.root;
   if (!fs.existsSync(projectRoot)) {
     fs.mkdirSync(projectRoot, { recursive: true });
   }
@@ -71,7 +102,7 @@ export function ensureProject(workspace: WorkspaceInfo, name: string, domain: st
   } else {
     const now = new Date().toISOString();
     metadata = {
-      name,
+      name: project.name,
       status: "backlog",
       domain,
       createdAt: now,
@@ -83,11 +114,11 @@ export function ensureProject(workspace: WorkspaceInfo, name: string, domain: st
   const indexRaw = fs.readFileSync(workspace.indexPath, "utf-8");
   const index = JSON.parse(indexRaw) as WorkspaceIndex;
   index.projects = index.projects ?? [];
-  const existing = index.projects.find((project) => project.name === name);
+  const existing = index.projects.find((entry) => entry.name === project.name);
   if (existing) {
     existing.status = metadata.status;
   } else {
-    index.projects.push({ name, status: metadata.status });
+    index.projects.push({ name: metadata.name, status: metadata.status });
   }
   fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
 
@@ -100,18 +131,19 @@ export function createProject(workspace: WorkspaceInfo, name: string, domain: st
 
 export function updateProjectStatus(workspace: WorkspaceInfo, name: string, status: string): void {
   ensureWorkspace(workspace);
+  const project = getProjectInfo(workspace, name);
   const indexRaw = fs.readFileSync(workspace.indexPath, "utf-8");
   const index = JSON.parse(indexRaw) as WorkspaceIndex;
   index.projects = index.projects ?? [];
-  const existing = index.projects.find((project) => project.name === name);
+  const existing = index.projects.find((entry) => entry.name === project.name);
   if (existing) {
     existing.status = status;
   } else {
-    index.projects.push({ name, status });
+    index.projects.push({ name: project.name, status });
   }
   fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
 
-  const projectRoot = path.join(workspace.root, name);
+  const projectRoot = project.root;
   const metadataPath = path.join(projectRoot, "metadata.json");
   if (fs.existsSync(metadataPath)) {
     const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as ProjectMetadata;

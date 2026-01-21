@@ -4,6 +4,7 @@ import { ask } from "../ui/prompt";
 import { validateJson } from "../validation/validate";
 import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
 import { getFlags } from "../context/flags";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 function renderQualityYaml(rules: string[], coverage: string, complexity: string): string {
   const ruleLines = rules.length > 0 ? rules.map((rule) => `  - ${rule}`).join("\n") : "  - N/A";
@@ -26,7 +27,15 @@ export async function runGenBestPractices(): Promise<void> {
     return;
   }
 
-  const requirementDir = findRequirementDir(projectName, reqId);
+  const workspace = getWorkspaceInfo();
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const requirementDir = findRequirementDir(project.name, reqId);
   if (!requirementDir) {
     console.log("Requirement not found.");
     return;

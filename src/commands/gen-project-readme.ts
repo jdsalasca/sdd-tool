@@ -5,6 +5,7 @@ import { loadTemplate, renderTemplate } from "../templates/render";
 import { validateJson } from "../validation/validate";
 import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
 import { getFlags } from "../context/flags";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 export async function runGenProjectReadme(): Promise<void> {
   const projectName = await ask("Project name: ");
@@ -14,7 +15,15 @@ export async function runGenProjectReadme(): Promise<void> {
     return;
   }
 
-  const requirementDir = findRequirementDir(projectName, reqId);
+  const workspace = getWorkspaceInfo();
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const requirementDir = findRequirementDir(project.name, reqId);
   if (!requirementDir) {
     console.log("Requirement not found.");
     return;
@@ -32,7 +41,7 @@ export async function runGenProjectReadme(): Promise<void> {
   const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const projectReadmeJson = {
-    projectName,
+    projectName: project.name,
     overview: overview || "N/A",
     howToRun: howToRun || "N/A",
     architectureSummary: architectureSummary || "N/A",
@@ -54,7 +63,7 @@ export async function runGenProjectReadme(): Promise<void> {
 
   const template = loadTemplate("project-readme");
   const rendered = renderTemplate(template, {
-    project_name: projectName,
+    project_name: project.name,
     overview: projectReadmeJson.overview,
     how_to_run: projectReadmeJson.howToRun,
     architecture_summary: projectReadmeJson.architectureSummary,

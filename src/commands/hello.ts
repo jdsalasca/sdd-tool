@@ -19,7 +19,17 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       console.log(`- ${project.name} (${project.status})`);
     });
     const choice = await ask("Start new or continue? (new/continue) ");
-    console.log(`Selected: ${choice || "new"}`);
+    const normalized = choice.trim().toLowerCase();
+    if (normalized === "continue") {
+      const selected = await ask("Project to continue: ");
+      if (selected) {
+        console.log(`Continuing: ${selected}`);
+      } else {
+        console.log("No project selected. Continuing with new flow.");
+      }
+    } else {
+      console.log(`Selected: ${choice || "new"}`);
+    }
   } else {
     console.log("No active projects found.");
   }

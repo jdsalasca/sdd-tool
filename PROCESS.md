@@ -8,6 +8,7 @@ Command: `sdd-tool hello`
 - Show active projects and last activity
 - Ask: new project or continue?
 - If new: collect project name, domain, persona, output location
+- Validate project name (letters, numbers, spaces, `-`, `_` only)
 - Run intent router and select flow
 
 ## 1) Discovery (create)
@@ -28,6 +29,7 @@ Command: `sdd-tool req refine`
 Command: `sdd-tool req plan`
 - Generate functional, technical, and architecture specs
 - Create initial diagrams (text-based)
+- Update requirement status to `wip`
 - Gate: acceptance criteria and NFRs must be satisfied
 
 ## 4) Implementation readiness (start)
@@ -35,6 +37,7 @@ Command: `sdd-tool req start`
 - Generate implementation plan
 - Activate quality contract `quality.yml`
 - Generate test plan
+- Update requirement status to `in-progress`
 - Gate: test plan and quality thresholds defined
 
 ## 5) Verification (verify)
@@ -59,6 +62,7 @@ Command: `sdd-tool req finish`
 - Seal requirement and specs
 - Lock ADRs and decision log
 - Mark requirement as done and archive if requested
+- Update requirement status to `done`
 
 ## PR review process (specialized)
 Command: `sdd-tool pr start`

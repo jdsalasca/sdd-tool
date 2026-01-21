@@ -10,7 +10,13 @@ export async function runLearnDeliver(): Promise<void> {
     console.log("Project name is required.");
     return;
   }
-  const sessions = listLearnSessions(projectName);
+  let sessions: string[] = [];
+  try {
+    sessions = listLearnSessions(projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
   if (sessions.length > 0) {
     console.log("Available sessions:");
     sessions.forEach((session) => console.log(`- ${session}`));
@@ -21,7 +27,13 @@ export async function runLearnDeliver(): Promise<void> {
     return;
   }
 
-  const loaded = loadLearnSession(projectName, sessionId);
+  let loaded;
+  try {
+    loaded = loadLearnSession(projectName, sessionId);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
   if (!loaded) {
     console.log("Learning session not found.");
     return;

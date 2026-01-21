@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { getWorkspaceInfo, ensureProject } from "../workspace/index";
+import { ensureProject, getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 export type PrContext = {
   projectName: string;
@@ -27,28 +27,31 @@ function sanitizeId(value: string): string {
 
 export function ensurePrReviewDir(projectName: string, prLink: string, prIdInput?: string): PrContext {
   const workspace = getWorkspaceInfo();
-  ensureProject(workspace, projectName, "software");
+  const project = getProjectInfo(workspace, projectName);
+  ensureProject(workspace, project.name, "software");
 
   const derived = extractPrId(prLink);
   const rawId = prIdInput?.trim() || derived || `PR-${Date.now()}`;
   const prId = sanitizeId(rawId);
 
-  const prDir = path.join(workspace.root, projectName, "pr-reviews", prId);
+  const prDir = path.join(project.root, "pr-reviews", prId);
   if (!fs.existsSync(prDir)) {
     fs.mkdirSync(prDir, { recursive: true });
   }
 
-  return { projectName, prId, prDir };
+  return { projectName: project.name, prId, prDir };
 }
 
 export function resolvePrDir(projectName: string, prId: string): string {
   const workspace = getWorkspaceInfo();
-  return path.join(workspace.root, projectName, "pr-reviews", prId);
+  const project = getProjectInfo(workspace, projectName);
+  return path.join(project.root, "pr-reviews", prId);
 }
 
 export function listPrReviews(projectName: string): string[] {
   const workspace = getWorkspaceInfo();
-  const root = path.join(workspace.root, projectName, "pr-reviews");
+  const project = getProjectInfo(workspace, projectName);
+  const root = path.join(project.root, "pr-reviews");
   if (!fs.existsSync(root)) {
     return [];
   }

@@ -32,7 +32,13 @@ export async function runPrStart(): Promise<void> {
   const testsRun = await ask("Tests run: ");
   const notes = await ask("Notes - comma separated: ");
 
-  const context = ensurePrReviewDir(projectName, prLink, prIdInput);
+  let context;
+  try {
+    context = ensurePrReviewDir(projectName, prLink, prIdInput);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
   const reviewMeta = {
     id: context.prId,
     link: prLink,

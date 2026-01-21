@@ -19,7 +19,13 @@ export async function runLearnStart(): Promise<void> {
   const timeAvailable = await ask("Time available: ");
   const constraints = await ask("Constraints - comma separated: ");
 
-  const created = createLearnSession(projectName, topic, "learning");
+  let created;
+  try {
+    created = createLearnSession(projectName, topic, "learning");
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
   updateLearnSession(projectName, created.session.id, {
     purpose: purpose || "N/A",
     depth: depth || "N/A",

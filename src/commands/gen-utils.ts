@@ -1,11 +1,18 @@
 import fs from "fs";
 import path from "path";
-import { getWorkspaceInfo } from "../workspace/index";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { getFlags } from "../context/flags";
 
 export function findRequirementDir(projectName: string, reqId: string): string | null {
   const workspace = getWorkspaceInfo();
-  const base = path.join(workspace.root, projectName, "requirements");
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return null;
+  }
+  const base = path.join(project.root, "requirements");
   const statuses = ["backlog", "wip", "in-progress", "done", "archived"];
   for (const status of statuses) {
     const candidate = path.join(base, status, reqId);

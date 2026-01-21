@@ -2,14 +2,14 @@ import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
 import { getFlags } from "../context/flags";
-import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
+import { getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
 
-function findRequirementDir(workspaceRoot: string, project: string, reqId: string): string | null {
-  const backlog = path.join(workspaceRoot, project, "requirements", "backlog", reqId);
-  const wip = path.join(workspaceRoot, project, "requirements", "wip", reqId);
+function findRequirementDir(projectRoot: string, reqId: string): string | null {
+  const backlog = path.join(projectRoot, "requirements", "backlog", reqId);
+  const wip = path.join(projectRoot, "requirements", "wip", reqId);
   if (fs.existsSync(backlog)) return backlog;
   if (fs.existsSync(wip)) return wip;
   return null;
@@ -24,7 +24,14 @@ export async function runReqPlan(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const requirementDir = findRequirementDir(workspace.root, projectName, reqId);
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  let requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
     console.log("Requirement not found in backlog or wip.");
     return;
@@ -43,14 +50,20 @@ export async function runReqPlan(): Promise<void> {
     return;
   }
 
-  const wipDir = path.join(workspace.root, projectName, "requirements", "wip", reqId);
+  const wipDir = path.join(project.root, "requirements", "wip", reqId);
   if (requirementDir.includes(path.join("requirements", "backlog"))) {
     fs.mkdirSync(path.dirname(wipDir), { recursive: true });
     fs.renameSync(requirementDir, wipDir);
-    updateProjectStatus(workspace, projectName, "wip");
+    updateProjectStatus(workspace, project.name, "wip");
+    requirementDir = wipDir;
   }
 
   const targetDir = fs.existsSync(wipDir) ? wipDir : requirementDir;
+  if (requirementJson.status !== "wip") {
+    requirementJson.status = "wip";
+  }
+  requirementJson.updatedAt = new Date().toISOString();
+  fs.writeFileSync(path.join(targetDir, "requirement.json"), JSON.stringify(requirementJson, null, 2), "utf-8");
 
   const overview = await ask("Functional overview: ");
   const actors = await ask("Actors - comma separated: ");
@@ -136,7 +149,7 @@ export async function runReqPlan(): Promise<void> {
   const testPlanTemplate = loadTemplate("test-plan");
 
   const functionalRendered = renderTemplate(functionalTemplate, {
-    title: projectName,
+    title: project.name,
     overview: overview || "N/A",
     actors: formatList(actors),
     use_cases: formatList(useCases),
@@ -146,7 +159,7 @@ export async function runReqPlan(): Promise<void> {
     acceptance_criteria: formatList(acceptance)
   });
   const technicalRendered = renderTemplate(technicalTemplate, {
-    title: projectName,
+    title: project.name,
     stack: formatList(stack),
     interfaces: formatList(interfaces),
     data_model: formatList(dataModel),
@@ -156,7 +169,7 @@ export async function runReqPlan(): Promise<void> {
     observability: formatList(observability)
   });
   const architectureRendered = renderTemplate(architectureTemplate, {
-    title: projectName,
+    title: project.name,
     context: context || "N/A",
     containers: formatList(containers),
     components: formatList(components),
@@ -164,7 +177,7 @@ export async function runReqPlan(): Promise<void> {
     diagrams: formatList(diagrams)
   });
   const testPlanRendered = renderTemplate(testPlanTemplate, {
-    title: projectName,
+    title: project.name,
     critical_paths: formatList(criticalPaths),
     edge_cases: formatList(edgeCases),
     acceptance_tests: formatList(acceptanceTests),

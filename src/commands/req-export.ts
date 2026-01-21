@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
-import { getWorkspaceInfo } from "../workspace/index";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 export async function runReqExport(): Promise<void> {
   const projectName = await ask("Project name: ");
@@ -13,7 +13,14 @@ export async function runReqExport(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const base = path.join(workspace.root, projectName, "requirements");
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const base = path.join(project.root, "requirements");
   const statuses = ["backlog", "wip", "in-progress", "done", "archived"];
   const sourceDir = statuses.map((status) => path.join(base, status, reqId)).find((candidate) => fs.existsSync(candidate));
   if (!sourceDir) {
@@ -21,7 +28,7 @@ export async function runReqExport(): Promise<void> {
     return;
   }
 
-  const targetDir = path.join(outputDir, `${projectName}-${reqId}`);
+  const targetDir = path.join(outputDir, `${project.name}-${reqId}`);
   fs.mkdirSync(targetDir, { recursive: true });
 
   for (const entry of fs.readdirSync(sourceDir)) {

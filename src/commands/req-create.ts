@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
-import { createProject, getWorkspaceInfo } from "../workspace/index";
+import { createProject, getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
@@ -40,13 +40,20 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
   const links = await ask("Links - comma separated: ");
 
   const workspace = getWorkspaceInfo();
-  const metadata = createProject(workspace, projectName, domain || "software");
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const metadata = createProject(workspace, project.name, domain || "software");
   const reqId = generateId();
   const status = "backlog";
 
   const requirementJson = {
     id: reqId,
-    title: projectName,
+    title: project.name,
     objective: objective || "N/A",
     status,
     actors: parseList(actors),
@@ -73,12 +80,12 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     return;
   }
 
-  const requirementDir = path.join(workspace.root, projectName, "requirements", "backlog", reqId);
+  const requirementDir = path.join(project.root, "requirements", "backlog", reqId);
   fs.mkdirSync(requirementDir, { recursive: true });
 
   const template = loadTemplate("requirement");
   const rendered = renderTemplate(template, {
-    title: projectName,
+    title: project.name,
     id: reqId,
     objective: objective || "N/A",
     actors: formatList(actors),
@@ -103,6 +110,6 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     fs.writeFileSync(progressLogPath, "# Progress Log\n\n", "utf-8");
   }
   console.log(`Created requirement in ${requirementDir}`);
-  console.log(`Project metadata stored in ${path.join(workspace.root, projectName, "metadata.json")}`);
+  console.log(`Project metadata stored in ${path.join(project.root, "metadata.json")}`);
   console.log(`Project status: ${metadata.status}`);
 }

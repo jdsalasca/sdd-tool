@@ -11,7 +11,13 @@ export async function runPrReport(): Promise<void> {
     console.log("Project name is required.");
     return;
   }
-  const available = listPrReviews(projectName);
+  let available: string[] = [];
+  try {
+    available = listPrReviews(projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
   if (available.length > 0) {
     console.log("Available PR reviews:");
     available.forEach((item) => console.log(`- ${item}`));
@@ -21,7 +27,13 @@ export async function runPrReport(): Promise<void> {
     console.log("PR ID is required.");
     return;
   }
-  const prDir = resolvePrDir(projectName, prId);
+  let prDir: string;
+  try {
+    prDir = resolvePrDir(projectName, prId);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
   if (!fs.existsSync(prDir)) {
     console.log(`PR review not found at ${prDir}`);
     return;
