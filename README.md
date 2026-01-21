@@ -87,13 +87,15 @@ Key properties:
 ## Install and run (cross-platform)
 
 ```
-npm install -g sdd-tool
+npm install -g sdd-cli
 ```
 
 Then:
 ```
 sdd-tool hello
 ```
+
+Package name on npm is `sdd-cli` (CLI commands remain `sdd-tool` and `sdd`).
 
 The `hello` command is the entry point: it connects to AI, lists active projects, and offers to create a new one or continue. It then runs a guided, happy-path sequence from discovery to completion.
 

@@ -172,7 +172,6 @@ export async function runReqPlan(): Promise<void> {
     coverage_target: coverageTarget || "N/A"
   });
 
-  const flags = getFlags();
   const writes = [
     [path.join(targetDir, "functional-spec.md"), functionalRendered],
     [path.join(targetDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2)],

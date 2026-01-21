@@ -1,6 +1,6 @@
 {
-  "name": "sdd-tool",
-  "version": "0.1.4",
+  "name": "sdd-cli",
+  "version": "0.1.0",
   "description": "SDD-first, AI-native CLI for end-to-end delivery.",
   "bin": {
     "sdd-tool": "dist/cli.js",
