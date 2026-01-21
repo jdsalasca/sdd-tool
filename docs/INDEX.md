@@ -12,6 +12,7 @@
 - docs/RELEASE_PROCESS.md
 - docs/GITFLOW.md
 - docs/CHANGELOG.md
+- docs/CONTRIBUTING.md
 
 ## Architecture and design
 - docs/ARCHITECTURE.md

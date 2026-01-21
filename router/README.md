@@ -2,6 +2,8 @@
 
 These scripts define intent detection and the step-by-step conversation for each flow.
 
+See `flows/README.md` for the domain playbooks.
+
 Each script includes:
 - Entry signals
 - Required questions
