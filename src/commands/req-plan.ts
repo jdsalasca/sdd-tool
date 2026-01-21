@@ -198,7 +198,7 @@ export async function runReqPlan(): Promise<void> {
     [path.join(targetDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2)],
     [path.join(targetDir, "technical-spec.md"), technicalRendered],
     [path.join(targetDir, "technical-spec.json"), JSON.stringify(technicalJson, null, 2)],
-    [path.join(targetDir, "docs/ARCHITECTURE.md"), architectureRendered],
+    [path.join(targetDir, "architecture.md"), architectureRendered],
     [path.join(targetDir, "architecture.json"), JSON.stringify(architectureJson, null, 2)],
     [path.join(targetDir, "test-plan.md"), testPlanRendered],
     [path.join(targetDir, "test-plan.json"), JSON.stringify(testPlanJson, null, 2)]

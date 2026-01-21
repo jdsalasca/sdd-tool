@@ -14,7 +14,7 @@ Support in-store sales, inventory, and customer management in a reliable, low-la
 - `requirement.md` with store operations constraints
 - `functional-spec.md` for POS, inventory, and staff flows
 - `technical-spec.md` for device integration and offline sync
-- `docs/ARCHITECTURE.md` for store-local resiliency
+- `architecture.md` for store-local resiliency
 - `test-plan.md` for offline/online transitions
 
 ## Risk and compliance
@@ -31,4 +31,5 @@ Support in-store sales, inventory, and customer management in a reliable, low-la
 - POS workflow diagram
 - Offline sync strategy
 - Store ops checklist
+
 

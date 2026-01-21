@@ -20,7 +20,7 @@
 ## Required outputs
 - `requirement.md`
 - `technical-spec.md`
-- `docs/ARCHITECTURE.md`
+- `architecture.md`
 - `test-plan.md` (sensitivity checks)
 
 ## Scripted Q/A tree
@@ -55,4 +55,5 @@ A: No -> refine
 
 ## Agents
 - Analyst, Economist, Critic
+
 

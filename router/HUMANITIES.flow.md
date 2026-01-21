@@ -21,7 +21,7 @@
 - `requirement.md`
 - `functional-spec.md`
 - `technical-spec.md` (citation rules)
-- `docs/ARCHITECTURE.md` (structure)
+- `architecture.md` (structure)
 - `test-plan.md` (bias and source checks)
 
 ## Scripted Q/A tree
@@ -56,4 +56,5 @@ A: No -> refine
 
 ## Agents
 - Researcher, Critic, Synthesizer
+
 

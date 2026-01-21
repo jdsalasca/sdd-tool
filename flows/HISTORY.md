@@ -14,7 +14,7 @@ Produce a credible historical analysis with sources, timelines, and context.
 - `requirement.md` with scope and thesis
 - `functional-spec.md` for narrative flow
 - `technical-spec.md` for citation style and source rules
-- `docs/ARCHITECTURE.md` for section structure
+- `architecture.md` for section structure
 - `test-plan.md` for source verification and bias checks
 
 ## Risk and compliance
@@ -31,4 +31,5 @@ Produce a credible historical analysis with sources, timelines, and context.
 - Annotated bibliography
 - Timeline map
 - Thesis refinement log
+
 

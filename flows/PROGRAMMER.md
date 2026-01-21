@@ -14,7 +14,7 @@ Implement a feature or system change with clean code, tests, and documentation.
 - `requirement.md` with scope and constraints
 - `functional-spec.md` for behavior and edge cases
 - `technical-spec.md` for design and dependencies
-- `docs/ARCHITECTURE.md` for component-level impact
+- `architecture.md` for component-level impact
 - `test-plan.md` for coverage and regression
 
 ## Risk and compliance
@@ -31,4 +31,5 @@ Implement a feature or system change with clean code, tests, and documentation.
 - Implementation plan
 - Code review checklist
 - Rollout plan
+
 

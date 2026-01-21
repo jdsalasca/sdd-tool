@@ -21,7 +21,7 @@
 - `requirement.md`
 - `functional-spec.md`
 - `technical-spec.md`
-- `docs/ARCHITECTURE.md`
+- `architecture.md`
 - `test-plan.md`
 - `quality.yml`
 
@@ -57,4 +57,5 @@ A: No -> refine
 
 ## Agents
 - Req Analyst, Solution Architect, Tech Lead, QA
+
 

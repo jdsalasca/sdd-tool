@@ -14,7 +14,7 @@ Deliver reliable public services with strict compliance, transparency, and audit
 - `requirement.md` with legal constraints and SLA targets
 - `functional-spec.md` for service request and approval flows
 - `technical-spec.md` for identity and access management
-- `docs/ARCHITECTURE.md` for resiliency and data governance
+- `architecture.md` for resiliency and data governance
 - `test-plan.md` for SLA compliance and failure scenarios
 
 ## Risk and compliance
@@ -31,4 +31,5 @@ Deliver reliable public services with strict compliance, transparency, and audit
 - Citizen request tracking
 - Compliance dashboard
 - Audit-ready reports
+
 

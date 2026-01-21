@@ -49,7 +49,7 @@ export async function runGenProjectReadme(): Promise<void> {
       requirements: requirementsLink || "requirements/requirement.md",
       functionalSpec: functionalSpecLink || "requirements/functional-spec.md",
       technicalSpec: technicalSpecLink || "requirements/technical-spec.md",
-      architecture: architectureLink || "requirements/docs/ARCHITECTURE.md"
+      architecture: architectureLink || "requirements/architecture.md"
     },
     testingNotes: testingNotes || "N/A"
   };

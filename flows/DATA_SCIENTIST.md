@@ -14,7 +14,7 @@ Deliver a data product or model with reproducible experiments and measurable imp
 - `requirement.md` with objective and success metrics
 - `functional-spec.md` for data flows and user interactions
 - `technical-spec.md` for pipelines, features, and infra
-- `docs/ARCHITECTURE.md` for data storage and serving
+- `architecture.md` for data storage and serving
 - `test-plan.md` for data validation and model evaluation
 
 ## Risk and compliance
@@ -31,4 +31,5 @@ Deliver a data product or model with reproducible experiments and measurable imp
 - Feature catalog
 - Experiment tracking plan
 - Model card summary
+
 

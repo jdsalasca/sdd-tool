@@ -14,7 +14,7 @@ Analyze economic scenarios or policy impacts with clear assumptions and models.
 - `requirement.md` with objectives and constraints
 - `functional-spec.md` for analysis flow and outputs
 - `technical-spec.md` for models and datasets
-- `docs/ARCHITECTURE.md` for data pipeline and reporting
+- `architecture.md` for data pipeline and reporting
 - `test-plan.md` for sensitivity and robustness checks
 
 ## Risk and compliance
@@ -31,4 +31,5 @@ Analyze economic scenarios or policy impacts with clear assumptions and models.
 - Assumptions log
 - Scenario matrix
 - Executive summary
+
 

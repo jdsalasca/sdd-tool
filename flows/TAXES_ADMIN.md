@@ -14,7 +14,7 @@ Manage tax filing, validation, audits, and compliance with strong security and t
 - `requirement.md` with compliance and validation constraints
 - `functional-spec.md` for filing and audit workflows
 - `technical-spec.md` covering encryption and access controls
-- `docs/ARCHITECTURE.md` with data segregation and audit trails
+- `architecture.md` with data segregation and audit trails
 - `test-plan.md` for validation accuracy and security
 
 ## Risk and compliance
@@ -31,4 +31,5 @@ Manage tax filing, validation, audits, and compliance with strong security and t
 - Filing validation engine
 - Audit case management
 - Compliance reporting
+
 

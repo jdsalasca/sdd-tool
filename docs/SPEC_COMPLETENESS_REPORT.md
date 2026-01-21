@@ -6,7 +6,7 @@ Use this checklist to confirm each project is fully specified before implementat
 - requirement.md
 - functional-spec.md (if applicable)
 - technical-spec.md
-- docs/ARCHITECTURE.md
+- architecture.md
 - test-plan.md
 - quality.yml
 - decision-log/ADR-0001.md
@@ -23,4 +23,5 @@ Use this checklist to confirm each project is fully specified before implementat
 - context
 - container
 - component
+
 

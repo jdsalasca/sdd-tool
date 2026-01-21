@@ -14,7 +14,7 @@ Manage case intake, hearings, rulings, and records with strict auditability and 
 - `requirement.md` with legal constraints and actors
 - `functional-spec.md` for filing, scheduling, and ruling flows
 - `technical-spec.md` for access control and audit logs
-- `docs/ARCHITECTURE.md` for resiliency and record management
+- `architecture.md` for resiliency and record management
 - `test-plan.md` for permissions and compliance verification
 
 ## Risk and compliance
@@ -31,4 +31,5 @@ Manage case intake, hearings, rulings, and records with strict auditability and 
 - Court docket workflow
 - Evidence chain-of-custody log
 - Compliance audit pack
+
 

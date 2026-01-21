@@ -14,7 +14,7 @@ Create an art piece or series with a clear concept, process, and critique cycle.
 - `requirement.md` with concept and constraints
 - `functional-spec.md` for narrative or interaction flow
 - `technical-spec.md` for materials and production steps
-- `docs/ARCHITECTURE.md` for series structure or installation layout
+- `architecture.md` for series structure or installation layout
 - `test-plan.md` for critique and iteration checkpoints
 
 ## Risk and compliance
@@ -31,4 +31,5 @@ Create an art piece or series with a clear concept, process, and critique cycle.
 - Concept brief
 - Production plan
 - Critique log
+
 

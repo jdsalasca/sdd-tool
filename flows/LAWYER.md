@@ -14,7 +14,7 @@ Build a system to manage cases, documents, deadlines, and client communication w
 - `requirement.md` with scope and compliance constraints
 - `functional-spec.md` including case lifecycle and document review flows
 - `technical-spec.md` detailing access control and audit logging
-- `docs/ARCHITECTURE.md` with secure storage and encryption at rest
+- `architecture.md` with secure storage and encryption at rest
 - `test-plan.md` with permission boundary tests
 - `decision-log/ADR-XXXX.md` for storage and retention choices
 
@@ -32,4 +32,5 @@ Build a system to manage cases, documents, deadlines, and client communication w
 - Secure storage and audit module
 - Role-based access matrix
 - Case timeline dashboard
+
 

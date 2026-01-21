@@ -63,7 +63,7 @@ export async function runGenArchitecture(): Promise<void> {
     diagrams: formatList(diagrams)
   });
 
-  fs.writeFileSync(path.join(requirementDir, "docs/ARCHITECTURE.md"), rendered, "utf-8");
+  fs.writeFileSync(path.join(requirementDir, "architecture.md"), rendered, "utf-8");
   fs.writeFileSync(path.join(requirementDir, "architecture.json"), JSON.stringify(architectureJson, null, 2), "utf-8");
   appendProgress(requirementDir, `generated architecture for ${reqId}`);
   appendImprove(requirementDir, improveNote);

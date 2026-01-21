@@ -20,7 +20,7 @@
 ## Required outputs
 - `requirement.md`
 - `technical-spec.md`
-- `docs/ARCHITECTURE.md`
+- `architecture.md`
 - `test-plan.md`
 - `quality.yml`
 
@@ -56,4 +56,5 @@ A: No -> refine
 
 ## Agents
 - Data Scientist, MLOps, QA
+
 

@@ -92,8 +92,9 @@ Command: `sdd-cli hello`
 
 ## Outputs by stage
 - Discovery: `requirement.md`, `requirement.json`, `summary.md`
-- Planning: `functional-spec.md`, `technical-spec.md`, `docs/ARCHITECTURE.md`, `test-plan.md`
+- Planning: `functional-spec.md`, `technical-spec.md`, `architecture.md`, `test-plan.md`
 - Implementation: `implementation-plan.md`, `quality.yml`
 - Completion: `decision-log/`, `progress-log.md`, final `project-readme.md`
+
 
 
