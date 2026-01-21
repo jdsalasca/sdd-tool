@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { createProject, getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
+import { checkRequirementGates } from "../validation/gates";
 import { validateJson } from "../validation/validate";
 
 function generateId(): string {
@@ -25,7 +26,7 @@ export type RequirementDraft = {
 };
 
 export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const domain = await ask("Domain (software, legal, design, learning, etc): ");
   const actors = await ask("Actors - comma separated: ");
   const objective = draft?.objective ?? (await ask("Objective: "));
@@ -73,6 +74,13 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     updatedAt: new Date().toISOString()
   };
 
+  const gates = checkRequirementGates(requirementJson);
+  if (!gates.ok) {
+    console.log("Requirement gates failed. Missing:");
+    gates.missing.forEach((field) => console.log(`- ${field}`));
+    return;
+  }
+
   const validation = validateJson("requirement.schema.json", requirementJson);
   if (!validation.valid) {
     console.log("Requirement validation failed:");
@@ -113,3 +121,5 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
   console.log(`Project metadata stored in ${path.join(project.root, "metadata.json")}`);
   console.log(`Project status: ${metadata.status}`);
 }
+
+

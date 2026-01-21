@@ -1,10 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 export async function runReqExport(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   const outputDir = await ask("Output directory: ");
   if (!projectName || !reqId || !outputDir) {
@@ -41,3 +41,5 @@ export async function runReqExport(): Promise<void> {
 
   console.log(`Exported requirement artifacts to ${targetDir}`);
 }
+
+

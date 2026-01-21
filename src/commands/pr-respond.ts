@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { listPrReviews, resolvePrDir } from "./pr-utils";
 
@@ -14,7 +14,7 @@ function sanitizeId(value: string): string {
 }
 
 export async function runPrRespond(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   if (!projectName) {
     console.log("Project name is required.");
     return;
@@ -76,3 +76,5 @@ export async function runPrRespond(): Promise<void> {
 
   console.log(`Response saved to ${path.join(responsesDir, fileName)}`);
 }
+
+

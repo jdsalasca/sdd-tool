@@ -37,6 +37,14 @@ export function ask(question: string): Promise<string> {
   });
 }
 
+export async function askProjectName(prompt = "Project name: "): Promise<string> {
+  const flags = getFlags();
+  if (flags.project && flags.project.trim().length > 0) {
+    return flags.project.trim();
+  }
+  return ask(prompt);
+}
+
 export async function confirm(question: string): Promise<boolean> {
   const flags = getFlags();
   if (flags.approve) {

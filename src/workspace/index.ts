@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { getFlags } from "../context/flags";
 
 export type ProjectSummary = {
   name: string;
@@ -30,9 +31,12 @@ type WorkspaceIndex = {
 };
 
 export function getWorkspaceInfo(): WorkspaceInfo {
-  const root = process.env.APPDATA
-    ? path.join(process.env.APPDATA, "sdd-tool", "workspaces")
-    : path.join(os.homedir(), ".config", "sdd-tool", "workspaces");
+  const flags = getFlags();
+  const root = flags.output
+    ? path.resolve(flags.output)
+    : process.env.APPDATA
+      ? path.join(process.env.APPDATA, "sdd-tool", "workspaces")
+      : path.join(os.homedir(), ".config", "sdd-tool", "workspaces");
   const indexPath = path.join(root, "workspaces.json");
   return { root, indexPath };
 }

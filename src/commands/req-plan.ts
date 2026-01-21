@@ -1,10 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { getFlags } from "../context/flags";
 import { getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
+import { checkRequirementGates } from "../validation/gates";
 import { validateJson } from "../validation/validate";
 
 function findRequirementDir(projectRoot: string, reqId: string): string | null {
@@ -16,7 +17,7 @@ function findRequirementDir(projectRoot: string, reqId: string): string | null {
 }
 
 export async function runReqPlan(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -43,6 +44,12 @@ export async function runReqPlan(): Promise<void> {
     return;
   }
   const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
+  const gates = checkRequirementGates(requirementJson);
+  if (!gates.ok) {
+    console.log("Requirement gates failed. Missing:");
+    gates.missing.forEach((field) => console.log(`- ${field}`));
+    return;
+  }
   const requirementValidation = validateJson("requirement.schema.json", requirementJson);
   if (!requirementValidation.valid) {
     console.log("Requirement validation failed:");
@@ -223,3 +230,5 @@ export async function runReqPlan(): Promise<void> {
   fs.appendFileSync(changelog, changeEntry, "utf-8");
   console.log(`Generated specs in ${targetDir}`);
 }
+
+

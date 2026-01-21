@@ -1,12 +1,12 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList } from "../utils/list";
 import { ensurePrReviewDir } from "./pr-utils";
 
 export async function runPrStart(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   if (!projectName) {
     console.log("Project name is required.");
     return;
@@ -85,3 +85,5 @@ export async function runPrStart(): Promise<void> {
 
   console.log(`PR review initialized in ${context.prDir}`);
 }
+
+

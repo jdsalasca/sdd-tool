@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { formatList, parseList } from "../utils/list";
 import { listLearnSessions, loadLearnSession } from "./learn-utils";
 
 export async function runLearnDeliver(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   if (!projectName) {
     console.log("Project name is required.");
     return;
@@ -74,3 +74,5 @@ export async function runLearnDeliver(): Promise<void> {
 
   console.log(`Learning outputs written to ${loaded.dir}`);
 }
+
+

@@ -27,7 +27,9 @@ program
   .version(getVersion())
   .option("--approve", "Skip confirmations if gates pass")
   .option("--improve", "Trigger self-audit and regenerate")
-  .option("--parallel", "Generate in parallel when supported");
+  .option("--parallel", "Generate in parallel when supported")
+  .option("--project <name>", "Select or name the project")
+  .option("--output <path>", "Override workspace output root");
 
 program.hook("preAction", (thisCommand, actionCommand) => {
   const opts =
@@ -35,7 +37,9 @@ program.hook("preAction", (thisCommand, actionCommand) => {
   setFlags({
     approve: Boolean(opts.approve),
     improve: Boolean(opts.improve),
-    parallel: Boolean(opts.parallel)
+    parallel: Boolean(opts.parallel),
+    project: typeof opts.project === "string" ? opts.project : undefined,
+    output: typeof opts.output === "string" ? opts.output : undefined
   });
 });
 

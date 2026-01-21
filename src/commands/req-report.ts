@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 const REQUIRED_FILES = [
@@ -14,7 +14,7 @@ const REQUIRED_FILES = [
 ];
 
 export async function runReqReport(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -46,3 +46,5 @@ export async function runReqReport(): Promise<void> {
   }
   console.log(`Missing files: ${missing}`);
 }
+
+

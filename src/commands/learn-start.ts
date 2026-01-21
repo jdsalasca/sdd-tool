@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { formatList, parseList } from "../utils/list";
 import { createLearnSession, updateLearnSession } from "./learn-utils";
 
 export async function runLearnStart(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const topic = await ask("Topic to learn: ");
   if (!projectName || !topic) {
     console.log("Project name and topic are required.");
@@ -68,3 +68,5 @@ export async function runLearnStart(): Promise<void> {
 
   console.log(`Learning session created at ${sessionDir}`);
 }
+
+

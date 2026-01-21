@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { validateJson } from "../validation/validate";
 
 export async function runReqLint(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -61,3 +61,5 @@ export async function runReqLint(): Promise<void> {
     console.log("All artifacts valid for this requirement.");
   }
 }
+
+

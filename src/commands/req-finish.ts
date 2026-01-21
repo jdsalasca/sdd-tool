@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { validateJson } from "../validation/validate";
@@ -16,7 +16,7 @@ function findRequirementDir(projectRoot: string, reqId: string): string | null {
 }
 
 export async function runReqFinish(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -133,3 +133,5 @@ export async function runReqFinish(): Promise<void> {
   fs.appendFileSync(changelog, changeEntry, "utf-8");
   console.log(`Moved requirement to ${doneDir}`);
 }
+
+

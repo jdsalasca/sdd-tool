@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { formatList, parseList } from "../utils/list";
 import { listLearnSessions, loadLearnSession, updateLearnSession } from "./learn-utils";
 
 export async function runLearnRefine(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   if (!projectName) {
     console.log("Project name is required.");
     return;
@@ -88,3 +88,5 @@ export async function runLearnRefine(): Promise<void> {
   fs.appendFileSync(progressLog, logEntry, "utf-8");
   console.log(`Learning session updated at ${loaded.dir}`);
 }
+
+

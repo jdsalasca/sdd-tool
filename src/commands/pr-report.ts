@@ -1,12 +1,12 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList } from "../utils/list";
 import { listPrReviews, resolvePrDir } from "./pr-utils";
 
 export async function runPrReport(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   if (!projectName) {
     console.log("Project name is required.");
     return;
@@ -67,3 +67,5 @@ export async function runPrReport(): Promise<void> {
   fs.writeFileSync(path.join(prDir, "pr-review-report.md"), report, "utf-8");
   console.log(`PR review report written to ${path.join(prDir, "pr-review-report.md")}`);
 }
+
+

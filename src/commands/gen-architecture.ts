@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
@@ -9,7 +9,7 @@ import { getFlags } from "../context/flags";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 
 export async function runGenArchitecture(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -69,3 +69,5 @@ export async function runGenArchitecture(): Promise<void> {
   appendImprove(requirementDir, improveNote);
   console.log(`Architecture generated in ${requirementDir}`);
 }
+
+

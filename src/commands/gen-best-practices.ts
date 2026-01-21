@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
+import { ask, askProjectName } from "../ui/prompt";
 import { validateJson } from "../validation/validate";
 import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
 import { getFlags } from "../context/flags";
@@ -20,7 +20,7 @@ function renderQualityYaml(rules: string[], coverage: string, complexity: string
 }
 
 export async function runGenBestPractices(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -77,3 +77,5 @@ export async function runGenBestPractices(): Promise<void> {
   appendImprove(requirementDir, improveNote);
   console.log(`Quality contract generated in ${requirementDir}`);
 }
+
+
