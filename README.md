@@ -12,6 +12,8 @@ Build the foundation once, then lift everything else. The tool provides a durabl
 
 Mission and vision live in `docs/MISSION.md` and `docs/VISION.md`.
 
+Start with `docs/INDEX.md` for a full documentation map.
+
 Deep process, commands, interactions, and diagrams live in:
 - `docs/PROCESS.md`
 - `docs/COMMANDS.md`
@@ -55,6 +57,7 @@ Examples and templates:
 - `examples/schemas/`
 - `examples/diagrams/`
 - `examples/packs/`
+- `examples/README.md`
 - `templates/`
 - `schemas/`
 
