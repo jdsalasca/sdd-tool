@@ -1,13 +1,15 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
-import { getWorkspaceInfo } from "../workspace/index";
+import { ask, askProjectName } from "../ui/prompt";
+import { getFlags } from "../context/flags";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { renderTemplate, loadTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
+import { checkRequirementGates } from "../validation/gates";
 import { validateJson } from "../validation/validate";
 
-function findRequirementFile(workspaceRoot: string, project: string, reqId: string): string | null {
-  const base = path.join(workspaceRoot, project, "requirements");
+function findRequirementFile(projectRoot: string, reqId: string): string | null {
+  const base = path.join(projectRoot, "requirements");
   const candidates = [
     path.join(base, "backlog", reqId, "requirement.json"),
     path.join(base, "wip", reqId, "requirement.json"),
@@ -18,7 +20,7 @@ function findRequirementFile(workspaceRoot: string, project: string, reqId: stri
 }
 
 export async function runReqRefine(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -26,7 +28,14 @@ export async function runReqRefine(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const reqPath = findRequirementFile(workspace.root, projectName, reqId);
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const reqPath = findRequirementFile(project.root, reqId);
   if (!reqPath) {
     console.log("Requirement not found.");
     return;
@@ -34,16 +43,23 @@ export async function runReqRefine(): Promise<void> {
 
   const raw = JSON.parse(fs.readFileSync(reqPath, "utf-8"));
   const objective = await ask(`Objective (${raw.objective}): `);
+  const actors = await ask("Actors - comma separated: ");
   const scopeIn = await ask("Scope (in) - comma separated: ");
   const scopeOut = await ask("Scope (out) - comma separated: ");
   const acceptance = await ask("Acceptance criteria - comma separated: ");
   const nfrSecurity = await ask("NFR security: ");
   const nfrPerformance = await ask("NFR performance: ");
   const nfrAvailability = await ask("NFR availability: ");
+  const constraints = await ask("Constraints - comma separated: ");
+  const risks = await ask("Risks - comma separated: ");
+  const links = await ask("Links - comma separated: ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
-  const updated = {
+  let updated = {
     ...raw,
     objective: objective || raw.objective,
+    actors: actors ? parseList(actors) : raw.actors,
     scope: {
       in: scopeIn ? parseList(scopeIn) : raw.scope.in,
       out: scopeOut ? parseList(scopeOut) : raw.scope.out
@@ -54,8 +70,52 @@ export async function runReqRefine(): Promise<void> {
       performance: nfrPerformance || raw.nfrs.performance,
       availability: nfrAvailability || raw.nfrs.availability
     },
+    constraints: constraints ? parseList(constraints) : raw.constraints,
+    risks: risks ? parseList(risks) : raw.risks,
+    links: links ? parseList(links) : raw.links,
     updatedAt: new Date().toISOString()
   };
+
+  let gates = checkRequirementGates(updated);
+  if (!gates.ok) {
+    console.log("Requirement gates failed. Please provide missing fields:");
+    for (const field of gates.missing) {
+      if (field === "objective") {
+        updated.objective = await ask(`Objective (${updated.objective}): `);
+      }
+      if (field === "scope.in") {
+        const response = await ask("Scope (in) - comma separated: ");
+        updated.scope.in = response ? parseList(response) : updated.scope.in;
+      }
+      if (field === "scope.out") {
+        const response = await ask("Scope (out) - comma separated: ");
+        updated.scope.out = response ? parseList(response) : updated.scope.out;
+      }
+      if (field === "acceptanceCriteria") {
+        const response = await ask("Acceptance criteria - comma separated: ");
+        updated.acceptanceCriteria = response ? parseList(response) : updated.acceptanceCriteria;
+      }
+      if (field === "nfrs.security") {
+        const response = await ask("NFR security: ");
+        updated.nfrs.security = response || updated.nfrs.security;
+      }
+      if (field === "nfrs.performance") {
+        const response = await ask("NFR performance: ");
+        updated.nfrs.performance = response || updated.nfrs.performance;
+      }
+      if (field === "nfrs.availability") {
+        const response = await ask("NFR availability: ");
+        updated.nfrs.availability = response || updated.nfrs.availability;
+      }
+    }
+    updated.updatedAt = new Date().toISOString();
+    gates = checkRequirementGates(updated);
+    if (!gates.ok) {
+      console.log("Requirement gates still failing. Missing:");
+      gates.missing.forEach((field) => console.log(`- ${field}`));
+      return;
+    }
+  }
 
   const validation = validateJson("requirement.schema.json", updated);
   if (!validation.valid) {
@@ -71,7 +131,7 @@ export async function runReqRefine(): Promise<void> {
     title: updated.title,
     id: updated.id,
     objective: updated.objective,
-    actors: "N/A",
+    actors: formatList((updated.actors ?? []).join(", ")),
     scope_in: formatList(updated.scope.in.join(", ")),
     scope_out: formatList(updated.scope.out.join(", ")),
     acceptance_criteria: formatList(updated.acceptanceCriteria.join(", ")),
@@ -88,5 +148,15 @@ export async function runReqRefine(): Promise<void> {
   const changelogPath = path.join(path.dirname(reqPath), "changelog.md");
   const logEntry = `\n- ${new Date().toISOString()} refined requirement ${updated.id}\n`;
   fs.appendFileSync(changelogPath, logEntry, "utf-8");
+  if (flags.improve) {
+    const progressLog = path.join(path.dirname(reqPath), "progress-log.md");
+    if (!fs.existsSync(progressLog)) {
+      fs.writeFileSync(progressLog, "# Progress Log\n\n", "utf-8");
+    }
+    const improveEntry = `\n- ${new Date().toISOString()} improve: ${improveNote || "refinement requested"}\n`;
+    fs.appendFileSync(progressLog, improveEntry, "utf-8");
+  }
   console.log(`Requirement updated at ${mdPath}`);
 }
+
+

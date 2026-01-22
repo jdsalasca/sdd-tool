@@ -31,3 +31,5 @@ Support in-store sales, inventory, and customer management in a reliable, low-la
 - POS workflow diagram
 - Offline sync strategy
 - Store ops checklist
+
+

@@ -31,3 +31,5 @@ Build or extend an ecommerce platform with reliable checkout and inventory integ
 - Checkout flow diagram
 - Fraud prevention checklist
 - Post-purchase email templates
+
+

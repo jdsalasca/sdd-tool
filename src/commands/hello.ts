@@ -1,25 +1,59 @@
 import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
-import { ask } from "../ui/prompt";
+import { ask, confirm } from "../ui/prompt";
 import { getPromptPackById, loadPromptPacks } from "../router/prompt-packs";
 import { mapAnswersToRequirement } from "../router/prompt-map";
 import { runReqCreate } from "./req-create";
+import { getFlags, setFlags } from "../context/flags";
+import { runRoute } from "./route";
 
 export async function runHello(input: string, runQuestions?: boolean): Promise<void> {
-  const workspace = getWorkspaceInfo();
-  ensureWorkspace(workspace);
-  const projects = listProjects(workspace);
+  function loadWorkspace() {
+    const workspace = getWorkspaceInfo();
+    ensureWorkspace(workspace);
+    const projects = listProjects(workspace);
+    return { workspace, projects };
+  }
 
-  console.log("Hello from sdd-tool.");
+  let { workspace, projects } = loadWorkspace();
+
+  console.log("Hello from sdd-cli.");
   console.log(`Workspace: ${workspace.root}`);
+  const useWorkspace = await confirm("Use this workspace path? (y/n) ");
+  if (!useWorkspace) {
+    const nextPath = await ask("Workspace path to use (blank to exit): ");
+    if (!nextPath) {
+      console.log("Run again from the desired folder or pass --output <path>.");
+      return;
+    }
+    setFlags({ output: nextPath });
+    const reloaded = loadWorkspace();
+    workspace = reloaded.workspace;
+    projects = reloaded.projects;
+    console.log(`Workspace updated: ${workspace.root}`);
+  }
 
+  const flags = getFlags();
   if (projects.length > 0) {
     console.log("Active projects:");
     projects.forEach((project) => {
       console.log(`- ${project.name} (${project.status})`);
     });
     const choice = await ask("Start new or continue? (new/continue) ");
-    console.log(`Selected: ${choice || "new"}`);
+    const normalized = choice.trim().toLowerCase();
+    if (normalized === "continue") {
+      const selected = flags.project || (await ask("Project to continue: "));
+      if (!selected) {
+        console.log("No project selected. Continuing with new flow.");
+      } else if (!projects.find((project) => project.name === selected)) {
+        console.log(`Project not found: ${selected}. Continuing with new flow.`);
+      } else {
+        setFlags({ project: selected });
+        console.log(`Continuing: ${selected}`);
+      }
+    } else {
+      console.log(`Selected: ${choice || "new"}`);
+    }
   } else {
     console.log("No active projects found.");
   }
@@ -31,9 +65,15 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   }
   const intent = classifyIntent(text);
   console.log(`Detected intent: ${intent.intent} -> ${intent.flow}`);
-  console.log("Next: run `sdd-tool route <your input>` to view details.");
+  const showRoute = await confirm("View route details now? (y/n) ");
+  if (showRoute) {
+    runRoute(text);
+  } else {
+    console.log("Next: run `sdd-cli route <your input>` to view details.");
+  }
 
-  if (runQuestions) {
+  const shouldRunQuestions = runQuestions ?? (await confirm("Run prompt questions now? (y/n) "));
+  if (shouldRunQuestions) {
     const packs = loadPromptPacks();
     const packIds = FLOW_PROMPT_PACKS[intent.flow] ?? [];
     const answers: Record<string, string> = {};
@@ -55,10 +95,15 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       const mapped = mapAnswersToRequirement(answers);
       console.log("\nDraft requirement fields:");
       console.log(JSON.stringify(mapped, null, 2));
-      const confirm = await ask("Generate requirement draft now? (y/n) ");
-      if (confirm.toLowerCase() === "y") {
+      const ok = await confirm("Generate requirement draft now? (y/n) ");
+      if (ok) {
         await runReqCreate(mapped);
       }
     }
+  } else {
+    console.log("\nNext steps:");
+    console.log("- Run `sdd-cli route \"<your input>\"` to review the flow.");
+    console.log("- Run `sdd-cli req create` to draft a requirement.");
   }
 }
+

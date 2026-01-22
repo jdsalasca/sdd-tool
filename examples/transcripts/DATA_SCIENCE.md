@@ -1,6 +1,6 @@
 # Transcript: Data science
 
-User: sdd-tool hello
+User: sdd-cli hello
 App: New or continue?
 User: New. I need a model to predict churn.
 App: What is the primary success metric?
@@ -16,3 +16,4 @@ User: Weekly performance checks.
 App: Approve requirements and move to specs?
 User: Yes
 App: Specs and test plan generated. Continue to architecture?
+

@@ -1,6 +1,6 @@
 # Transcript: Design
 
-User: sdd-tool hello
+User: sdd-cli hello
 App: New or continue?
 User: New. I need a brand kit for a coffee shop.
 App: What is the message and who is the audience?
@@ -16,3 +16,4 @@ User: Owner weekly.
 App: Approve requirements and move to specs?
 User: Yes
 App: Design specs generated with delivery checklist.
+

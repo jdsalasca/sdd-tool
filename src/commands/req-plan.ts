@@ -1,21 +1,23 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
-import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
+import { ask, askProjectName } from "../ui/prompt";
+import { getFlags } from "../context/flags";
+import { getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
+import { checkRequirementGates } from "../validation/gates";
 import { validateJson } from "../validation/validate";
 
-function findRequirementDir(workspaceRoot: string, project: string, reqId: string): string | null {
-  const backlog = path.join(workspaceRoot, project, "requirements", "backlog", reqId);
-  const wip = path.join(workspaceRoot, project, "requirements", "wip", reqId);
+function findRequirementDir(projectRoot: string, reqId: string): string | null {
+  const backlog = path.join(projectRoot, "requirements", "backlog", reqId);
+  const wip = path.join(projectRoot, "requirements", "wip", reqId);
   if (fs.existsSync(backlog)) return backlog;
   if (fs.existsSync(wip)) return wip;
   return null;
 }
 
 export async function runReqPlan(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -23,7 +25,14 @@ export async function runReqPlan(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const requirementDir = findRequirementDir(workspace.root, projectName, reqId);
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  let requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
     console.log("Requirement not found in backlog or wip.");
     return;
@@ -35,6 +44,13 @@ export async function runReqPlan(): Promise<void> {
     return;
   }
   const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
+  let gates = checkRequirementGates(requirementJson);
+  if (!gates.ok) {
+    console.log("Requirement gates failed. Please update the requirement first:");
+    gates.missing.forEach((field) => console.log(`- ${field}`));
+    console.log("Run `sdd-cli req refine` to complete missing fields.");
+    return;
+  }
   const requirementValidation = validateJson("requirement.schema.json", requirementJson);
   if (!requirementValidation.valid) {
     console.log("Requirement validation failed:");
@@ -42,17 +58,25 @@ export async function runReqPlan(): Promise<void> {
     return;
   }
 
-  const wipDir = path.join(workspace.root, projectName, "requirements", "wip", reqId);
+  const wipDir = path.join(project.root, "requirements", "wip", reqId);
   if (requirementDir.includes(path.join("requirements", "backlog"))) {
     fs.mkdirSync(path.dirname(wipDir), { recursive: true });
     fs.renameSync(requirementDir, wipDir);
-    updateProjectStatus(workspace, projectName, "wip");
+    updateProjectStatus(workspace, project.name, "wip");
+    requirementDir = wipDir;
   }
 
   const targetDir = fs.existsSync(wipDir) ? wipDir : requirementDir;
+  if (requirementJson.status !== "wip") {
+    requirementJson.status = "wip";
+  }
+  requirementJson.updatedAt = new Date().toISOString();
+  fs.writeFileSync(path.join(targetDir, "requirement.json"), JSON.stringify(requirementJson, null, 2), "utf-8");
 
   const overview = await ask("Functional overview: ");
+  const actors = await ask("Actors - comma separated: ");
   const useCases = await ask("Use cases - comma separated: ");
+  const flows = await ask("Flows - comma separated: ");
   const rules = await ask("Business rules - comma separated: ");
   const errors = await ask("Errors - comma separated: ");
   const acceptance = await ask("Acceptance criteria - comma separated: ");
@@ -76,12 +100,14 @@ export async function runReqPlan(): Promise<void> {
   const acceptanceTests = await ask("Acceptance tests - comma separated: ");
   const regressions = await ask("Regression tests - comma separated: ");
   const coverageTarget = await ask("Coverage target: ");
+  const flags = getFlags();
+  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
 
   const functionalJson = {
     overview: overview || "N/A",
-    actors: [],
+    actors: parseList(actors),
     useCases: parseList(useCases),
-    flows: [],
+    flows: parseList(flows),
     rules: parseList(rules),
     errors: parseList(errors),
     acceptanceCriteria: parseList(acceptance)
@@ -131,17 +157,17 @@ export async function runReqPlan(): Promise<void> {
   const testPlanTemplate = loadTemplate("test-plan");
 
   const functionalRendered = renderTemplate(functionalTemplate, {
-    title: projectName,
+    title: project.name,
     overview: overview || "N/A",
-    actors: "N/A",
+    actors: formatList(actors),
     use_cases: formatList(useCases),
-    flows: "N/A",
+    flows: formatList(flows),
     rules: formatList(rules),
     errors: formatList(errors),
     acceptance_criteria: formatList(acceptance)
   });
   const technicalRendered = renderTemplate(technicalTemplate, {
-    title: projectName,
+    title: project.name,
     stack: formatList(stack),
     interfaces: formatList(interfaces),
     data_model: formatList(dataModel),
@@ -151,7 +177,7 @@ export async function runReqPlan(): Promise<void> {
     observability: formatList(observability)
   });
   const architectureRendered = renderTemplate(architectureTemplate, {
-    title: projectName,
+    title: project.name,
     context: context || "N/A",
     containers: formatList(containers),
     components: formatList(components),
@@ -159,7 +185,7 @@ export async function runReqPlan(): Promise<void> {
     diagrams: formatList(diagrams)
   });
   const testPlanRendered = renderTemplate(testPlanTemplate, {
-    title: projectName,
+    title: project.name,
     critical_paths: formatList(criticalPaths),
     edge_cases: formatList(edgeCases),
     acceptance_tests: formatList(acceptanceTests),
@@ -167,14 +193,24 @@ export async function runReqPlan(): Promise<void> {
     coverage_target: coverageTarget || "N/A"
   });
 
-  fs.writeFileSync(path.join(targetDir, "functional-spec.md"), functionalRendered, "utf-8");
-  fs.writeFileSync(path.join(targetDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2), "utf-8");
-  fs.writeFileSync(path.join(targetDir, "technical-spec.md"), technicalRendered, "utf-8");
-  fs.writeFileSync(path.join(targetDir, "technical-spec.json"), JSON.stringify(technicalJson, null, 2), "utf-8");
-  fs.writeFileSync(path.join(targetDir, "architecture.md"), architectureRendered, "utf-8");
-  fs.writeFileSync(path.join(targetDir, "architecture.json"), JSON.stringify(architectureJson, null, 2), "utf-8");
-  fs.writeFileSync(path.join(targetDir, "test-plan.md"), testPlanRendered, "utf-8");
-  fs.writeFileSync(path.join(targetDir, "test-plan.json"), JSON.stringify(testPlanJson, null, 2), "utf-8");
+  const writes = [
+    [path.join(targetDir, "functional-spec.md"), functionalRendered],
+    [path.join(targetDir, "functional-spec.json"), JSON.stringify(functionalJson, null, 2)],
+    [path.join(targetDir, "technical-spec.md"), technicalRendered],
+    [path.join(targetDir, "technical-spec.json"), JSON.stringify(technicalJson, null, 2)],
+    [path.join(targetDir, "architecture.md"), architectureRendered],
+    [path.join(targetDir, "architecture.json"), JSON.stringify(architectureJson, null, 2)],
+    [path.join(targetDir, "test-plan.md"), testPlanRendered],
+    [path.join(targetDir, "test-plan.json"), JSON.stringify(testPlanJson, null, 2)]
+  ] as const;
+
+  if (flags.parallel) {
+    await Promise.all(
+      writes.map(([filePath, content]) => fs.promises.writeFile(filePath, content, "utf-8"))
+    );
+  } else {
+    writes.forEach(([filePath, content]) => fs.writeFileSync(filePath, content, "utf-8"));
+  }
 
   const progressLog = path.join(targetDir, "progress-log.md");
   if (!fs.existsSync(progressLog)) {
@@ -182,6 +218,10 @@ export async function runReqPlan(): Promise<void> {
   }
   const logEntry = `\n- ${new Date().toISOString()} generated specs for ${reqId}\n`;
   fs.appendFileSync(progressLog, logEntry, "utf-8");
+  if (flags.improve) {
+    const improveEntry = `\n- ${new Date().toISOString()} improve: ${improveNote || "refinement requested"}\n`;
+    fs.appendFileSync(progressLog, improveEntry, "utf-8");
+  }
 
   const changelog = path.join(targetDir, "changelog.md");
   if (!fs.existsSync(changelog)) {
@@ -191,3 +231,7 @@ export async function runReqPlan(): Promise<void> {
   fs.appendFileSync(changelog, changeEntry, "utf-8");
   console.log(`Generated specs in ${targetDir}`);
 }
+
+
+
+

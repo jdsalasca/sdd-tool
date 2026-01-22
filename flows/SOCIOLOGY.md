@@ -31,3 +31,5 @@ Design a study or analysis of social behavior with clear methods and ethical saf
 - Ethics checklist
 - Survey or interview guide
 - Data analysis plan
+
+

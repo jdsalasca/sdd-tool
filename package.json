@@ -1,9 +1,17 @@
 {
-  "name": "sdd-tool",
-  "version": "0.1.4",
+  "name": "sdd-cli",
+  "version": "0.1.5",
   "description": "SDD-first, AI-native CLI for end-to-end delivery.",
+  "homepage": "https://github.com/jdsalasca/sdd-tool#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jdsalasca/sdd-tool.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jdsalasca/sdd-tool/issues"
+  },
   "bin": {
-    "sdd-tool": "dist/cli.js",
+    "sdd-cli": "dist/cli.js",
     "sdd": "dist/cli.js"
   },
   "main": "dist/cli.js",
@@ -18,7 +26,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/cli.js",
-    "dev": "ts-node src/cli.ts"
+    "dev": "ts-node src/cli.ts",
+    "preinstall": "node scripts/preinstall.js",
+    "pretest": "npm run build",
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "ajv": "^8.17.1",

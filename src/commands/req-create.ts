@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
-import { createProject, getWorkspaceInfo } from "../workspace/index";
+import { ask, askProjectName } from "../ui/prompt";
+import { createProject, getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
+import { checkRequirementGates } from "../validation/gates";
 import { validateJson } from "../validation/validate";
 
 function generateId(): string {
@@ -25,30 +26,38 @@ export type RequirementDraft = {
 };
 
 export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const domain = await ask("Domain (software, legal, design, learning, etc): ");
-  const objective = draft?.objective ?? (await ask("Objective: "));
-  const scopeIn = draft?.scope_in ?? (await ask("Scope (in) - comma separated: "));
-  const scopeOut = draft?.scope_out ?? (await ask("Scope (out) - comma separated: "));
-  const acceptance = draft?.acceptance_criteria ?? (await ask("Acceptance criteria - comma separated: "));
-  const nfrSecurity = draft?.nfr_security ?? (await ask("NFR security: "));
-  const nfrPerformance = draft?.nfr_performance ?? (await ask("NFR performance: "));
-  const nfrAvailability = draft?.nfr_availability ?? (await ask("NFR availability: "));
+  const actors = await ask("Actors - comma separated: ");
+  let objective = draft?.objective ?? (await ask("Objective: "));
+  let scopeIn = draft?.scope_in ?? (await ask("Scope (in) - comma separated: "));
+  let scopeOut = draft?.scope_out ?? (await ask("Scope (out) - comma separated: "));
+  let acceptance = draft?.acceptance_criteria ?? (await ask("Acceptance criteria - comma separated: "));
+  let nfrSecurity = draft?.nfr_security ?? (await ask("NFR security: "));
+  let nfrPerformance = draft?.nfr_performance ?? (await ask("NFR performance: "));
+  let nfrAvailability = draft?.nfr_availability ?? (await ask("NFR availability: "));
   const constraints = await ask("Constraints - comma separated: ");
   const risks = await ask("Risks - comma separated: ");
   const links = await ask("Links - comma separated: ");
 
   const workspace = getWorkspaceInfo();
-  const metadata = createProject(workspace, projectName, domain || "software");
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const metadata = createProject(workspace, project.name, domain || "software");
   const reqId = generateId();
   const status = "backlog";
 
-  const requirementJson = {
+  let requirementJson = {
     id: reqId,
-    title: projectName,
+    title: project.name,
     objective: objective || "N/A",
     status,
-    actors: [],
+    actors: parseList(actors),
     scope: {
       in: parseList(scopeIn),
       out: parseList(scopeOut)
@@ -65,6 +74,41 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     updatedAt: new Date().toISOString()
   };
 
+  let gates = checkRequirementGates(requirementJson);
+  if (!gates.ok) {
+    console.log("Requirement gates failed. Please provide missing fields:");
+    for (const field of gates.missing) {
+      if (field === "objective") objective = await ask("Objective: ");
+      if (field === "scope.in") scopeIn = await ask("Scope (in) - comma separated: ");
+      if (field === "scope.out") scopeOut = await ask("Scope (out) - comma separated: ");
+      if (field === "acceptanceCriteria") acceptance = await ask("Acceptance criteria - comma separated: ");
+      if (field === "nfrs.security") nfrSecurity = await ask("NFR security: ");
+      if (field === "nfrs.performance") nfrPerformance = await ask("NFR performance: ");
+      if (field === "nfrs.availability") nfrAvailability = await ask("NFR availability: ");
+    }
+    requirementJson = {
+      ...requirementJson,
+      objective: objective || "N/A",
+      scope: {
+        in: parseList(scopeIn),
+        out: parseList(scopeOut)
+      },
+      acceptanceCriteria: parseList(acceptance),
+      nfrs: {
+        security: nfrSecurity || "N/A",
+        performance: nfrPerformance || "N/A",
+        availability: nfrAvailability || "N/A"
+      },
+      updatedAt: new Date().toISOString()
+    };
+    gates = checkRequirementGates(requirementJson);
+    if (!gates.ok) {
+      console.log("Requirement gates still failing. Missing:");
+      gates.missing.forEach((field) => console.log(`- ${field}`));
+      return;
+    }
+  }
+
   const validation = validateJson("requirement.schema.json", requirementJson);
   if (!validation.valid) {
     console.log("Requirement validation failed:");
@@ -72,15 +116,15 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     return;
   }
 
-  const requirementDir = path.join(workspace.root, projectName, "requirements", "backlog", reqId);
+  const requirementDir = path.join(project.root, "requirements", "backlog", reqId);
   fs.mkdirSync(requirementDir, { recursive: true });
 
   const template = loadTemplate("requirement");
   const rendered = renderTemplate(template, {
-    title: projectName,
+    title: project.name,
     id: reqId,
     objective: objective || "N/A",
-    actors: "N/A",
+    actors: formatList(actors),
     scope_in: formatList(scopeIn),
     scope_out: formatList(scopeOut),
     acceptance_criteria: formatList(acceptance),
@@ -94,6 +138,13 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
 
   fs.writeFileSync(path.join(requirementDir, "requirement.md"), rendered, "utf-8");
   fs.writeFileSync(path.join(requirementDir, "requirement.json"), JSON.stringify(requirementJson, null, 2), "utf-8");
+  const summaryTemplate = loadTemplate("summary");
+  const summary = renderTemplate(summaryTemplate, {
+    objective: objective || "N/A",
+    decisions: "TBD",
+    open_questions: "TBD"
+  });
+  fs.writeFileSync(path.join(requirementDir, "summary.md"), summary, "utf-8");
   const changelogTemplate = loadTemplate("changelog");
   const changelog = renderTemplate(changelogTemplate, { date: new Date().toISOString() });
   fs.writeFileSync(path.join(requirementDir, "changelog.md"), changelog, "utf-8");
@@ -102,6 +153,8 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     fs.writeFileSync(progressLogPath, "# Progress Log\n\n", "utf-8");
   }
   console.log(`Created requirement in ${requirementDir}`);
-  console.log(`Project metadata stored in ${path.join(workspace.root, projectName, "metadata.json")}`);
+  console.log(`Project metadata stored in ${path.join(project.root, "metadata.json")}`);
   console.log(`Project status: ${metadata.status}`);
 }
+
+

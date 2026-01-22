@@ -32,3 +32,5 @@ Build a system to manage cases, documents, deadlines, and client communication w
 - Secure storage and audit module
 - Role-based access matrix
 - Case timeline dashboard
+
+

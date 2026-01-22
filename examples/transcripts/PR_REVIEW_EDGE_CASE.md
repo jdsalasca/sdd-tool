@@ -1,6 +1,6 @@
 # Transcript: PR review (edge case)
 
-User: sdd-tool hello
+User: sdd-cli hello
 App: New or continue?
 User: Continue project "checkout-fix".
 App: I see 4 unresolved PR comments. Approve opening the PR link?
@@ -13,3 +13,4 @@ App: Noted. Do you want me to draft a response explaining that?
 User: Yes
 App: Proposed responses + fixes are ready. Approve moving to specs and test plan?
 User: Yes
+

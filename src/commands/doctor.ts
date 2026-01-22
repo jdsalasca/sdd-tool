@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { getWorkspaceInfo } from "../workspace/index";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { validateJson } from "../validation/validate";
 import { validatePromptPacks } from "../router/validate-prompt-packs";
 import { validateTemplates } from "../templates/validate";
@@ -35,9 +35,17 @@ function inferSchema(filePath: string): string | null {
 
 export function runDoctor(projectName?: string, reqId?: string): void {
   const workspace = getWorkspaceInfo();
-  let root = projectName ? path.join(workspace.root, projectName) : workspace.root;
+  let root = workspace.root;
+  if (projectName) {
+    try {
+      root = getProjectInfo(workspace, projectName).root;
+    } catch (error) {
+      console.log((error as Error).message);
+      return;
+    }
+  }
   if (projectName && reqId) {
-    const base = path.join(workspace.root, projectName, "requirements");
+    const base = path.join(root, "requirements");
     const candidates = [
       path.join(base, "backlog", reqId),
       path.join(base, "wip", reqId),

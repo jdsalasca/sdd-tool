@@ -19,4 +19,5 @@
 - Doctor validation: all JSON artifacts valid
 
 ## Codex local
-- `sdd-tool ai status` reports: codex-cli 0.87.0
+- `sdd-cli ai status` reports: codex-cli 0.87.0
+

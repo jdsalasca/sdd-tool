@@ -5,7 +5,7 @@ Use this to ensure templates, schemas, and flows align.
 ## Templates
 - Every placeholder in templates exists in `templates/template-index.json`.
 - Template index conforms to `schemas/template.schema.json`.
-- Every flow in `FLOW_TEMPLATE_MAP.md` has templates present in `templates/`.
+- Every flow in `docs/FLOW_TEMPLATE_MAP.md` has templates present in `templates/`.
 - Prompt packs in `templates/prompt-pack-index.json` align with gates.
 
 ## Schemas
@@ -23,3 +23,4 @@ Use this to ensure templates, schemas, and flows align.
 - Each flow specifies required outputs.
 - Flow outputs exist as templates or generators.
 - Gates cover acceptance criteria, NFRs, and tests.
+

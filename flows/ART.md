@@ -31,3 +31,5 @@ Create an art piece or series with a clear concept, process, and critique cycle.
 - Concept brief
 - Production plan
 - Critique log
+
+

@@ -58,22 +58,25 @@ Planned upgrade: **oclif**
 ## Codex local integration
 
 The CLI uses the local `codex` executable when available:
-- `sdd-tool ai status` checks availability
-- `sdd-tool ai exec "<prompt>"` runs `codex exec`
+- `sdd-cli ai status` checks availability
+- `sdd-cli ai exec "<prompt>"` runs `codex exec`
 
-## Folder structure (proposed)
+## Workspace safety
+
+- Project names are validated and path traversal is blocked.
+- JSON schema validation resolves referenced schemas.
+
+## Folder structure (current)
 
 ```
 src/
-  cli/                 # command entrypoints
-  commands/            # hello, route, req, gen, learn
+  commands/            # hello, route, req, gen, learn, pr
   router/              # intent detection and flow loading
-  prompts/             # prompt assembly + gating
   providers/           # AI providers
   workspace/           # project metadata, file I/O
-  templates/           # document templates
-  schemas/             # JSON schema validators
-  diagrams/            # diagram generators (Mermaid)
+  templates/           # template rendering
+  validation/          # JSON schema validation
+  ui/                  # prompts
   utils/
 flows/                 # domain playbooks
 router/                # scripted flow definitions
@@ -86,15 +89,15 @@ templates/             # markdown templates
 In `package.json`:
 ```
 "bin": {
-  "sdd-tool": "./dist/cli.js",
+  "sdd-cli": "./dist/cli.js",
   "sdd": "./dist/cli.js"
 }
 ```
 
 This enables:
 ```
-npm install -g sdd-tool
-sdd-tool hello
+npm install -g sdd-cli
+sdd-cli hello
 ```
 
 ## Maintainability strategy
@@ -116,3 +119,4 @@ sdd-tool hello
 - oclif: https://oclif.io
 - commander: https://github.com/tj/commander.js
 - XDG base directory spec: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+

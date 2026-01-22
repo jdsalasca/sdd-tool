@@ -31,3 +31,5 @@ Produce a credible historical analysis with sources, timelines, and context.
 - Annotated bibliography
 - Timeline map
 - Thesis refinement log
+
+

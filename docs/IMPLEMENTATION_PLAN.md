@@ -4,17 +4,19 @@ This plan defines how we will implement the CLI after specs are approved.
 
 ## Phase 1: Scaffold
 - Initialize Node.js + TypeScript CLI
-- Setup command framework (oclif or commander)
-- Wire `sdd-tool hello` and `sdd-tool route`
+- Setup command framework (commander)
+- Wire `sdd-cli hello` and `sdd-cli route`
 
 ## Phase 2: Core engine
 - Implement router and flow loading
 - Implement prompt engine + gates
 - Implement workspace manager (metadata + index)
+  - Validate project names and prevent path traversal
 
 ## Phase 3: Artifacts
 - Implement template rendering
 - Validate artifacts with schemas
+- Resolve JSON schema references during validation
 - Generate diagrams (Mermaid text)
 
 ## Phase 4: Provider integration
@@ -25,3 +27,5 @@ This plan defines how we will implement the CLI after specs are approved.
 - CLI smoke tests
 - Template lint checks
 - Release readiness checks
+ - Security hardening review (providers, workspace, validation)
+

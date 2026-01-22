@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
-import { getWorkspaceInfo } from "../workspace/index";
+import { ask, askProjectName } from "../ui/prompt";
+import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { validateJson } from "../validation/validate";
 
 export async function runReqLint(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -13,7 +13,14 @@ export async function runReqLint(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const base = path.join(workspace.root, projectName, "requirements");
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const base = path.join(project.root, "requirements");
   const locations = ["backlog", "wip", "in-progress", "done", "archived"];
   const dir = locations
     .map((status) => path.join(base, status, reqId))
@@ -54,3 +61,5 @@ export async function runReqLint(): Promise<void> {
     console.log("All artifacts valid for this requirement.");
   }
 }
+
+

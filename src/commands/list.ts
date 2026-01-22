@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { getRepoRoot } from "../paths";
+import { loadPromptPacks } from "../router/prompt-packs";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
 
 function listDirectoryNames(dir: string, ext: string): string[] {
@@ -17,6 +18,7 @@ function listDirectoryNames(dir: string, ext: string): string[] {
 export function runList(): void {
   const root = getRepoRoot();
   const flows = listDirectoryNames(path.join(root, "flows"), ".md");
+  const routerFlows = listDirectoryNames(path.join(root, "router"), ".flow.md");
   const templates = Array.from(
     new Set([
       ...listDirectoryNames(path.join(root, "templates"), ".md"),
@@ -31,11 +33,26 @@ export function runList(): void {
     flows.forEach((flow) => console.log(`- ${flow}`));
   }
 
+  console.log("Router flows:");
+  if (routerFlows.length === 0) {
+    console.log("- none");
+  } else {
+    routerFlows.forEach((flow) => console.log(`- ${flow}`));
+  }
+
   console.log("Templates:");
   if (templates.length === 0) {
     console.log("- none");
   } else {
     templates.forEach((template) => console.log(`- ${template}`));
+  }
+
+  const packs = loadPromptPacks();
+  console.log("Prompt packs:");
+  if (packs.length === 0) {
+    console.log("- none");
+  } else {
+    packs.forEach((pack) => console.log(`- ${pack.id}`));
   }
 
   const workspace = getWorkspaceInfo();

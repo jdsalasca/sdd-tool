@@ -7,7 +7,7 @@ export type CodexResult = {
 };
 
 export function codexVersion(): CodexResult {
-  const result = spawnSync("codex --version", { encoding: "utf-8", shell: true });
+  const result = spawnSync("codex", ["--version"], { encoding: "utf-8" });
   if (result.status !== 0) {
     return { ok: false, output: "", error: result.stderr || "codex not available" };
   }
@@ -15,7 +15,7 @@ export function codexVersion(): CodexResult {
 }
 
 export function codexExec(prompt: string): CodexResult {
-  const result = spawnSync(`codex exec "${prompt}"`, { encoding: "utf-8", shell: true });
+  const result = spawnSync("codex", ["exec", prompt], { encoding: "utf-8" });
   if (result.status !== 0) {
     return { ok: false, output: result.stdout || "", error: result.stderr || "codex exec failed" };
   }

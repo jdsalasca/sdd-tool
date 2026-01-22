@@ -1,14 +1,14 @@
 import fs from "fs";
 import path from "path";
-import { ask } from "../ui/prompt";
-import { getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
+import { ask, askProjectName } from "../ui/prompt";
+import { getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { validateJson } from "../validation/validate";
 
-function findRequirementDir(workspaceRoot: string, project: string, reqId: string): string | null {
-  const backlog = path.join(workspaceRoot, project, "requirements", "backlog", reqId);
-  const wip = path.join(workspaceRoot, project, "requirements", "wip", reqId);
-  const inProgress = path.join(workspaceRoot, project, "requirements", "in-progress", reqId);
+function findRequirementDir(projectRoot: string, reqId: string): string | null {
+  const backlog = path.join(projectRoot, "requirements", "backlog", reqId);
+  const wip = path.join(projectRoot, "requirements", "wip", reqId);
+  const inProgress = path.join(projectRoot, "requirements", "in-progress", reqId);
   if (fs.existsSync(backlog)) return backlog;
   if (fs.existsSync(wip)) return wip;
   if (fs.existsSync(inProgress)) return inProgress;
@@ -16,7 +16,7 @@ function findRequirementDir(workspaceRoot: string, project: string, reqId: strin
 }
 
 export async function runReqFinish(): Promise<void> {
-  const projectName = await ask("Project name: ");
+  const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
@@ -24,7 +24,14 @@ export async function runReqFinish(): Promise<void> {
   }
 
   const workspace = getWorkspaceInfo();
-  const requirementDir = findRequirementDir(workspace.root, projectName, reqId);
+  let project;
+  try {
+    project = getProjectInfo(workspace, projectName);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
+  const requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
     console.log("Requirement not found.");
     return;
@@ -51,10 +58,17 @@ export async function runReqFinish(): Promise<void> {
     }
   }
 
-  const doneDir = path.join(workspace.root, projectName, "requirements", "done", reqId);
+  const doneDir = path.join(project.root, "requirements", "done", reqId);
   fs.mkdirSync(path.dirname(doneDir), { recursive: true });
   fs.renameSync(requirementDir, doneDir);
-  updateProjectStatus(workspace, projectName, "done");
+  updateProjectStatus(workspace, project.name, "done");
+  const requirementJsonPath = path.join(doneDir, "requirement.json");
+  if (fs.existsSync(requirementJsonPath)) {
+    const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
+    requirementJson.status = "done";
+    requirementJson.updatedAt = new Date().toISOString();
+    fs.writeFileSync(requirementJsonPath, JSON.stringify(requirementJson, null, 2), "utf-8");
+  }
 
   const overview = await ask("Project overview (for README): ");
   const howToRun = await ask("How to run (for README): ");
@@ -63,7 +77,7 @@ export async function runReqFinish(): Promise<void> {
 
   const readmeTemplate = loadTemplate("project-readme");
   const readmeRendered = renderTemplate(readmeTemplate, {
-    project_name: projectName,
+    project_name: project.name,
     overview: overview || "N/A",
     how_to_run: howToRun || "N/A",
     architecture_summary: archSummary || "N/A",
@@ -75,7 +89,7 @@ export async function runReqFinish(): Promise<void> {
   });
 
   const readmeJson = {
-    projectName,
+    projectName: project.name,
     overview: overview || "N/A",
     howToRun: howToRun || "N/A",
     architectureSummary: archSummary || "N/A",
@@ -95,7 +109,7 @@ export async function runReqFinish(): Promise<void> {
     return;
   }
 
-  const projectRoot = path.join(workspace.root, projectName);
+  const projectRoot = project.root;
   fs.writeFileSync(path.join(projectRoot, "project-readme.md"), readmeRendered, "utf-8");
   fs.writeFileSync(path.join(projectRoot, "project-readme.json"), JSON.stringify(readmeJson, null, 2), "utf-8");
 
@@ -119,3 +133,6 @@ export async function runReqFinish(): Promise<void> {
   fs.appendFileSync(changelog, changeEntry, "utf-8");
   console.log(`Moved requirement to ${doneDir}`);
 }
+
+
+
