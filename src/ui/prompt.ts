@@ -5,14 +5,26 @@ import { getFlags } from "../context/flags";
 let queuedAnswers: string[] | null = null;
 let rl: readline.Interface | null = null;
 
+function shouldUseQueuedAnswers(): boolean {
+  if (process.env.SDD_STDIN === "1") {
+    return true;
+  }
+  return !process.stdin.isTTY && !process.stdout.isTTY;
+}
+
 function getQueuedAnswers(): string[] {
   if (queuedAnswers) {
     return queuedAnswers;
   }
-  if (!process.stdin.isTTY) {
-    const raw = fs.readFileSync(0, "utf-8");
-    queuedAnswers = raw.split(/\r?\n/).filter((line) => line.length > 0);
-    return queuedAnswers;
+  if (shouldUseQueuedAnswers()) {
+    try {
+      const raw = fs.readFileSync(0, "utf-8");
+      queuedAnswers = raw.split(/\r?\n/).filter((line) => line.length > 0);
+      return queuedAnswers;
+    } catch {
+      queuedAnswers = [];
+      return queuedAnswers;
+    }
   }
   queuedAnswers = [];
   return queuedAnswers;
@@ -40,7 +52,7 @@ export function closePrompt(): void {
 process.on("exit", () => closePrompt());
 
 export function ask(question: string): Promise<string> {
-  if (!process.stdin.isTTY) {
+  if (shouldUseQueuedAnswers()) {
     const queue = getQueuedAnswers();
     const answer = queue.shift() ?? "";
     return Promise.resolve(answer.trim());
