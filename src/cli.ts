@@ -8,6 +8,7 @@ import { runRoute } from "./commands/route";
 import { runDoctor } from "./commands/doctor";
 import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
+import { closePrompt } from "./ui/prompt";
 
 const program = new Command();
 
@@ -41,6 +42,10 @@ program.hook("preAction", (thisCommand, actionCommand) => {
     project: typeof opts.project === "string" ? opts.project : undefined,
     output: typeof opts.output === "string" ? opts.output : undefined
   });
+});
+
+program.hook("postAction", () => {
+  closePrompt();
 });
 
 program
