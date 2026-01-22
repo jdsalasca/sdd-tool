@@ -27,6 +27,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
+    "preinstall": "node scripts/preinstall.js",
     "pretest": "npm run build",
     "test": "node --test tests/*.test.js"
   },

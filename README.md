@@ -16,6 +16,7 @@ Start with `docs/INDEX.md` for a full documentation map and `docs/STYLE.md` for 
 Contributing guidelines live in `docs/CONTRIBUTING.md`.
 Use the PR template in `.github/PULL_REQUEST_TEMPLATE.md`.
 Maintenance guidance lives in `docs/MAINTENANCE.md`.
+Install troubleshooting lives in `docs/TROUBLESHOOTING.md`.
 
 Deep process, commands, interactions, and diagrams live in:
 - `docs/PROCESS.md`

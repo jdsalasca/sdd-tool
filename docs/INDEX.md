@@ -14,6 +14,7 @@
 - docs/CHANGELOG.md
 - docs/CONTRIBUTING.md
 - docs/MAINTENANCE.md
+- docs/TROUBLESHOOTING.md
 - .github/PULL_REQUEST_TEMPLATE.md
 
 ## Architecture and design
