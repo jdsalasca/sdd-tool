@@ -8,6 +8,18 @@ import { formatList, parseList } from "../utils/list";
 import { checkRequirementGates } from "../validation/gates";
 import { validateJson } from "../validation/validate";
 
+export type ReqPlanOptions = {
+  projectName?: string;
+  reqId?: string;
+  autofill?: boolean;
+  seedText?: string;
+};
+
+export type ReqPlanResult = {
+  reqId: string;
+  targetDir: string;
+};
+
 function findRequirementDir(projectRoot: string, reqId: string): string | null {
   const backlog = path.join(projectRoot, "requirements", "backlog", reqId);
   const wip = path.join(projectRoot, "requirements", "wip", reqId);
@@ -16,12 +28,18 @@ function findRequirementDir(projectRoot: string, reqId: string): string | null {
   return null;
 }
 
-export async function runReqPlan(): Promise<void> {
-  const projectName = await askProjectName();
-  const reqId = await ask("Requirement ID (REQ-...): ");
+function defaultSeed(seedText?: string): string {
+  const text = (seedText ?? "").trim();
+  return text.length > 0 ? text : "first delivery";
+}
+
+export async function runReqPlan(options?: ReqPlanOptions): Promise<ReqPlanResult | null> {
+  const auto = Boolean(options?.autofill);
+  const projectName = options?.projectName ?? (await askProjectName());
+  const reqId = options?.reqId ?? (await ask("Requirement ID (REQ-...): "));
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
-    return;
+    return null;
   }
 
   const workspace = getWorkspaceInfo();
@@ -30,18 +48,18 @@ export async function runReqPlan(): Promise<void> {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
     console.log((error as Error).message);
-    return;
+    return null;
   }
   let requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
     console.log("Requirement not found in backlog or wip.");
-    return;
+    return null;
   }
 
   const requirementJsonPath = path.join(requirementDir, "requirement.json");
   if (!fs.existsSync(requirementJsonPath)) {
     console.log("Missing requirement.json. Run `req create` first.");
-    return;
+    return null;
   }
   const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
   let gates = checkRequirementGates(requirementJson);
@@ -49,13 +67,13 @@ export async function runReqPlan(): Promise<void> {
     console.log("Requirement gates failed. Please update the requirement first:");
     gates.missing.forEach((field) => console.log(`- ${field}`));
     console.log("Run `sdd-cli req refine` to complete missing fields.");
-    return;
+    return null;
   }
   const requirementValidation = validateJson("requirement.schema.json", requirementJson);
   if (!requirementValidation.valid) {
     console.log("Requirement validation failed:");
     requirementValidation.errors.forEach((error) => console.log(`- ${error}`));
-    return;
+    return null;
   }
 
   const wipDir = path.join(project.root, "requirements", "wip", reqId);
@@ -73,35 +91,36 @@ export async function runReqPlan(): Promise<void> {
   requirementJson.updatedAt = new Date().toISOString();
   fs.writeFileSync(path.join(targetDir, "requirement.json"), JSON.stringify(requirementJson, null, 2), "utf-8");
 
-  const overview = await ask("Functional overview: ");
-  const actors = await ask("Actors - comma separated: ");
-  const useCases = await ask("Use cases - comma separated: ");
-  const flows = await ask("Flows - comma separated: ");
-  const rules = await ask("Business rules - comma separated: ");
-  const errors = await ask("Errors - comma separated: ");
-  const acceptance = await ask("Acceptance criteria - comma separated: ");
+  const seed = defaultSeed(options?.seedText ?? requirementJson.objective);
+  const overview = auto ? `Functional overview for ${seed}` : await ask("Functional overview: ");
+  const actors = auto ? "user, system" : await ask("Actors - comma separated: ");
+  const useCases = auto ? `capture need for ${seed}, deliver first iteration` : await ask("Use cases - comma separated: ");
+  const flows = auto ? "discover, plan, implement, validate" : await ask("Flows - comma separated: ");
+  const rules = auto ? "maintain traceability, validate artifacts" : await ask("Business rules - comma separated: ");
+  const errors = auto ? "invalid input, missing artifact" : await ask("Errors - comma separated: ");
+  const acceptance = auto ? "artifacts generated, schemas valid" : await ask("Acceptance criteria - comma separated: ");
 
-  const stack = await ask("Tech stack - comma separated: ");
-  const interfaces = await ask("Interfaces - comma separated: ");
-  const dataModel = await ask("Data model - comma separated: ");
-  const security = await ask("Security - comma separated: ");
-  const techErrors = await ask("Error handling - comma separated: ");
-  const performance = await ask("Performance - comma separated: ");
-  const observability = await ask("Observability - comma separated: ");
+  const stack = auto ? "node, typescript" : await ask("Tech stack - comma separated: ");
+  const interfaces = auto ? "cli commands, markdown artifacts" : await ask("Interfaces - comma separated: ");
+  const dataModel = auto ? "requirement json, spec json" : await ask("Data model - comma separated: ");
+  const security = auto ? "safe defaults, input validation" : await ask("Security - comma separated: ");
+  const techErrors = auto ? "clear cli errors, retry guidance" : await ask("Error handling - comma separated: ");
+  const performance = auto ? "fast local generation" : await ask("Performance - comma separated: ");
+  const observability = auto ? "progress logs, changelog entries" : await ask("Observability - comma separated: ");
 
-  const context = await ask("Architecture context: ");
-  const containers = await ask("Containers - comma separated: ");
-  const components = await ask("Components - comma separated: ");
-  const deployment = await ask("Deployment - comma separated: ");
-  const diagrams = await ask("Diagrams - comma separated: ");
+  const context = auto ? "CLI orchestrator with schema validation" : await ask("Architecture context: ");
+  const containers = auto ? "cli runtime, workspace files" : await ask("Containers - comma separated: ");
+  const components = auto ? "router, generators, validators" : await ask("Components - comma separated: ");
+  const deployment = auto ? "local workstation" : await ask("Deployment - comma separated: ");
+  const diagrams = auto ? "context.mmd, container.mmd" : await ask("Diagrams - comma separated: ");
 
-  const criticalPaths = await ask("Test critical paths - comma separated: ");
-  const edgeCases = await ask("Test edge cases - comma separated: ");
-  const acceptanceTests = await ask("Acceptance tests - comma separated: ");
-  const regressions = await ask("Regression tests - comma separated: ");
-  const coverageTarget = await ask("Coverage target: ");
+  const criticalPaths = auto ? "hello to requirement, requirement to plan" : await ask("Test critical paths - comma separated: ");
+  const edgeCases = auto ? "missing fields, invalid schema" : await ask("Test edge cases - comma separated: ");
+  const acceptanceTests = auto ? "generate and validate complete bundle" : await ask("Acceptance tests - comma separated: ");
+  const regressions = auto ? "flags behavior, template loading" : await ask("Regression tests - comma separated: ");
+  const coverageTarget = auto ? "80%" : await ask("Coverage target: ");
   const flags = getFlags();
-  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
+  const improveNote = flags.improve && !auto ? await ask("Improve focus (optional): ") : "";
 
   const functionalJson = {
     overview: overview || "N/A",
@@ -146,10 +165,8 @@ export async function runReqPlan(): Promise<void> {
   if (failures.length > 0) {
     console.log("Spec validation failed:");
     failures.forEach((error) => console.log(`- ${error}`));
-    return;
+    return null;
   }
-
-  console.log("Spec validation passed.");
 
   const functionalTemplate = loadTemplate("functional-spec");
   const technicalTemplate = loadTemplate("technical-spec");
@@ -205,9 +222,7 @@ export async function runReqPlan(): Promise<void> {
   ] as const;
 
   if (flags.parallel) {
-    await Promise.all(
-      writes.map(([filePath, content]) => fs.promises.writeFile(filePath, content, "utf-8"))
-    );
+    await Promise.all(writes.map(([filePath, content]) => fs.promises.writeFile(filePath, content, "utf-8")));
   } else {
     writes.forEach(([filePath, content]) => fs.writeFileSync(filePath, content, "utf-8"));
   }
@@ -230,8 +245,5 @@ export async function runReqPlan(): Promise<void> {
   const changeEntry = `\n- ${new Date().toISOString()} planned requirement ${reqId}\n`;
   fs.appendFileSync(changelog, changeEntry, "utf-8");
   console.log(`Generated specs in ${targetDir}`);
+  return { reqId, targetDir };
 }
-
-
-
-

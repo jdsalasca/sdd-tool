@@ -150,3 +150,24 @@ test("req export copies nested directories recursively", () => {
   assert.equal(result.status, 0);
   assert.equal(fs.existsSync(exportedAdr), true);
 });
+
+test("hello default mode runs full autopilot pipeline to done", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-auto-"));
+  const projectName = "HelloAutopilotProject";
+
+  const result = runCli(
+    workspaceRoot,
+    projectName,
+    ["hello"],
+    "y\nBuild a beginner-friendly onboarding flow for users\nn\n"
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+
+  const doneRoot = path.join(workspaceRoot, projectName, "requirements", "done");
+  assert.equal(fs.existsSync(doneRoot), true);
+  const doneEntries = fs.readdirSync(doneRoot);
+  assert.equal(doneEntries.length > 0, true);
+  assert.equal(fs.existsSync(path.join(workspaceRoot, projectName, "project-readme.json")), true);
+});
