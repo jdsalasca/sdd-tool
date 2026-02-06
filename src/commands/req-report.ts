@@ -9,8 +9,7 @@ const REQUIRED_FILES = [
   "technical-spec.json",
   "architecture.json",
   "test-plan.json",
-  "quality.json",
-  "project-readme.json"
+  "quality.json"
 ];
 
 export async function runReqReport(): Promise<void> {
@@ -43,6 +42,12 @@ export async function runReqReport(): Promise<void> {
     const exists = fs.existsSync(path.join(dir, file));
     console.log(`${exists ? "OK" : "MISSING"}: ${file}`);
     if (!exists) missing += 1;
+  }
+  const projectReadmePath = path.join(project.root, "project-readme.json");
+  const projectReadmeExists = fs.existsSync(projectReadmePath);
+  console.log(`${projectReadmeExists ? "OK" : "MISSING"}: ../project-readme.json`);
+  if (!projectReadmeExists) {
+    missing += 1;
   }
   console.log(`Missing files: ${missing}`);
 }
