@@ -3,9 +3,66 @@ import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/in
 import { ask, confirm } from "../ui/prompt";
 import { getPromptPackById, loadPromptPacks } from "../router/prompt-packs";
 import { mapAnswersToRequirement } from "../router/prompt-map";
-import { runReqCreate } from "./req-create";
+import { RequirementDraft, runReqCreate } from "./req-create";
 import { getFlags, setFlags } from "../context/flags";
 import { runRoute } from "./route";
+
+function buildAutopilotDraft(input: string, flow: string, domain: string): RequirementDraft {
+  const cleanInput = input.trim();
+  const objective = cleanInput.length > 0 ? cleanInput : "Deliver a clear first requirement draft.";
+  const scopeByFlow: Record<string, string> = {
+    BUG_FIX: "Reproduce issue, isolate root cause, define fix",
+    PR_REVIEW: "Review feedback, plan responses, track actions",
+    SOFTWARE_FEATURE: "Core feature behavior and acceptance flow",
+    DATA_SCIENCE: "Dataset, modeling approach, and evaluation plan",
+    DESIGN: "Core design goals, accessibility, and deliverables",
+    HUMANITIES: "Research question, sources, and analytical lens",
+    BUSINESS: "Business objective, model assumptions, and constraints",
+    LEGAL: "Applicable legal constraints and compliance requirements",
+    LEARN: "Learning objective, structure, and practice outputs",
+    GENERIC: "Core user need and initial delivery scope"
+  };
+  const outByFlow: Record<string, string> = {
+    BUG_FIX: "Unrelated refactors not needed for this fix",
+    PR_REVIEW: "Changes outside current PR scope",
+    SOFTWARE_FEATURE: "Future enhancements after MVP",
+    DATA_SCIENCE: "Production hardening beyond first iteration",
+    DESIGN: "Full rebrand outside stated objective",
+    HUMANITIES: "Unrelated historical periods or disciplines",
+    BUSINESS: "Additional markets not in initial launch",
+    LEGAL: "Jurisdictions outside selected compliance scope",
+    LEARN: "Advanced topics outside current learning target",
+    GENERIC: "Additional ideas to evaluate in next iteration"
+  };
+  const actorByDomain: Record<string, string> = {
+    bug_fix: "developer, qa",
+    pr_review: "reviewer, contributor",
+    software: "end user, product owner, developer",
+    data_science: "analyst, data scientist, stakeholder",
+    design: "designer, end user, stakeholder",
+    humanities: "researcher, reader",
+    business: "customer, business owner, operator",
+    legal: "legal team, compliance owner",
+    learning: "learner, mentor",
+    generic: "user, stakeholder"
+  };
+  const safeFlow = scopeByFlow[flow] ? flow : "GENERIC";
+  const safeDomain = actorByDomain[domain] ? domain : "generic";
+  return {
+    domain: safeDomain === "generic" ? "software" : safeDomain,
+    actors: actorByDomain[safeDomain],
+    objective,
+    scope_in: scopeByFlow[safeFlow],
+    scope_out: outByFlow[safeFlow],
+    acceptance_criteria: "A baseline requirement is generated and ready for refinement with stakeholders",
+    nfr_security: "Follow secure defaults and data handling best practices",
+    nfr_performance: "Set practical baseline targets for first delivery",
+    nfr_availability: "Keep workflow usable and stable for normal usage",
+    constraints: "Timebox first iteration, keep implementation simple",
+    risks: "Ambiguity in requirements, underestimated scope",
+    links: ""
+  };
+}
 
 export async function runHello(input: string, runQuestions?: boolean): Promise<void> {
   function loadWorkspace() {
@@ -65,6 +122,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   }
   const intent = classifyIntent(text);
   console.log(`Detected intent: ${intent.intent} -> ${intent.flow}`);
+  console.log("Step 1/3: Intent detected.");
   const showRoute = await confirm("View route details now? (y/n) ");
   if (showRoute) {
     runRoute(text);
@@ -73,6 +131,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   }
 
   const shouldRunQuestions = runQuestions ?? (await confirm("Run prompt questions now? (y/n) "));
+  console.log("Step 2/3: Requirement setup.");
   if (shouldRunQuestions) {
     const packs = loadPromptPacks();
     const packIds = FLOW_PROMPT_PACKS[intent.flow] ?? [];
@@ -97,13 +156,29 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       console.log(JSON.stringify(mapped, null, 2));
       const ok = await confirm("Generate requirement draft now? (y/n) ");
       if (ok) {
-        await runReqCreate(mapped);
+        const created = await runReqCreate(mapped, { autofill: true });
+        if (created) {
+          console.log(`Step 3/3: Draft created (${created.reqId}).`);
+          console.log("Next suggested command: sdd-cli req refine");
+        }
       }
     }
   } else {
-    console.log("\nNext steps:");
-    console.log("- Run `sdd-cli route \"<your input>\"` to review the flow.");
-    console.log("- Run `sdd-cli req create` to draft a requirement.");
+    const auto = await confirm("Create a first requirement draft automatically now? (y/n) ");
+    if (auto) {
+      const draft = buildAutopilotDraft(text, intent.flow, intent.domain);
+      const created = await runReqCreate(draft, { autofill: true });
+      if (created) {
+        console.log(`Step 3/3: Draft created (${created.reqId}).`);
+        console.log("Next suggested commands:");
+        console.log("- sdd-cli req refine");
+        console.log("- sdd-cli req plan");
+      }
+    } else {
+      console.log("\nNext steps:");
+      console.log("- Run `sdd-cli route \"<your input>\"` to review the flow.");
+      console.log("- Run `sdd-cli req create` to draft a requirement.");
+    }
   }
 }
 
