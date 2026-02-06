@@ -18,15 +18,23 @@
 
 - [x] Add regression test for partial flag updates.
 - [x] Add regression test for missing template errors.
-- [ ] Add integration tests for `req finish` rollback behavior.
-- [ ] Add integration tests for `req report` expected file layout.
-- [ ] Add integration tests for recursive export.
+- [x] Add integration tests for `req finish` rollback behavior.
+- [x] Add integration tests for `req report` expected file layout.
+- [x] Add integration tests for recursive export.
+
+## P3 - Beginner Experience (Default Mode)
+
+- [x] Add guided "Step 1/2/3" messaging in `hello`.
+- [x] Add autopilot draft creation from a single user intent in default mode.
+- [x] Reduce mandatory prompts in automated requirement creation with safe defaults.
+- [ ] Add auto-orchestration from requirement draft to plan/start/test in one guided command.
+- [ ] Add natural-language progress narration during long generation steps.
 
 ## Release Checklist
 
-- [ ] Create feature branches by scope.
-- [ ] Use Conventional Commits in every commit.
-- [ ] Open PRs to `develop` and merge after green CI.
-- [ ] Create release PR `develop -> main`.
-- [ ] Bump version and generate changelog notes.
-- [ ] Publish package to npm.
+- [x] Create feature branches by scope.
+- [x] Use Conventional Commits in every commit.
+- [x] Open PRs to `develop` and merge after green CI.
+- [x] Create release PR `develop -> main`.
+- [x] Bump version and generate changelog notes.
+- [x] Publish package to npm.
