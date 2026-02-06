@@ -30,6 +30,23 @@ type WorkspaceIndex = {
   projects: Array<{ name: string; status: string }>;
 };
 
+function readJsonFile<T>(filePath: string): T | null {
+  try {
+    const raw = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function readWorkspaceIndex(workspace: WorkspaceInfo): WorkspaceIndex {
+  const parsed = readJsonFile<WorkspaceIndex>(workspace.indexPath);
+  if (!parsed || !Array.isArray(parsed.projects)) {
+    return { projects: [] };
+  }
+  return { projects: parsed.projects };
+}
+
 export function getWorkspaceInfo(): WorkspaceInfo {
   const flags = getFlags();
   const root = flags.output
@@ -80,9 +97,8 @@ export function listProjects(workspace: WorkspaceInfo): ProjectSummary[] {
   if (!fs.existsSync(workspace.indexPath)) {
     return [];
   }
-  const raw = fs.readFileSync(workspace.indexPath, "utf-8");
-  const parsed = JSON.parse(raw) as { projects?: Array<{ name?: string; status?: string }> };
-  return (parsed.projects ?? []).map((project) => ({
+  const parsed = readJsonFile<{ projects?: Array<{ name?: string; status?: string }> }>(workspace.indexPath);
+  return ((parsed?.projects ?? []) as Array<{ name?: string; status?: string }>).map((project) => ({
     name: project.name ?? "unknown",
     status: project.status ?? "unknown"
   }));
@@ -102,7 +118,19 @@ export function ensureProject(workspace: WorkspaceInfo, name: string, domain: st
   const metadataPath = path.join(projectRoot, "metadata.json");
   let metadata: ProjectMetadata;
   if (fs.existsSync(metadataPath)) {
-    metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as ProjectMetadata;
+    const parsed = readJsonFile<ProjectMetadata>(metadataPath);
+    if (parsed) {
+      metadata = parsed;
+    } else {
+      const now = new Date().toISOString();
+      metadata = {
+        name: project.name,
+        status: "backlog",
+        domain,
+        createdAt: now,
+        updatedAt: now
+      };
+    }
   } else {
     const now = new Date().toISOString();
     metadata = {
@@ -115,8 +143,7 @@ export function ensureProject(workspace: WorkspaceInfo, name: string, domain: st
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");
   }
 
-  const indexRaw = fs.readFileSync(workspace.indexPath, "utf-8");
-  const index = JSON.parse(indexRaw) as WorkspaceIndex;
+  const index = readWorkspaceIndex(workspace);
   index.projects = index.projects ?? [];
   const existing = index.projects.find((entry) => entry.name === project.name);
   if (existing) {
@@ -136,8 +163,7 @@ export function createProject(workspace: WorkspaceInfo, name: string, domain: st
 export function updateProjectStatus(workspace: WorkspaceInfo, name: string, status: string): void {
   ensureWorkspace(workspace);
   const project = getProjectInfo(workspace, name);
-  const indexRaw = fs.readFileSync(workspace.indexPath, "utf-8");
-  const index = JSON.parse(indexRaw) as WorkspaceIndex;
+  const index = readWorkspaceIndex(workspace);
   index.projects = index.projects ?? [];
   const existing = index.projects.find((entry) => entry.name === project.name);
   if (existing) {
@@ -149,8 +175,9 @@ export function updateProjectStatus(workspace: WorkspaceInfo, name: string, stat
 
   const projectRoot = project.root;
   const metadataPath = path.join(projectRoot, "metadata.json");
-  if (fs.existsSync(metadataPath)) {
-    const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as ProjectMetadata;
+  const metadata =
+    fs.existsSync(metadataPath) ? readJsonFile<ProjectMetadata>(metadataPath) : null;
+  if (metadata) {
     metadata.status = status;
     metadata.updatedAt = new Date().toISOString();
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");

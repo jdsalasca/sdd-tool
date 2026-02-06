@@ -15,11 +15,21 @@ const flags: RuntimeFlags = {
 };
 
 export function setFlags(next: Partial<RuntimeFlags>): void {
-  flags.approve = Boolean(next.approve);
-  flags.improve = Boolean(next.improve);
-  flags.parallel = Boolean(next.parallel);
-  flags.project = typeof next.project === "string" ? next.project : undefined;
-  flags.output = typeof next.output === "string" ? next.output : undefined;
+  if ("approve" in next) {
+    flags.approve = Boolean(next.approve);
+  }
+  if ("improve" in next) {
+    flags.improve = Boolean(next.improve);
+  }
+  if ("parallel" in next) {
+    flags.parallel = Boolean(next.parallel);
+  }
+  if ("project" in next) {
+    flags.project = typeof next.project === "string" ? next.project : undefined;
+  }
+  if ("output" in next) {
+    flags.output = typeof next.output === "string" ? next.output : undefined;
+  }
 }
 
 export function getFlags(): RuntimeFlags {
