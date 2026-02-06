@@ -1,11 +1,15 @@
 import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
-import { ask, confirm } from "../ui/prompt";
+import { ask, askProjectName, confirm } from "../ui/prompt";
 import { getPromptPackById, loadPromptPacks } from "../router/prompt-packs";
 import { mapAnswersToRequirement } from "../router/prompt-map";
 import { RequirementDraft, runReqCreate } from "./req-create";
 import { getFlags, setFlags } from "../context/flags";
+import { runReqPlan } from "./req-plan";
+import { runReqStart } from "./req-start";
+import { runReqFinish } from "./req-finish";
 import { runRoute } from "./route";
+import { runTestPlan } from "./test-plan";
 
 function buildAutopilotDraft(input: string, flow: string, domain: string): RequirementDraft {
   const cleanInput = input.trim();
@@ -130,7 +134,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     console.log("Next: run `sdd-cli route <your input>` to view details.");
   }
 
-  const shouldRunQuestions = runQuestions ?? (await confirm("Run prompt questions now? (y/n) "));
+  const shouldRunQuestions = runQuestions === true;
   console.log("Step 2/3: Requirement setup.");
   if (shouldRunQuestions) {
     const packs = loadPromptPacks();
@@ -164,21 +168,71 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       }
     }
   } else {
-    const auto = await confirm("Create a first requirement draft automatically now? (y/n) ");
-    if (auto) {
-      const draft = buildAutopilotDraft(text, intent.flow, intent.domain);
-      const created = await runReqCreate(draft, { autofill: true });
-      if (created) {
-        console.log(`Step 3/3: Draft created (${created.reqId}).`);
-        console.log("Next suggested commands:");
-        console.log("- sdd-cli req refine");
-        console.log("- sdd-cli req plan");
-      }
-    } else {
-      console.log("\nNext steps:");
-      console.log("- Run `sdd-cli route \"<your input>\"` to review the flow.");
-      console.log("- Run `sdd-cli req create` to draft a requirement.");
+    const activeProject = getFlags().project || (await askProjectName());
+    if (!activeProject) {
+      console.log("Project name is required to run autopilot.");
+      return;
     }
+    setFlags({ project: activeProject });
+    const draft = buildAutopilotDraft(text, intent.flow, intent.domain);
+    draft.project_name = activeProject;
+
+    console.log("Step 3/7: Creating requirement draft automatically...");
+    const created = await runReqCreate(draft, { autofill: true });
+    if (!created) {
+      console.log("Autopilot stopped at requirement creation.");
+      return;
+    }
+
+    console.log(`Step 4/7: Planning requirement ${created.reqId}...`);
+    const planned = await runReqPlan({
+      projectName: activeProject,
+      reqId: created.reqId,
+      autofill: true,
+      seedText: text
+    });
+    if (!planned) {
+      console.log("Autopilot stopped at planning.");
+      return;
+    }
+
+    console.log(`Step 5/7: Starting implementation plan for ${created.reqId}...`);
+    const started = await runReqStart({
+      projectName: activeProject,
+      reqId: created.reqId,
+      autofill: true,
+      seedText: text
+    });
+    if (!started) {
+      console.log("Autopilot stopped at start phase.");
+      return;
+    }
+
+    console.log(`Step 6/7: Updating test plan for ${created.reqId}...`);
+    const tested = await runTestPlan({
+      projectName: activeProject,
+      reqId: created.reqId,
+      autofill: true,
+      seedText: text
+    });
+    if (!tested) {
+      console.log("Autopilot stopped at test planning.");
+      return;
+    }
+
+    console.log(`Step 7/7: Finalizing requirement ${created.reqId}...`);
+    const finished = await runReqFinish({
+      projectName: activeProject,
+      reqId: created.reqId,
+      autofill: true,
+      seedText: text
+    });
+    if (!finished) {
+      console.log("Autopilot stopped at finish phase.");
+      return;
+    }
+    console.log(`Autopilot completed successfully for ${created.reqId}.`);
+    console.log(`Artifacts finalized at: ${finished.doneDir}`);
   }
 }
 

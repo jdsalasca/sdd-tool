@@ -15,12 +15,13 @@ function findRequirementDir(projectRoot: string, reqId: string): string | null {
   return null;
 }
 
-export async function runReqFinish(): Promise<void> {
-  const projectName = await askProjectName();
-  const reqId = await ask("Requirement ID (REQ-...): ");
+export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinishResult | null> {
+  const auto = Boolean(options?.autofill);
+  const projectName = options?.projectName ?? (await askProjectName());
+  const reqId = options?.reqId ?? (await ask("Requirement ID (REQ-...): "));
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
-    return;
+    return null;
   }
 
   const workspace = getWorkspaceInfo();
@@ -29,12 +30,12 @@ export async function runReqFinish(): Promise<void> {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
     console.log((error as Error).message);
-    return;
+    return null;
   }
   const requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
     console.log("Requirement not found.");
-    return;
+    return null;
   }
 
   const jsonFiles = fs.readdirSync(requirementDir).filter((file) => file.endsWith(".json"));
@@ -54,14 +55,15 @@ export async function runReqFinish(): Promise<void> {
     if (!result.valid) {
       console.log(`Validation failed for ${file}:`);
       result.errors.forEach((error) => console.log(`- ${error}`));
-      return;
+      return null;
     }
   }
 
-  const overview = await ask("Project overview (for README): ");
-  const howToRun = await ask("How to run (for README): ");
-  const archSummary = await ask("Architecture summary (for README): ");
-  const testingNotes = await ask("Testing notes (for README): ");
+  const seed = (options?.seedText ?? "").trim() || "initial scope";
+  const overview = auto ? `Project delivery for ${seed}` : await ask("Project overview (for README): ");
+  const howToRun = auto ? "Run CLI commands through sdd-cli flow." : await ask("How to run (for README): ");
+  const archSummary = auto ? "CLI + templates + schema validation architecture." : await ask("Architecture summary (for README): ");
+  const testingNotes = auto ? "Validated with unit and integration CLI tests." : await ask("Testing notes (for README): ");
 
   const readmeTemplate = loadTemplate("project-readme");
   const readmeRendered = renderTemplate(readmeTemplate, {
@@ -94,7 +96,7 @@ export async function runReqFinish(): Promise<void> {
   if (!readmeValidation.valid) {
     console.log("Project README validation failed:");
     readmeValidation.errors.forEach((error) => console.log(`- ${error}`));
-    return;
+    return null;
   }
 
   const sourceDir = requirementDir;
@@ -147,11 +149,23 @@ export async function runReqFinish(): Promise<void> {
       updateProjectStatus(workspace, project.name, sourceStatus);
     }
     console.log(`Failed to finish requirement: ${(error as Error).message}`);
-    return;
+    return null;
   }
 
   console.log(`Moved requirement to ${doneDir}`);
+  return { reqId, doneDir };
 }
 
 
 
+export type ReqFinishOptions = {
+  projectName?: string;
+  reqId?: string;
+  autofill?: boolean;
+  seedText?: string;
+};
+
+export type ReqFinishResult = {
+  reqId: string;
+  doneDir: string;
+};
