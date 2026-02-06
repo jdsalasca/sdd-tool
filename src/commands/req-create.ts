@@ -16,6 +16,9 @@ function generateId(): string {
 }
 
 export type RequirementDraft = {
+  project_name?: string;
+  domain?: string;
+  actors?: string;
   objective?: string;
   scope_in?: string;
   scope_out?: string;
@@ -23,22 +26,43 @@ export type RequirementDraft = {
   nfr_security?: string;
   nfr_performance?: string;
   nfr_availability?: string;
+  constraints?: string;
+  risks?: string;
+  links?: string;
 };
 
-export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
-  const projectName = await askProjectName();
-  const domain = await ask("Domain (software, legal, design, learning, etc): ");
-  const actors = await ask("Actors - comma separated: ");
-  let objective = draft?.objective ?? (await ask("Objective: "));
-  let scopeIn = draft?.scope_in ?? (await ask("Scope (in) - comma separated: "));
-  let scopeOut = draft?.scope_out ?? (await ask("Scope (out) - comma separated: "));
-  let acceptance = draft?.acceptance_criteria ?? (await ask("Acceptance criteria - comma separated: "));
-  let nfrSecurity = draft?.nfr_security ?? (await ask("NFR security: "));
-  let nfrPerformance = draft?.nfr_performance ?? (await ask("NFR performance: "));
-  let nfrAvailability = draft?.nfr_availability ?? (await ask("NFR availability: "));
-  const constraints = await ask("Constraints - comma separated: ");
-  const risks = await ask("Risks - comma separated: ");
-  const links = await ask("Links - comma separated: ");
+export type ReqCreateOptions = {
+  autofill?: boolean;
+};
+
+export type ReqCreateResult = {
+  reqId: string;
+  requirementDir: string;
+  projectRoot: string;
+};
+
+export async function runReqCreate(draft?: RequirementDraft, options?: ReqCreateOptions): Promise<ReqCreateResult | null> {
+  const auto = Boolean(options?.autofill);
+  const projectName = draft?.project_name?.trim() || (await askProjectName());
+  if (!projectName) {
+    console.log("Project name is required.");
+    return null;
+  }
+
+  const domain = draft?.domain ?? (auto ? "software" : await ask("Domain (software, legal, design, learning, etc): "));
+  const actors = draft?.actors ?? (auto ? "user, stakeholder" : await ask("Actors - comma separated: "));
+  let objective = draft?.objective ?? (auto ? "Initial requirement draft from user intent." : await ask("Objective: "));
+  let scopeIn = draft?.scope_in ?? (auto ? "core workflow" : await ask("Scope (in) - comma separated: "));
+  let scopeOut = draft?.scope_out ?? (auto ? "out-of-scope details to refine later" : await ask("Scope (out) - comma separated: "));
+  let acceptance =
+    draft?.acceptance_criteria ??
+    (auto ? "A first working draft is generated and reviewable by stakeholders" : await ask("Acceptance criteria - comma separated: "));
+  let nfrSecurity = draft?.nfr_security ?? (auto ? "Apply baseline secure defaults" : await ask("NFR security: "));
+  let nfrPerformance = draft?.nfr_performance ?? (auto ? "Reasonable default performance budget" : await ask("NFR performance: "));
+  let nfrAvailability = draft?.nfr_availability ?? (auto ? "Service remains available during normal usage" : await ask("NFR availability: "));
+  const constraints = draft?.constraints ?? (auto ? "" : await ask("Constraints - comma separated: "));
+  const risks = draft?.risks ?? (auto ? "" : await ask("Risks - comma separated: "));
+  const links = draft?.links ?? (auto ? "" : await ask("Links - comma separated: "));
 
   const workspace = getWorkspaceInfo();
   let project;
@@ -46,7 +70,7 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
     console.log((error as Error).message);
-    return;
+    return null;
   }
   const metadata = createProject(workspace, project.name, domain || "software");
   const reqId = generateId();
@@ -77,14 +101,26 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
   let gates = checkRequirementGates(requirementJson);
   if (!gates.ok) {
     console.log("Requirement gates failed. Please provide missing fields:");
-    for (const field of gates.missing) {
-      if (field === "objective") objective = await ask("Objective: ");
-      if (field === "scope.in") scopeIn = await ask("Scope (in) - comma separated: ");
-      if (field === "scope.out") scopeOut = await ask("Scope (out) - comma separated: ");
-      if (field === "acceptanceCriteria") acceptance = await ask("Acceptance criteria - comma separated: ");
-      if (field === "nfrs.security") nfrSecurity = await ask("NFR security: ");
-      if (field === "nfrs.performance") nfrPerformance = await ask("NFR performance: ");
-      if (field === "nfrs.availability") nfrAvailability = await ask("NFR availability: ");
+    if (auto) {
+      if (gates.missing.includes("objective")) objective = "Initial requirement draft from user intent.";
+      if (gates.missing.includes("scope.in")) scopeIn = "core workflow";
+      if (gates.missing.includes("scope.out")) scopeOut = "out-of-scope details to refine later";
+      if (gates.missing.includes("acceptanceCriteria")) {
+        acceptance = "A first working draft is generated and reviewable by stakeholders";
+      }
+      if (gates.missing.includes("nfrs.security")) nfrSecurity = "Apply baseline secure defaults";
+      if (gates.missing.includes("nfrs.performance")) nfrPerformance = "Reasonable default performance budget";
+      if (gates.missing.includes("nfrs.availability")) nfrAvailability = "Service remains available during normal usage";
+    } else {
+      for (const field of gates.missing) {
+        if (field === "objective") objective = await ask("Objective: ");
+        if (field === "scope.in") scopeIn = await ask("Scope (in) - comma separated: ");
+        if (field === "scope.out") scopeOut = await ask("Scope (out) - comma separated: ");
+        if (field === "acceptanceCriteria") acceptance = await ask("Acceptance criteria - comma separated: ");
+        if (field === "nfrs.security") nfrSecurity = await ask("NFR security: ");
+        if (field === "nfrs.performance") nfrPerformance = await ask("NFR performance: ");
+        if (field === "nfrs.availability") nfrAvailability = await ask("NFR availability: ");
+      }
     }
     requirementJson = {
       ...requirementJson,
@@ -105,7 +141,7 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
     if (!gates.ok) {
       console.log("Requirement gates still failing. Missing:");
       gates.missing.forEach((field) => console.log(`- ${field}`));
-      return;
+      return null;
     }
   }
 
@@ -113,7 +149,7 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
   if (!validation.valid) {
     console.log("Requirement validation failed:");
     validation.errors.forEach((error) => console.log(`- ${error}`));
-    return;
+    return null;
   }
 
   const requirementDir = path.join(project.root, "requirements", "backlog", reqId);
@@ -155,6 +191,7 @@ export async function runReqCreate(draft?: RequirementDraft): Promise<void> {
   console.log(`Created requirement in ${requirementDir}`);
   console.log(`Project metadata stored in ${path.join(project.root, "metadata.json")}`);
   console.log(`Project status: ${metadata.status}`);
+  return { reqId, requirementDir, projectRoot: project.root };
 }
 
 
