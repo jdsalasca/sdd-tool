@@ -58,18 +58,6 @@ export async function runReqFinish(): Promise<void> {
     }
   }
 
-  const doneDir = path.join(project.root, "requirements", "done", reqId);
-  fs.mkdirSync(path.dirname(doneDir), { recursive: true });
-  fs.renameSync(requirementDir, doneDir);
-  updateProjectStatus(workspace, project.name, "done");
-  const requirementJsonPath = path.join(doneDir, "requirement.json");
-  if (fs.existsSync(requirementJsonPath)) {
-    const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
-    requirementJson.status = "done";
-    requirementJson.updatedAt = new Date().toISOString();
-    fs.writeFileSync(requirementJsonPath, JSON.stringify(requirementJson, null, 2), "utf-8");
-  }
-
   const overview = await ask("Project overview (for README): ");
   const howToRun = await ask("How to run (for README): ");
   const archSummary = await ask("Architecture summary (for README): ");
@@ -109,28 +97,59 @@ export async function runReqFinish(): Promise<void> {
     return;
   }
 
+  const sourceDir = requirementDir;
+  const sourceStatus = path.basename(path.dirname(sourceDir));
+  const doneDir = path.join(project.root, "requirements", "done", reqId);
   const projectRoot = project.root;
-  fs.writeFileSync(path.join(projectRoot, "project-readme.md"), readmeRendered, "utf-8");
-  fs.writeFileSync(path.join(projectRoot, "project-readme.json"), JSON.stringify(readmeJson, null, 2), "utf-8");
+  let moved = false;
+  try {
+    if (sourceDir !== doneDir) {
+      fs.mkdirSync(path.dirname(doneDir), { recursive: true });
+      fs.renameSync(sourceDir, doneDir);
+      moved = true;
+    }
+    updateProjectStatus(workspace, project.name, "done");
 
-  const decisionLog = path.join(doneDir, "decision-log");
-  if (fs.existsSync(decisionLog)) {
-    const archiveRoot = path.join(projectRoot, "decision-log", reqId);
-    fs.mkdirSync(path.dirname(archiveRoot), { recursive: true });
-    fs.renameSync(decisionLog, archiveRoot);
+    const requirementJsonPath = path.join(doneDir, "requirement.json");
+    if (fs.existsSync(requirementJsonPath)) {
+      const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
+      requirementJson.status = "done";
+      requirementJson.updatedAt = new Date().toISOString();
+      fs.writeFileSync(requirementJsonPath, JSON.stringify(requirementJson, null, 2), "utf-8");
+    }
+
+    fs.writeFileSync(path.join(projectRoot, "project-readme.md"), readmeRendered, "utf-8");
+    fs.writeFileSync(path.join(projectRoot, "project-readme.json"), JSON.stringify(readmeJson, null, 2), "utf-8");
+
+    const decisionLog = path.join(doneDir, "decision-log");
+    if (fs.existsSync(decisionLog)) {
+      const archiveRoot = path.join(projectRoot, "decision-log", reqId);
+      fs.mkdirSync(path.dirname(archiveRoot), { recursive: true });
+      fs.renameSync(decisionLog, archiveRoot);
+    }
+    const progressLog = path.join(doneDir, "progress-log.md");
+    if (!fs.existsSync(progressLog)) {
+      fs.writeFileSync(progressLog, "# Progress Log\n\n", "utf-8");
+    }
+    const logEntry = `\n- ${new Date().toISOString()} finished requirement ${reqId}\n`;
+    fs.appendFileSync(progressLog, logEntry, "utf-8");
+    const changelog = path.join(doneDir, "changelog.md");
+    if (!fs.existsSync(changelog)) {
+      fs.writeFileSync(changelog, "# Changelog\n\n", "utf-8");
+    }
+    const changeEntry = `\n- ${new Date().toISOString()} finished requirement ${reqId}\n`;
+    fs.appendFileSync(changelog, changeEntry, "utf-8");
+  } catch (error) {
+    if (moved && fs.existsSync(doneDir) && !fs.existsSync(sourceDir)) {
+      fs.renameSync(doneDir, sourceDir);
+    }
+    if (sourceStatus && sourceStatus !== "done") {
+      updateProjectStatus(workspace, project.name, sourceStatus);
+    }
+    console.log(`Failed to finish requirement: ${(error as Error).message}`);
+    return;
   }
-  const progressLog = path.join(doneDir, "progress-log.md");
-  if (!fs.existsSync(progressLog)) {
-    fs.writeFileSync(progressLog, "# Progress Log\n\n", "utf-8");
-  }
-  const logEntry = `\n- ${new Date().toISOString()} finished requirement ${reqId}\n`;
-  fs.appendFileSync(progressLog, logEntry, "utf-8");
-  const changelog = path.join(doneDir, "changelog.md");
-  if (!fs.existsSync(changelog)) {
-    fs.writeFileSync(changelog, "# Changelog\n\n", "utf-8");
-  }
-  const changeEntry = `\n- ${new Date().toISOString()} finished requirement ${reqId}\n`;
-  fs.appendFileSync(changelog, changeEntry, "utf-8");
+
   console.log(`Moved requirement to ${doneDir}`);
 }
 

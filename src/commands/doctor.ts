@@ -55,11 +55,6 @@ export function runDoctor(projectName?: string, reqId?: string): void {
     ];
     root = candidates.find((candidate) => fs.existsSync(candidate)) ?? root;
   }
-  const jsonFiles = collectJsonFiles(root);
-  if (jsonFiles.length === 0) {
-    console.log("No JSON artifacts found in workspace.");
-    return;
-  }
 
   let failures = 0;
   const promptResult = validatePromptPacks();
@@ -74,6 +69,12 @@ export function runDoctor(projectName?: string, reqId?: string): void {
     console.log("Template validation failed:");
     templateResult.errors.forEach((error) => console.log(`- ${error}`));
   }
+
+  const jsonFiles = collectJsonFiles(root);
+  if (jsonFiles.length === 0) {
+    console.log("No JSON artifacts found in workspace.");
+  }
+
   for (const filePath of jsonFiles) {
     const schema = inferSchema(filePath);
     if (!schema) {
@@ -90,8 +91,10 @@ export function runDoctor(projectName?: string, reqId?: string): void {
     }
   }
 
-  if (failures === 0) {
+  if (failures === 0 && jsonFiles.length > 0) {
     console.log("All JSON artifacts are valid.");
+  } else if (failures === 0) {
+    console.log("Prompt packs and templates are valid.");
   } else {
     console.log(`Validation failed for ${failures} artifact(s).`);
   }

@@ -34,7 +34,10 @@ export async function runReqExport(): Promise<void> {
   for (const entry of fs.readdirSync(sourceDir)) {
     const srcPath = path.join(sourceDir, entry);
     const destPath = path.join(targetDir, entry);
-    if (fs.statSync(srcPath).isFile()) {
+    const stat = fs.statSync(srcPath);
+    if (stat.isDirectory()) {
+      fs.cpSync(srcPath, destPath, { recursive: true });
+    } else if (stat.isFile()) {
       fs.copyFileSync(srcPath, destPath);
     }
   }
