@@ -27,7 +27,7 @@
 - [x] Add guided "Step 1/2/3" messaging in `hello`.
 - [x] Add autopilot draft creation from a single user intent in default mode.
 - [x] Reduce mandatory prompts in automated requirement creation with safe defaults.
-- [ ] Add auto-orchestration from requirement draft to plan/start/test in one guided command.
+- [x] Add auto-orchestration from requirement draft to plan/start/test/finish in one guided command.
 - [ ] Add natural-language progress narration during long generation steps.
 
 ## Release Checklist

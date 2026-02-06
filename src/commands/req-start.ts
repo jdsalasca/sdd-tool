@@ -7,6 +7,18 @@ import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList } from "../utils/list";
 import { validateJson } from "../validation/validate";
 
+export type ReqStartOptions = {
+  projectName?: string;
+  reqId?: string;
+  autofill?: boolean;
+  seedText?: string;
+};
+
+export type ReqStartResult = {
+  reqId: string;
+  targetDir: string;
+};
+
 function findRequirementDir(projectRoot: string, reqId: string): string | null {
   const backlog = path.join(projectRoot, "requirements", "backlog", reqId);
   const wip = path.join(projectRoot, "requirements", "wip", reqId);
@@ -17,12 +29,18 @@ function findRequirementDir(projectRoot: string, reqId: string): string | null {
   return null;
 }
 
-export async function runReqStart(): Promise<void> {
-  const projectName = await askProjectName();
-  const reqId = await ask("Requirement ID (REQ-...): ");
+function defaultSeed(seedText?: string): string {
+  const text = (seedText ?? "").trim();
+  return text.length > 0 ? text : "initial delivery";
+}
+
+export async function runReqStart(options?: ReqStartOptions): Promise<ReqStartResult | null> {
+  const auto = Boolean(options?.autofill);
+  const projectName = options?.projectName ?? (await askProjectName());
+  const reqId = options?.reqId ?? (await ask("Requirement ID (REQ-...): "));
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
-    return;
+    return null;
   }
 
   const workspace = getWorkspaceInfo();
@@ -31,12 +49,12 @@ export async function runReqStart(): Promise<void> {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
     console.log((error as Error).message);
-    return;
+    return null;
   }
   let requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
     console.log("Requirement not found.");
-    return;
+    return null;
   }
 
   const requirementPath = requirementDir;
@@ -50,7 +68,7 @@ export async function runReqStart(): Promise<void> {
   if (missing.length > 0) {
     console.log("Cannot start. Missing specs:");
     missing.forEach((spec) => console.log(`- ${spec.file}`));
-    return;
+    return null;
   }
 
   for (const spec of requiredSpecs) {
@@ -59,7 +77,7 @@ export async function runReqStart(): Promise<void> {
     if (!result.valid) {
       console.log(`Spec validation failed for ${spec.file}:`);
       result.errors.forEach((error) => console.log(`- ${error}`));
-      return;
+      return null;
     }
   }
 
@@ -80,12 +98,13 @@ export async function runReqStart(): Promise<void> {
     fs.writeFileSync(requirementJsonPath, JSON.stringify(requirementJson, null, 2), "utf-8");
   }
 
-  const milestones = await ask("Milestones - comma separated: ");
-  const tasks = await ask("Tasks - comma separated: ");
-  const dependencies = await ask("Dependencies - comma separated: ");
-  const risks = await ask("Risks - comma separated: ");
+  const seed = defaultSeed(options?.seedText);
+  const milestones = auto ? `milestone for ${seed}` : await ask("Milestones - comma separated: ");
+  const tasks = auto ? "implement core flow, validate outputs" : await ask("Tasks - comma separated: ");
+  const dependencies = auto ? "node runtime, templates, schemas" : await ask("Dependencies - comma separated: ");
+  const risks = auto ? "scope drift, missing validation" : await ask("Risks - comma separated: ");
   const flags = getFlags();
-  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
+  const improveNote = flags.improve && !auto ? await ask("Improve focus (optional): ") : "";
 
   const implementationTemplate = loadTemplate("implementation-plan");
   const rendered = renderTemplate(implementationTemplate, {
@@ -111,7 +130,7 @@ export async function runReqStart(): Promise<void> {
   if (!validation.valid) {
     console.log("Quality validation failed:");
     validation.errors.forEach((error) => console.log(`- ${error}`));
-    return;
+    return null;
   }
 
   fs.writeFileSync(path.join(targetDir, "implementation-plan.md"), rendered, "utf-8");
@@ -150,6 +169,5 @@ export async function runReqStart(): Promise<void> {
 
   console.log(`Implementation plan generated in ${targetDir}`);
   console.log(`Status updated to in-progress for ${project.name}`);
+  return { reqId, targetDir };
 }
-
-

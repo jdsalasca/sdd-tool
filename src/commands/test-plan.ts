@@ -7,6 +7,18 @@ import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
 import { getFlags } from "../context/flags";
 
+export type TestPlanOptions = {
+  projectName?: string;
+  reqId?: string;
+  autofill?: boolean;
+  seedText?: string;
+};
+
+export type TestPlanResult = {
+  reqId: string;
+  requirementDir: string;
+};
+
 function findRequirementDir(projectRoot: string, reqId: string): string | null {
   const base = path.join(projectRoot, "requirements");
   const statuses = ["backlog", "wip", "in-progress", "done", "archived"];
@@ -19,12 +31,18 @@ function findRequirementDir(projectRoot: string, reqId: string): string | null {
   return null;
 }
 
-export async function runTestPlan(): Promise<void> {
-  const projectName = await askProjectName();
-  const reqId = await ask("Requirement ID (REQ-...): ");
+function defaultSeed(seedText?: string): string {
+  const text = (seedText ?? "").trim();
+  return text.length > 0 ? text : "initial scope";
+}
+
+export async function runTestPlan(options?: TestPlanOptions): Promise<TestPlanResult | null> {
+  const auto = Boolean(options?.autofill);
+  const projectName = options?.projectName ?? (await askProjectName());
+  const reqId = options?.reqId ?? (await ask("Requirement ID (REQ-...): "));
   if (!projectName || !reqId) {
     console.log("Project name and requirement ID are required.");
-    return;
+    return null;
   }
 
   const workspace = getWorkspaceInfo();
@@ -33,21 +51,22 @@ export async function runTestPlan(): Promise<void> {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
     console.log((error as Error).message);
-    return;
+    return null;
   }
   const requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
     console.log("Requirement not found.");
-    return;
+    return null;
   }
 
-  const criticalPaths = await ask("Test critical paths - comma separated: ");
-  const edgeCases = await ask("Test edge cases - comma separated: ");
-  const acceptanceTests = await ask("Acceptance tests - comma separated: ");
-  const regressions = await ask("Regression tests - comma separated: ");
-  const coverageTarget = await ask("Coverage target: ");
+  const seed = defaultSeed(options?.seedText);
+  const criticalPaths = auto ? `core path for ${seed}` : await ask("Test critical paths - comma separated: ");
+  const edgeCases = auto ? "invalid data, missing inputs" : await ask("Test edge cases - comma separated: ");
+  const acceptanceTests = auto ? "happy path end-to-end generation" : await ask("Acceptance tests - comma separated: ");
+  const regressions = auto ? "existing command behavior remains valid" : await ask("Regression tests - comma separated: ");
+  const coverageTarget = auto ? "80%" : await ask("Coverage target: ");
   const flags = getFlags();
-  const improveNote = flags.improve ? await ask("Improve focus (optional): ") : "";
+  const improveNote = flags.improve && !auto ? await ask("Improve focus (optional): ") : "";
 
   const testPlanJson = {
     criticalPaths: parseList(criticalPaths),
@@ -61,7 +80,7 @@ export async function runTestPlan(): Promise<void> {
   if (!validation.valid) {
     console.log("Test plan validation failed:");
     validation.errors.forEach((error) => console.log(`- ${error}`));
-    return;
+    return null;
   }
 
   const template = loadTemplate("test-plan");
@@ -89,6 +108,5 @@ export async function runTestPlan(): Promise<void> {
   }
 
   console.log(`Test plan updated in ${requirementDir}`);
+  return { reqId, requirementDir };
 }
-
-
