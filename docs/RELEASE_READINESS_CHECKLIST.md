@@ -12,6 +12,7 @@
 - Migration notes (if any)
 - `npm run release:notes` generated and reviewed
 - `npm run release:metrics` generated and reviewed
+- `npm run release:changelog -- --version vX.Y.Z` generated and reviewed
 
 ## Publish
 - npm package version bumped

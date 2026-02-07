@@ -29,6 +29,7 @@
     "dev": "ts-node src/cli.ts",
     "check:docs": "node scripts/check-docs-flags.js",
     "release:notes": "node scripts/generate-release-notes.js",
+    "release:changelog": "node scripts/update-changelog.js",
     "release:metrics": "node scripts/post-release-metrics.js",
     "smoke:autopilot": "node scripts/autopilot-smoke.js",
     "preinstall": "node scripts/preinstall.js",
