@@ -7,6 +7,8 @@ This document defines machine-readable error code ranges and remediation guidanc
 - `SDD-1200..1299`: requirement lifecycle (`req *`)
 - `SDD-1300..1399`: PR review workflow (`pr *`)
 - `SDD-1400..1499`: scope and monorepo workspace commands
+- `SDD-1600..1699`: artifact generation commands (`gen *`)
+- `SDD-1700..1799`: learning workflow commands (`learn *`)
 - `SDD-2000..2099`: doctor validation/remediation
 - `SDD-3000..3099`: release and publish guardrails
 
@@ -23,6 +25,10 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: run `sdd-cli pr start` first, then retry.
 - `SDD-2006`: Artifact schema validation failed
   - Fix: run `sdd-cli doctor --fix` then `req refine` or regenerate affected artifact.
+- `SDD-1614`: Functional spec validation failed
+  - Fix: update prompted fields to match schema requirements and rerun `sdd-cli gen functional-spec`.
+- `SDD-1725`: Learning session not found
+  - Fix: run `sdd-cli learn refine` and select a valid session ID from the listed sessions.
 - `SDD-3003`: Release tag/package version mismatch
   - Fix: align `package.json` version and tag (`vX.Y.Z`).
 

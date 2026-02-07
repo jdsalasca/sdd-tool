@@ -11,14 +11,14 @@ Priority is driven by adoption, reliability, and contributor experience.
 ## P0 (Next 2-4 weeks)
 
 ### 1) Error code coverage completion (`SDD-xxxx`)
-- Status: In progress (core + PR workflows largely covered)
+- Status: In progress (core + PR + gen + learn covered; remaining edge commands pending)
 - Why it matters:
   - Makes failures deterministic for users and CI.
   - Reduces support turnaround time.
 - Scope:
-  - Extend machine-readable errors to all remaining command groups (`gen/*`, `learn/*`, `pr-*`, remaining `req-*`).
+  - Extend machine-readable errors to all remaining edge command groups (`ai-*`, `list`, `route`, `req-*` utilities).
   - Add a central error code catalog doc with ownership and remediation hints.
-  - Add CI check to detect plain-text error regressions in key commands.
+  - Add CI check to detect plain-text error regressions in key commands and expand monitored list incrementally.
 - KPI linkage:
   - Lower support friction.
   - Higher CI integration confidence.
@@ -97,10 +97,51 @@ Priority is driven by adoption, reliability, and contributor experience.
   - Add golden snapshot tests for top template families.
 
 ## Next sprint proposal (ready to execute)
-- [ ] Complete `SDD-xxxx` rollout to remaining command families.
-- [ ] Add `docs/ERROR_CODES.md` with remediation guidance.
-- [ ] Add script tests for release automation suite.
-- [ ] Add scope-aware `status --next` suggestions.
+- [ ] Complete `SDD-xxxx` rollout to remaining edge commands (`ai-*`, `list`, `route`, `req-*` utility commands).
+- [ ] Add tests for `doctor --fix` rollback/idempotency behavior.
+- [ ] Add release script coverage for `release:notes` and `verify:publish` failure branches.
+- [ ] Add `scope status --next` recommendation mode.
+
+## Detailed P0/P1 execution backlog
+
+### P0-A: Complete deterministic error handling
+- Objective: 100% user-facing failure paths produce `SDD-xxxx`.
+- Tasks:
+  - Assign code ranges for `ai` and utility commands and document in `docs/ERROR_CODES.md`.
+  - Replace remaining raw error logs with `printError(...)`.
+  - Expand `scripts/check-error-codes.js` monitored files for each migrated command.
+  - Add focused tests that assert code emission for representative failures.
+- Done when:
+  - `check:error-codes` passes with expanded coverage.
+  - No raw high-signal failure logs remain in migrated command families.
+
+### P0-B: Release confidence hardening
+- Objective: zero-surprise release pipeline.
+- Tasks:
+  - Add tests for `release:notes` generation edge cases (no commits, malformed commits, mixed scopes).
+  - Add failure-case tests for `verify:publish` and release-tag guards.
+  - Add docs for release artifact naming and retention policy.
+- Done when:
+  - Release scripts have green-path and failure-path tests.
+  - Docs describe exact recovery actions per release guardrail error.
+
+### P1-A: Scope UX and decision support
+- Objective: make scoped workflows the default for monorepos.
+- Tasks:
+  - Add `status --next --scope <name>` examples to docs and onboarding transcript.
+  - Add scope-aware quickstart helpers and actionable next-step hints.
+  - Add tests for empty-scope and multi-project scope edge cases.
+- Done when:
+  - A new user in a scoped workspace can complete first value flow without guessing commands.
+
+### P1-B: PR quality gates
+- Objective: improve trust in PR-to-requirement traceability.
+- Tasks:
+  - Enrich `pr risk` with unresolved critical item counters and change trend deltas.
+  - Add `pr bridge-check` output fields for missing requirement artifacts and stale links.
+  - Add docs for integrating bridge/risk outputs into CI gate jobs.
+- Done when:
+  - Teams can gate merge decisions using generated artifacts without manual triage.
 
 ## Out of scope (for now)
 - Cloud-hosted telemetry backend.

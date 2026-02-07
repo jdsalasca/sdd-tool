@@ -5,6 +5,7 @@ import { validateJson } from "../validation/validate";
 import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
 import { getFlags } from "../context/flags";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
+import { printError } from "../errors";
 
 function renderQualityYaml(rules: string[], coverage: string, complexity: string): string {
   const ruleLines = rules.length > 0 ? rules.map((rule) => `  - ${rule}`).join("\n") : "  - N/A";
@@ -23,7 +24,7 @@ export async function runGenBestPractices(): Promise<void> {
   const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1641", "Project name and requirement ID are required.");
     return;
   }
 
@@ -32,12 +33,12 @@ export async function runGenBestPractices(): Promise<void> {
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1642", (error as Error).message);
     return;
   }
   const requirementDir = findRequirementDir(project.name, reqId);
   if (!requirementDir) {
-    console.log("Requirement not found.");
+    printError("SDD-1643", "Requirement not found.");
     return;
   }
 
@@ -60,8 +61,8 @@ export async function runGenBestPractices(): Promise<void> {
 
   const validation = validateJson("quality.schema.json", qualityJson);
   if (!validation.valid) {
-    console.log("Quality validation failed:");
-    validation.errors.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-1644", "Quality validation failed.");
+    validation.errors.forEach((error) => printError("SDD-1644", error));
     return;
   }
 

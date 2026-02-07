@@ -1,7 +1,7 @@
 {
   "name": "sdd-cli",
   "version": "0.1.19",
-  "description": "AI-native CLI that turns ideas, issues, and PR feedback into shippable specs, plans, and tracked delivery.",
+  "description": "CLI that turns ideas, GitHub issues, Jira tickets, and PR feedback into structured requirements, specs, plans, and release-ready delivery artifacts.",
   "keywords": [
     "cli",
     "specification-driven-development",

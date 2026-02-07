@@ -3,18 +3,19 @@ import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { formatList, parseList } from "../utils/list";
 import { listLearnSessions, loadLearnSession } from "./learn-utils";
+import { printError } from "../errors";
 
 export async function runLearnDeliver(): Promise<void> {
   const projectName = await askProjectName();
   if (!projectName) {
-    console.log("Project name is required.");
+    printError("SDD-1731", "Project name is required.");
     return;
   }
   let sessions: string[] = [];
   try {
     sessions = listLearnSessions(projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1732", (error as Error).message);
     return;
   }
   if (sessions.length > 0) {
@@ -23,7 +24,7 @@ export async function runLearnDeliver(): Promise<void> {
   }
   const sessionId = await ask("Session ID: ");
   if (!sessionId) {
-    console.log("Session ID is required.");
+    printError("SDD-1733", "Session ID is required.");
     return;
   }
 
@@ -31,11 +32,11 @@ export async function runLearnDeliver(): Promise<void> {
   try {
     loaded = loadLearnSession(projectName, sessionId);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1734", (error as Error).message);
     return;
   }
   if (!loaded) {
-    console.log("Learning session not found.");
+    printError("SDD-1735", "Learning session not found.");
     return;
   }
 

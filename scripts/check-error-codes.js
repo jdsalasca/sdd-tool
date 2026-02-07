@@ -15,7 +15,16 @@ const TARGET_FILES = [
   "src/commands/pr-audit.ts",
   "src/commands/pr-report.ts",
   "src/commands/pr-finish.ts",
-  "src/commands/doctor.ts"
+  "src/commands/doctor.ts",
+  "src/commands/gen-functional-spec.ts",
+  "src/commands/gen-technical-spec.ts",
+  "src/commands/gen-architecture.ts",
+  "src/commands/gen-best-practices.ts",
+  "src/commands/gen-project-readme.ts",
+  "src/commands/gen-utils.ts",
+  "src/commands/learn-start.ts",
+  "src/commands/learn-refine.ts",
+  "src/commands/learn-deliver.ts"
 ];
 
 const ERROR_HINTS = ["required", "invalid", "failed", "not found", "missing", "cannot"];

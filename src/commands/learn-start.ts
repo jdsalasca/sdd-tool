@@ -3,12 +3,13 @@ import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { formatList, parseList } from "../utils/list";
 import { createLearnSession, updateLearnSession } from "./learn-utils";
+import { printError } from "../errors";
 
 export async function runLearnStart(): Promise<void> {
   const projectName = await askProjectName();
   const topic = await ask("Topic to learn: ");
   if (!projectName || !topic) {
-    console.log("Project name and topic are required.");
+    printError("SDD-1711", "Project name and topic are required.");
     return;
   }
 
@@ -23,7 +24,7 @@ export async function runLearnStart(): Promise<void> {
   try {
     created = createLearnSession(projectName, topic, "learning");
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1712", (error as Error).message);
     return;
   }
   updateLearnSession(projectName, created.session.id, {
