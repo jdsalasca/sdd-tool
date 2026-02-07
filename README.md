@@ -171,6 +171,7 @@ Use `--questions` when you want the manual question-by-question flow.
 - `sdd-cli import issue <github-issue-url>` -- import issue context and bootstrap autopilot
 - `sdd-cli import jira <ticket-or-browse-url>` -- import Jira context and bootstrap autopilot
 - `sdd-cli import linear <ticket-or-issue-url>` -- import Linear context and bootstrap autopilot
+- `sdd-cli import azure <work-item-or-url>` -- import Azure Boards context and bootstrap autopilot
 
 ### Requirement lifecycle
 - `sdd-cli req create`

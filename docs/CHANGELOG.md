@@ -3,6 +3,14 @@
 ## Unreleased
 - None.
 
+## 0.1.23
+- Release notes: `docs/releases/v0.1.23.md`
+- Release metrics: `docs/releases/v0.1.23-metrics.md`
+- Add `sdd-cli import azure <work-item|url>` to bootstrap autopilot from Azure Boards items.
+- Add deterministic Azure import error codes (`SDD-1131`, `SDD-1132`) with integration test coverage.
+- Improve docs for import adapters, process entry points, and error-code remediation map.
+- Clarify npm package description with usage-oriented value proposition in English.
+
 ## 0.1.22
 - Release notes: `docs/releases/v0.1.22.md`
 - Release metrics: `docs/releases/v0.1.22-metrics.md`

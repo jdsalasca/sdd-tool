@@ -11,6 +11,7 @@ import { runStatus } from "./commands/status";
 import { runImportIssue } from "./commands/import-issue";
 import { runImportJira } from "./commands/import-jira";
 import { runImportLinear } from "./commands/import-linear";
+import { runImportAzure } from "./commands/import-azure";
 import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
 import { closePrompt } from "./ui/prompt";
@@ -393,6 +394,14 @@ importCmd
   .argument("<ticket>", "Linear ticket key or issue URL")
   .action(async (ticket: string) => {
     await runImportLinear(ticket);
+  });
+
+importCmd
+  .command("azure")
+  .description("Import an Azure Boards work item and bootstrap autopilot")
+  .argument("<work-item>", "Azure work item id, AB#id, or work item URL")
+  .action(async (workItem: string) => {
+    await runImportAzure(workItem);
   });
 
 program.parse(process.argv);

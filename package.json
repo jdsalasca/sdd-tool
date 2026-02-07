@@ -1,7 +1,7 @@
 {
   "name": "sdd-cli",
-  "version": "0.1.22",
-  "description": "Use sdd-cli to turn ideas, GitHub/Jira work items, and PR feedback into actionable requirements, specs, plans, and done-ready delivery records with guided workflows.",
+  "version": "0.1.23",
+  "description": "CLI for turning ideas and tracker work items (GitHub, Jira, Linear, Azure) into actionable requirements, specs, test plans, and done-ready delivery artifacts with guided autopilot workflows.",
   "keywords": [
     "cli",
     "specification-driven-development",
