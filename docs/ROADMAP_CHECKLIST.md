@@ -46,3 +46,15 @@ Acceptance criteria:
 Acceptance criteria:
 - Every release has reproducible notes and validated artifacts.
 - Consumers can quickly understand what changed and how to adopt it.
+
+## Milestone M5 - Adoption and Workflow Embed
+
+- [x] Add `quickstart` command for one-command first success.
+- [x] Add an execution tracker (`AGENTS.md`) for adoption workstream.
+- [x] Add a 90-day adoption roadmap in docs.
+- [ ] Add beginner mode (`--beginner`) for richer guided narration.
+- [ ] Add `status --next` recommendation command.
+
+Acceptance criteria:
+- New users can reach first successful done requirement with minimal friction.
+- Adoption work is tracked visibly with milestones and measurable KPIs.

@@ -112,6 +112,10 @@ Then:
 ```
 sdd-cli hello
 ```
+Or run a zero-friction demo:
+```
+sdd-cli quickstart --example saas
+```
 
 Package name on npm is `sdd-cli` (CLI commands remain `sdd-cli` and `sdd`).
 
@@ -149,6 +153,7 @@ Use `--questions` when you want the manual question-by-question flow.
 
 ### Core
 - `sdd-cli hello` -- interactive session, project picker, full guided flow
+- `sdd-cli quickstart` -- one-command demo flow with built-in examples
 - `sdd-cli init` -- create SDD workspace and config
 - `sdd-cli list` -- list flows, router flows, templates, prompt packs, and projects
 - `sdd-cli doctor` -- validate completeness and consistency
@@ -214,6 +219,11 @@ sdd-cli hello "I want a simple booking system for appointments"
 `sdd-cli --non-interactive hello "<your intent>"`
 - Preview autopilot steps without writing files:
 `sdd-cli --dry-run hello "<your intent>"`
+
+## Execution tracking
+
+- Adoption execution tracker: `AGENTS.md`
+- 90-day roadmap: `docs/ADOPTION_ROADMAP_90D.md`
 
 ## Where files are stored (clean repos)
 

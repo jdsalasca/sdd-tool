@@ -6,6 +6,7 @@ import { runHello } from "./commands/hello";
 import { runInit } from "./commands/init";
 import { runRoute } from "./commands/route";
 import { runDoctor } from "./commands/doctor";
+import { runQuickstart } from "./commands/quickstart";
 import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
 import { closePrompt } from "./ui/prompt";
@@ -66,6 +67,13 @@ program
   .command("init")
   .description("Initialize workspace and config")
   .action(() => runInit());
+
+program
+  .command("quickstart")
+  .description("Run a zero-friction autopilot demo flow")
+  .option("--example <name>", "Example prompt: saas|bugfix|api|ecommerce|mobile")
+  .option("--list-examples", "List available example prompts")
+  .action((options) => runQuickstart(options.example, options.listExamples));
 
 program
   .command("list")

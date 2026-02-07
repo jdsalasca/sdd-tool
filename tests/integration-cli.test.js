@@ -265,3 +265,12 @@ test("hello dry-run previews autopilot without creating project artifacts", () =
   assert.equal(entries.includes("workspaces.json"), true);
   assert.equal(entries.some((entry) => entry.startsWith("autopilot-")), false);
 });
+
+test("quickstart runs autopilot with built-in example prompts", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-quickstart-"));
+  const result = runCli(workspaceRoot, "", ["quickstart", "--example", "bugfix"], "");
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Running quickstart example: bugfix/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+});
