@@ -38,6 +38,6 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 
 ## Current Milestone
 
-- Milestone: `release-ops-automation`
-- Branch: `feature/release-workflow-automation`
-- Goal: publish GitHub and npm releases with generated notes, migration section, metrics, and automated changelog promotion.
+- Milestone: `release-ops-hardening`
+- Branch: `feature/npm-publish-quality-automation`
+- Goal: harden release operations with publish-readiness CI, release PR checklists, and practical troubleshooting guides.
