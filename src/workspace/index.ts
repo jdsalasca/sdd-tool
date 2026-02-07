@@ -121,15 +121,38 @@ function withWorkspaceIndexLock<T>(workspace: WorkspaceInfo, fn: () => T): T {
 
 export function getWorkspaceInfo(): WorkspaceInfo {
   const flags = getFlags();
-  const baseRoot = flags.output
+  const scope = flags.scope && flags.scope.trim().length > 0 ? normalizeScopeName(flags.scope) : undefined;
+  return getWorkspaceInfoForScope(scope);
+}
+
+export function getWorkspaceInfoForScope(scope?: string): WorkspaceInfo {
+  const baseRoot = getWorkspaceBaseRoot();
+  const normalizedScope = scope && scope.trim().length > 0 ? normalizeScopeName(scope) : "";
+  const root = normalizedScope ? path.join(baseRoot, normalizedScope) : baseRoot;
+  const indexPath = path.join(root, "workspaces.json");
+  return { root, indexPath };
+}
+
+export function getWorkspaceBaseRoot(): string {
+  const flags = getFlags();
+  return flags.output
     ? path.resolve(flags.output)
     : process.env.APPDATA
       ? path.join(process.env.APPDATA, "sdd-cli", "workspaces")
       : path.join(os.homedir(), ".config", "sdd-cli", "workspaces");
-  const scope = flags.scope && flags.scope.trim().length > 0 ? normalizeScopeName(flags.scope) : "";
-  const root = scope ? path.join(baseRoot, scope) : baseRoot;
-  const indexPath = path.join(root, "workspaces.json");
-  return { root, indexPath };
+}
+
+export function listScopes(baseRoot?: string): string[] {
+  const root = baseRoot ? path.resolve(baseRoot) : getWorkspaceBaseRoot();
+  if (!fs.existsSync(root)) {
+    return [];
+  }
+  return fs
+    .readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .filter((name) => fs.existsSync(path.join(root, name, "workspaces.json")))
+    .sort();
 }
 
 export function ensureWorkspace(workspace: WorkspaceInfo): void {

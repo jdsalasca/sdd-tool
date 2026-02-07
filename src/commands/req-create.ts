@@ -101,7 +101,7 @@ export async function runReqCreate(draft?: RequirementDraft, options?: ReqCreate
 
   let gates = checkRequirementGates(requirementJson);
   if (!gates.ok) {
-    console.log("Requirement gates failed. Please provide missing fields:");
+    printError("SDD-1205", "Requirement gates failed. Please provide missing fields.");
     if (auto) {
       if (gates.missing.includes("objective")) objective = "Initial requirement draft from user intent.";
       if (gates.missing.includes("scope.in")) scopeIn = "core workflow";

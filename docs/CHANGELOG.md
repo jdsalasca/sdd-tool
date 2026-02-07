@@ -15,6 +15,11 @@
 - Add publish-readiness CI workflow for PR/push dry-run npm bundle validation.
 - Add release PR template and npm publish troubleshooting guide.
 - Standardize `SDD-xxxx` error codes across core `import`, `req`, and `pr` command failure paths.
+- Add `scope list`/`scope status` commands and scope-aware recommendations in `status --next`.
+- Add local opt-in telemetry snapshots (`--metrics-local`) for activation and command usage markers.
+- Add `pr risk` severity rollup and `pr bridge-check` integrity verification artifacts.
+- Expand `doctor --fix` with requirements layout repair, JSON skeleton remediations, and fix reports.
+- Add error-code catalog (`docs/ERROR_CODES.md`) and CI checks for monitored core command error paths.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.

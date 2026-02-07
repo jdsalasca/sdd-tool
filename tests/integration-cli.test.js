@@ -523,3 +523,114 @@ test("pr bridge reports machine-readable error code when PR ID is missing", () =
   assert.equal(result.status, 0);
   assert.match(result.stdout, /\[SDD-1313\]/i);
 });
+
+test("status --next includes scope prefix when --scope is set", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-status-scope-next-"));
+  const projectName = "ScopedStatusProject";
+  const projectRoot = path.join(workspaceRoot, "payments", projectName);
+  const reqId = "REQ-SCOPE-STATUS";
+  createSpecBundle(projectRoot, "backlog", reqId, projectName);
+
+  const result = runCli(workspaceRoot, projectName, ["--scope", "payments", "status", "--next"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Scope: payments/i);
+  assert.match(result.stdout, /--scope "payments" --project "ScopedStatusProject" req plan/i);
+});
+
+test("scope list and scope status summarize scoped workspaces", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-scope-list-"));
+  writeJson(path.join(workspaceRoot, "payments", "workspaces.json"), {
+    projects: [{ name: "PayA", status: "backlog" }, { name: "PayB", status: "done" }]
+  });
+  writeJson(path.join(workspaceRoot, "core", "workspaces.json"), {
+    projects: [{ name: "CoreA", status: "wip" }]
+  });
+
+  const listResult = runCli(workspaceRoot, "", ["scope", "list"], "");
+  assert.equal(listResult.status, 0);
+  assert.match(listResult.stdout, /payments/i);
+  assert.match(listResult.stdout, /core/i);
+
+  const statusResult = runCli(workspaceRoot, "", ["scope", "status", "payments"], "");
+  assert.equal(statusResult.status, 0);
+  assert.match(statusResult.stdout, /Scope: payments/i);
+  assert.match(statusResult.stdout, /Projects: 2/i);
+  assert.match(statusResult.stdout, /- backlog: 1/i);
+  assert.match(statusResult.stdout, /- done: 1/i);
+});
+
+test("hello --metrics-local writes local telemetry snapshot", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-metrics-local-"));
+  const result = runCli(
+    workspaceRoot,
+    "",
+    ["--metrics-local", "--non-interactive", "hello", "Build a telemetry-enabled onboarding flow"],
+    ""
+  );
+  assert.equal(result.status, 0);
+  const metricsPath = path.join(workspaceRoot, "metrics", "local-metrics.json");
+  assert.equal(fs.existsSync(metricsPath), true);
+  const metrics = JSON.parse(fs.readFileSync(metricsPath, "utf-8"));
+  assert.equal(metrics.activation.started >= 1, true);
+});
+
+test("pr risk builds severity rollup and unresolved summary", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-pr-risk-"));
+  const projectName = "RiskProject";
+  const prId = "PR-9";
+  const prDir = path.join(workspaceRoot, projectName, "pr-reviews", prId, "responses");
+  fs.mkdirSync(prDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(prDir, "c1.md"),
+    "# PR Response Generator\n\n- Severity: blocker\n- Decision: defer\n",
+    "utf-8"
+  );
+  fs.writeFileSync(
+    path.join(prDir, "c2.md"),
+    "# PR Response Generator\n\n- Severity: high\n- Decision: accept\n",
+    "utf-8"
+  );
+
+  const result = runCli(workspaceRoot, projectName, ["pr", "risk"], `${prId}\n`);
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /PR risk summary written/i);
+  assert.equal(fs.existsSync(path.join(workspaceRoot, projectName, "pr-reviews", prId, "pr-risk-summary.json")), true);
+});
+
+test("pr bridge-check fails with machine-readable code when link integrity is broken", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-pr-bridge-check-"));
+  const projectName = "BridgeCheckProject";
+  const reqId = "REQ-BRIDGE-CHECK";
+  const requirementDir = createSpecBundle(path.join(workspaceRoot, projectName), "done", reqId, projectName);
+  writeJson(path.join(requirementDir, "pr-links.json"), [
+    {
+      prId: "PR-404",
+      prDir: path.join(workspaceRoot, projectName, "pr-reviews", "PR-404"),
+      requirementDir,
+      copiedArtifacts: ["pr-review-report.md"],
+      linkedAt: new Date().toISOString()
+    }
+  ]);
+
+  const result = runCli(workspaceRoot, projectName, ["pr", "bridge-check"], `${reqId}\n`);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1336\]/i);
+  assert.equal(fs.existsSync(path.join(requirementDir, "pr-bridge-integrity.json")), true);
+});
+
+test("doctor --fix creates requirement JSON skeletons and fix report", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-doctor-skeleton-"));
+  const projectName = "DoctorSkeletonProject";
+  const reqId = "REQ-SKELETON";
+  const reqDir = path.join(workspaceRoot, projectName, "requirements", "wip", reqId);
+  fs.mkdirSync(reqDir, { recursive: true });
+  fs.writeFileSync(path.join(reqDir, "changelog.md"), "# Changelog\n\n", "utf-8");
+  fs.writeFileSync(path.join(reqDir, "progress-log.md"), "# Progress Log\n\n", "utf-8");
+
+  const result = runCli(workspaceRoot, "", ["doctor", "--fix", projectName, reqId], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-2008\] Fixed:/i);
+  assert.equal(fs.existsSync(path.join(reqDir, "requirement.json")), true);
+  assert.equal(fs.existsSync(path.join(reqDir, "functional-spec.json")), true);
+  assert.equal(fs.existsSync(path.join(workspaceRoot, projectName, "doctor-fix-report.json")), true);
+});

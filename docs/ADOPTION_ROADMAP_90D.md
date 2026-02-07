@@ -83,3 +83,10 @@ make `sdd-cli` easy to adopt, easy to trust, and easy to keep in daily workflows
 
 - Faster issue triage with lower support overhead.
 - Higher contribution throughput and safer release cadence.
+
+### Execution progress
+
+- [~] Full `SDD-xxxx` rollout started (core command families covered; remaining command groups pending).
+- [x] Centralized remediation guide published: `docs/ERROR_CODES.md`.
+- [x] Scope-aware workflows expanded (`scope list`, `scope status`, scoped recommendations).
+- [x] Release automation tests added for critical scripts.

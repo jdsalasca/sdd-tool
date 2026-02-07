@@ -1,0 +1,32 @@
+# Error Codes (`SDD-xxxx`)
+
+This document defines machine-readable error code ranges and remediation guidance.
+
+## Ranges
+- `SDD-1100..1199`: import commands (`import issue`, `import jira`)
+- `SDD-1200..1299`: requirement lifecycle (`req *`)
+- `SDD-1300..1399`: PR review workflow (`pr *`)
+- `SDD-1400..1499`: scope and monorepo workspace commands
+- `SDD-2000..2099`: doctor validation/remediation
+- `SDD-3000..3099`: release and publish guardrails
+
+## Quick remediation map
+- `SDD-1101`: Invalid GitHub issue URL
+  - Fix: provide `https://github.com/<owner>/<repo>/issues/<number>`.
+- `SDD-1111`: Invalid Jira ticket
+  - Fix: provide `PROJ-123` or `https://<site>/browse/PROJ-123`.
+- `SDD-1211`: Missing project/requirement input for planning
+  - Fix: pass `--project` and requirement ID when prompted.
+- `SDD-1236`: `req finish` failed after move sequence
+  - Fix: inspect reported error, rerun with same `REQ-*`; rollback is automatic.
+- `SDD-1315`: PR review directory missing
+  - Fix: run `sdd-cli pr start` first, then retry.
+- `SDD-2006`: Artifact schema validation failed
+  - Fix: run `sdd-cli doctor --fix` then `req refine` or regenerate affected artifact.
+- `SDD-3003`: Release tag/package version mismatch
+  - Fix: align `package.json` version and tag (`vX.Y.Z`).
+
+## Guidance for contributors
+- Every new user-facing failure path should emit an `SDD-xxxx` code.
+- Keep code references stable once published.
+- Add/update tests when introducing new codes for core flows.

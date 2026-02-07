@@ -38,6 +38,6 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 
 ## Current Milestone
 
-- Milestone: `value-backlog-refresh`
+- Milestone: `p0-p1-execution-wave`
 - Branch: `develop`
-- Goal: align next high-impact initiatives and execution order in a single prioritized backlog (`docs/VALUE_BACKLOG.md`).
+- Goal: execute P0/P1 backlog items with production-grade tests, docs, and release-safe rollout.

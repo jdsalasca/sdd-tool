@@ -65,9 +65,9 @@ export async function runReqPlan(options?: ReqPlanOptions): Promise<ReqPlanResul
   const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
   let gates = checkRequirementGates(requirementJson);
   if (!gates.ok) {
-    console.log("Requirement gates failed. Please update the requirement first:");
-    gates.missing.forEach((field) => console.log(`- ${field}`));
-    console.log("Run `sdd-cli req refine` to complete missing fields.");
+    printError("SDD-1217", "Requirement gates failed. Please update the requirement first.");
+    gates.missing.forEach((field) => printError("SDD-1217", field));
+    printError("SDD-1217", "Run `sdd-cli req refine` to complete missing fields.");
     return null;
   }
   const requirementValidation = validateJson("requirement.schema.json", requirementJson);

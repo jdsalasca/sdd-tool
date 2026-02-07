@@ -22,6 +22,7 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: npm run check:docs
+      - run: npm run check:error-codes
       - run: node dist/cli.js --help
 
   autopilot-smoke:

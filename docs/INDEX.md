@@ -14,6 +14,7 @@
 - docs/RELEASE_PROCESS.md
 - docs/GITFLOW.md
 - docs/CHANGELOG.md
+- docs/ERROR_CODES.md
 - docs/VALUE_BACKLOG.md
 - docs/releases/
 - docs/CONTRIBUTING.md
