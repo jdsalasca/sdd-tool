@@ -567,6 +567,20 @@ test("scope status emits SDD error code when scope is missing", () => {
   assert.match(result.stdout, /\[SDD-1411\]/i);
 });
 
+test("scope list emits SDD error code when no scopes exist", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-scope-list-empty-"));
+  const result = runCli(workspaceRoot, "", ["scope", "list"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1412\]/i);
+});
+
+test("status emits SDD error code when selected project directory does not exist", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-status-missing-project-root-"));
+  const result = runCli(workspaceRoot, "GhostProject", ["status"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1402\]/i);
+});
+
 test("hello emits SDD error code for invalid --from-step value", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-invalid-from-step-"));
   const result = runCli(workspaceRoot, "InvalidStepProject", ["--non-interactive", "--from-step", "invalid", "hello", "resume pipeline"], "");

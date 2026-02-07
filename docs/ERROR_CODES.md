@@ -27,6 +27,10 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: inspect reported error, rerun with same `REQ-*`; rollback is automatic.
 - `SDD-1315`: PR review directory missing
   - Fix: run `sdd-cli pr start` first, then retry.
+- `SDD-1402`: Selected project not found in workspace
+  - Fix: run `sdd-cli status` without `--project`, or choose a valid project name from workspace index.
+- `SDD-1412`: No scopes available in workspace
+  - Fix: initialize scoped work with `--scope <name>` on project commands, then rerun `sdd-cli scope list`.
 - `SDD-1249`: Requirement not found for lint run
   - Fix: verify `REQ-*` exists with `sdd-cli req list`, then rerun lint.
 - `SDD-1503`: Codex provider unavailable
