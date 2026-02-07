@@ -21,6 +21,8 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: provide `PROJ-123` or `https://<site>/browse/PROJ-123`.
 - `SDD-1004`: Resume requested without checkpoint
   - Fix: run from `--from-step create` first, or execute full autopilot once to create checkpoint state.
+- `SDD-1011`: Invalid quickstart example
+  - Fix: run `sdd-cli quickstart --list-examples` and pass one of the supported keys.
 - `SDD-1211`: Missing project/requirement input for planning
   - Fix: pass `--project` and requirement ID when prompted.
 - `SDD-1236`: `req finish` failed after move sequence
