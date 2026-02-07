@@ -16,7 +16,8 @@ Command: `sdd-cli hello`
 - Existing backlog items can enter via `sdd-cli import issue <github-url>`
 - Existing Jira tickets can enter via `sdd-cli import jira <ticket|browse-url>`
 - Existing Linear tickets can enter via `sdd-cli import linear <ticket|issue-url>`
-- Next adapters roadmap (Linear/Azure/GitLab) is documented in `docs/INTEGRATION_ADAPTERS.md`
+- Existing Azure Boards work items can enter via `sdd-cli import azure <work-item|url>`
+- Next adapters roadmap (Azure/GitLab) is documented in `docs/INTEGRATION_ADAPTERS.md`
 
 ## 1) Discovery (create)
 Command: `sdd-cli req create`

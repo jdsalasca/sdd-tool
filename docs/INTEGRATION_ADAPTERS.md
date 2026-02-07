@@ -49,7 +49,7 @@ interface TrackerAdapter {
 - Network and auth failures must preserve provider message in `printError(...)`.
 - Import command should fail gracefully without partial artifact writes.
 
-## Planned adapters
+## Adapters
 
 ### Linear
 - Status: Implemented (`sdd-cli import linear <ticket|url>`)
@@ -60,8 +60,10 @@ interface TrackerAdapter {
   - `sdd-cli import linear <ticket>`
 
 ### Azure Boards
+- Status: Implemented (`sdd-cli import azure <work-item|url>`)
 - Input examples:
   - `AB#1234`
+  - `1234`
   - `https://dev.azure.com/<org>/<project>/_workitems/edit/1234`
 - Candidate command:
   - `sdd-cli import azure <work-item>`
@@ -76,9 +78,10 @@ interface TrackerAdapter {
 
 1. Finalize adapter interface in code (`src/adapters/*`).
 2. Implement one adapter (Linear) as architecture validation. (Done)
-3. Add integration tests with local HTTP stubs (same strategy used by GitHub/Jira tests). (Done for Linear)
-4. Add docs and examples for each adapter. (In progress)
-5. Gate release with adapter smoke checks.
+3. Implement Azure Boards importer with deterministic errors and integration tests. (Done)
+4. Add integration tests with local HTTP stubs (same strategy used by GitHub/Jira tests). (Done for Linear/Azure)
+5. Add docs and examples for each adapter. (In progress, GitLab pending)
+6. Gate release with adapter smoke checks.
 
 ## Non-goals (v1)
 

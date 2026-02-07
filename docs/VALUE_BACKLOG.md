@@ -89,6 +89,8 @@ Priority is driven by adoption, reliability, and contributor experience.
 - Scope:
   - [x] Define adapter contract for trackers (Linear, Azure Boards, GitLab issues).
   - [x] Add one additional importer to validate architecture.
+  - [x] Implement `import linear` and `import azure` with deterministic error codes and integration tests.
+  - [ ] Implement `import gitlab` with the same normalized bootstrap flow and error-code guarantees.
 
 ### 9) Templates quality uplift
 - Status: Planned
@@ -125,6 +127,17 @@ Priority is driven by adoption, reliability, and contributor experience.
   - Release scripts have green-path and failure-path tests.
   - Docs describe exact recovery actions per release guardrail error.
 
+### P0-C: Import adapters completion and reliability
+- Objective: make import-led onboarding first-class across common trackers.
+- Tasks:
+  - Implement `import gitlab <url>` with deterministic `SDD-11xx` codes.
+  - Add adapter-level auth docs for GitHub/Jira/Linear/Azure/GitLab env vars.
+  - Add import smoke script to exercise all adapters against local stubs before release.
+  - Add contract tests to verify parse/fetch/seed behavior consistency across adapters.
+- Done when:
+  - All planned adapters run through one consistent bootstrap contract.
+  - Import commands have integration coverage for success and parse-failure paths.
+
 ### P1-A: Scope UX and decision support
 - Objective: make scoped workflows the default for monorepos.
 - Tasks:
@@ -142,6 +155,16 @@ Priority is driven by adoption, reliability, and contributor experience.
   - Add docs for integrating bridge/risk outputs into CI gate jobs.
 - Done when:
   - Teams can gate merge decisions using generated artifacts without manual triage.
+
+### P1-C: Packaging and adoption clarity
+- Objective: improve npm/package discoverability and reduce first-run confusion.
+- Tasks:
+  - Keep npm `description` and keywords aligned with concrete use cases and commands.
+  - Add "start here" guidance in README for import-first onboarding (`import issue|jira|linear|azure`).
+  - Add a release checklist item verifying docs and npm metadata match shipped commands.
+- Done when:
+  - New users can understand value proposition and first command path in under one minute.
+  - Package metadata reflects currently supported import and autopilot capabilities.
 
 ## Out of scope (for now)
 - Cloud-hosted telemetry backend.

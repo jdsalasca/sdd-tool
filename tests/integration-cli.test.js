@@ -509,6 +509,60 @@ test("import linear reports machine-readable error code for invalid ticket", () 
   assert.match(result.stdout, /\[SDD-1121\]/i);
 });
 
+test("import azure bootstraps hello flow from Azure Boards work item", async () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-import-azure-"));
+  const server = http.createServer((req, res) => {
+    if (req.url === "/_apis/wit/workitems/1234?api-version=7.1") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          id: 1234,
+          fields: {
+            "System.Title": "Payment retry duplicates invoice",
+            "System.Description":
+              "<div>Customers are occasionally charged twice when retrying a failed payment.</div>"
+          },
+          _links: {
+            html: {
+              href: "https://dev.azure.com/acme/shop/_workitems/edit/1234"
+            }
+          }
+        })
+      );
+      return;
+    }
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ message: "not found" }));
+  });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  const apiBase = `http://127.0.0.1:${port}/_apis/wit`;
+
+  const result = await runCliAsync(
+    workspaceRoot,
+    "",
+    ["--non-interactive", "import", "azure", "AB#1234"],
+    "",
+    { SDD_AZURE_API_BASE: apiBase }
+  );
+
+  await new Promise((resolve) => server.close(resolve));
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Importing Azure work item 1234/i);
+  assert.match(result.stdout, /Imported: Payment retry duplicates invoice/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+});
+
+test("import azure reports machine-readable error code for invalid work item", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-import-azure-invalid-"));
+  const result = runCli(workspaceRoot, "", ["import", "azure", "invalid-ticket"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1131\]/i);
+});
+
 test("pr bridge links PR review artifacts into requirement directory", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-pr-bridge-"));
   const projectName = "BridgeProject";

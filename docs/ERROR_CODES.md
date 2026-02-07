@@ -4,7 +4,7 @@ This document defines machine-readable error code ranges and remediation guidanc
 
 ## Ranges
 - `SDD-1000..1099`: hello/autopilot onboarding and resume flow
-- `SDD-1100..1199`: import commands (`import issue`, `import jira`)
+- `SDD-1100..1199`: import commands (`import issue`, `import jira`, `import linear`, `import azure`)
 - `SDD-1200..1299`: requirement lifecycle (`req *`)
 - `SDD-1300..1399`: PR review workflow (`pr *`)
 - `SDD-1400..1499`: scope and monorepo workspace commands
@@ -21,6 +21,10 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: provide `PROJ-123` or `https://<site>/browse/PROJ-123`.
 - `SDD-1121`: Invalid Linear ticket
   - Fix: provide `LIN-123` or `https://linear.app/<team>/issue/LIN-123/<slug>`.
+- `SDD-1131`: Invalid Azure work item
+  - Fix: provide `AB#1234`, `1234`, or `https://dev.azure.com/<org>/<project>/_workitems/edit/1234`.
+- `SDD-1132`: Azure work item fetch failed
+  - Fix: verify `SDD_AZURE_API_BASE`/`SDD_AZURE_PAT` and ensure the work item exists and is accessible.
 - `SDD-1004`: Resume requested without checkpoint
   - Fix: run from `--from-step create` first, or execute full autopilot once to create checkpoint state.
 - `SDD-1011`: Invalid quickstart example
