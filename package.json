@@ -1,6 +1,6 @@
 {
   "name": "sdd-cli",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "SDD-first, AI-native CLI for end-to-end delivery.",
   "homepage": "https://github.com/jdsalasca/sdd-tool#readme",
   "repository": {
