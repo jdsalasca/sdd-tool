@@ -2,12 +2,13 @@ import fs from "fs";
 import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
+import { printError } from "../errors";
 
 export async function runReqStatus(): Promise<void> {
   const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1254", "Project name and requirement ID are required.");
     return;
   }
 
@@ -16,7 +17,7 @@ export async function runReqStatus(): Promise<void> {
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1255", (error as Error).message);
     return;
   }
   const base = path.join(project.root, "requirements");
@@ -28,7 +29,7 @@ export async function runReqStatus(): Promise<void> {
       return;
     }
   }
-  console.log("Requirement not found.");
+  printError("SDD-1256", "Requirement not found.");
 }
 
 

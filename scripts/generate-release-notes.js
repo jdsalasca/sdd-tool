@@ -15,13 +15,23 @@ function hasFlag(flag) {
   return process.argv.includes(flag);
 }
 
-function run(command) {
-  return execSync(command, { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+function fail(code, message) {
+  console.error(`[${code}] ${message}`);
+  process.exit(1);
+}
+
+function run(command, code, message) {
+  try {
+    return execSync(command, { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    fail(code, message);
+    return "";
+  }
 }
 
 function latestTag() {
   try {
-    return run("git describe --tags --abbrev=0");
+    return execSync("git describe --tags --abbrev=0", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
   } catch {
     return "";
   }
@@ -41,7 +51,7 @@ function parseConventional(subject) {
 }
 
 function collectCommits(range) {
-  const output = run(`git log --no-merges --pretty=format:%s ${range}`) || "";
+  const output = run(`git log --no-merges --pretty=format:%s ${range}`, "SDD-3005", `Unable to collect commits for range: ${range}`) || "";
   return output
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -138,7 +148,11 @@ function main() {
       ? path.join(process.cwd(), "docs", "releases", `${version}.md`)
       : path.join(process.cwd(), "docs", "releases", "unreleased.md"));
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
-  fs.writeFileSync(outFile, `${notes}\n`, "utf-8");
+  try {
+    fs.writeFileSync(outFile, `${notes}\n`, "utf-8");
+  } catch (error) {
+    fail("SDD-3006", `Unable to write release notes: ${(error && error.message) || "unknown error"}`);
+  }
   process.stdout.write(`Release notes written to ${outFile}\n`);
 }
 

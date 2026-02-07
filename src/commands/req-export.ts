@@ -2,13 +2,14 @@ import fs from "fs";
 import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
+import { printError } from "../errors";
 
 export async function runReqExport(): Promise<void> {
   const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   const outputDir = await ask("Output directory: ");
   if (!projectName || !reqId || !outputDir) {
-    console.log("Project name, requirement ID, and output directory are required.");
+    printError("SDD-1244", "Project name, requirement ID, and output directory are required.");
     return;
   }
 
@@ -17,14 +18,14 @@ export async function runReqExport(): Promise<void> {
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1245", (error as Error).message);
     return;
   }
   const base = path.join(project.root, "requirements");
   const statuses = ["backlog", "wip", "in-progress", "done", "archived"];
   const sourceDir = statuses.map((status) => path.join(base, status, reqId)).find((candidate) => fs.existsSync(candidate));
   if (!sourceDir) {
-    console.log("Requirement not found.");
+    printError("SDD-1246", "Requirement not found.");
     return;
   }
 

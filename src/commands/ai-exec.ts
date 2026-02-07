@@ -1,15 +1,16 @@
 import { codexExec } from "../providers/codex";
 import { ask } from "../ui/prompt";
+import { printError } from "../errors";
 
 export async function runAiExec(promptArg?: string): Promise<void> {
   const prompt = promptArg || (await ask("Prompt: "));
   if (!prompt) {
-    console.log("Prompt is required.");
+    printError("SDD-1501", "Prompt is required.");
     return;
   }
   const result = codexExec(prompt);
   if (!result.ok) {
-    console.log(`Codex error: ${result.error}`);
+    printError("SDD-1502", `Codex error: ${result.error}`);
     return;
   }
   console.log(result.output);

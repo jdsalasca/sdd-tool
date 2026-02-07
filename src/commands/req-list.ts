@@ -2,13 +2,14 @@ import fs from "fs";
 import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
+import { printError } from "../errors";
 
 const STATUSES = ["backlog", "wip", "in-progress", "done", "archived"];
 
 export async function runReqList(statusFilter?: string): Promise<void> {
   const projectName = await askProjectName();
   if (!projectName) {
-    console.log("Project name is required.");
+    printError("SDD-1251", "Project name is required.");
     return;
   }
 
@@ -17,12 +18,12 @@ export async function runReqList(statusFilter?: string): Promise<void> {
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1252", (error as Error).message);
     return;
   }
   const base = path.join(project.root, "requirements");
   if (!fs.existsSync(base)) {
-    console.log("No requirements found for this project.");
+    printError("SDD-1253", "No requirements found for this project.");
     return;
   }
 

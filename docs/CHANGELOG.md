@@ -20,6 +20,10 @@
 - Add `pr risk` severity rollup and `pr bridge-check` integrity verification artifacts.
 - Expand `doctor --fix` with requirements layout repair, JSON skeleton remediations, and fix reports.
 - Add error-code catalog (`docs/ERROR_CODES.md`) and CI checks for monitored core command error paths.
+- Extend `SDD-xxxx` error coverage to `gen`, `learn`, `ai`, and requirement utility commands (`req archive/export/lint/list/status/report/refine`, `test-plan`).
+- Expand `check:error-codes` monitoring list to enforce new command-family coverage in CI.
+- Harden release notes generation with machine-readable failure codes for invalid git ranges (`SDD-3005`) and write failures (`SDD-3006`).
+- Add release-script failure-path tests for `verify-publish-ready` and `generate-release-notes`.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.

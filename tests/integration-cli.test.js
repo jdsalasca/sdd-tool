@@ -167,7 +167,7 @@ test("req report validates project readme from project root", () => {
 
   assert.equal(result.status, 0);
   assert.match(result.stdout, /OK: \.\.\/project-readme\.json/);
-  assert.match(result.stdout, /Missing files: 0/);
+  assert.match(result.stdout, /Absent files: 0/);
 });
 
 test("req export copies nested directories recursively", () => {
