@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- None.
+
+## 0.1.20
+- Release notes: `docs/releases/v0.1.20.md`
+- Release metrics: `docs/releases/v0.1.20-metrics.md`
 - Add `sdd-cli import jira <ticket|browse-url>` to bootstrap autopilot from Jira work items.
 - Add monorepo scope targeting with global `--scope <name>` workspace namespacing.
 - Add `sdd-cli pr bridge` to link PR review outputs back into requirement artifacts.
