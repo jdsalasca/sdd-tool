@@ -3,6 +3,7 @@
 This document defines machine-readable error code ranges and remediation guidance.
 
 ## Ranges
+- `SDD-1000..1099`: hello/autopilot onboarding and resume flow
 - `SDD-1100..1199`: import commands (`import issue`, `import jira`)
 - `SDD-1200..1299`: requirement lifecycle (`req *`)
 - `SDD-1300..1399`: PR review workflow (`pr *`)
@@ -18,6 +19,8 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: provide `https://github.com/<owner>/<repo>/issues/<number>`.
 - `SDD-1111`: Invalid Jira ticket
   - Fix: provide `PROJ-123` or `https://<site>/browse/PROJ-123`.
+- `SDD-1004`: Resume requested without checkpoint
+  - Fix: run from `--from-step create` first, or execute full autopilot once to create checkpoint state.
 - `SDD-1211`: Missing project/requirement input for planning
   - Fix: pass `--project` and requirement ID when prompted.
 - `SDD-1236`: `req finish` failed after move sequence

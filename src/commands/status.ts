@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { getFlags } from "../context/flags";
 import { ensureWorkspace, getProjectInfo, getWorkspaceInfo, listProjects } from "../workspace/index";
+import { printError } from "../errors";
 
 type StatusName = "backlog" | "wip" | "in-progress" | "done" | "archived";
 
@@ -68,7 +69,7 @@ export function runStatus(showNext?: boolean): void {
   try {
     project = getProjectInfo(workspace, selectedName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1401", (error as Error).message);
     return;
   }
   if (!fs.existsSync(project.root)) {

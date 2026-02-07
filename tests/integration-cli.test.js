@@ -275,6 +275,7 @@ test("hello prints recovery command when resume checkpoint is missing", () => {
   );
 
   assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1004\]/i);
   assert.match(result.stdout, /No checkpoint found for resume/i);
   assert.match(result.stdout, /Next command: sdd-cli --project "MissingCheckpointProject" --from-step create hello "resume the pipeline"/i);
 });
@@ -557,6 +558,20 @@ test("scope list and scope status summarize scoped workspaces", () => {
   assert.match(statusResult.stdout, /Projects: 2/i);
   assert.match(statusResult.stdout, /- backlog: 1/i);
   assert.match(statusResult.stdout, /- done: 1/i);
+});
+
+test("scope status emits SDD error code when scope is missing", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-scope-status-missing-"));
+  const result = runCli(workspaceRoot, "", ["scope", "status"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1411\]/i);
+});
+
+test("hello emits SDD error code for invalid --from-step value", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-invalid-from-step-"));
+  const result = runCli(workspaceRoot, "InvalidStepProject", ["--non-interactive", "--from-step", "invalid", "hello", "resume pipeline"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1003\]/i);
 });
 
 test("hello --metrics-local writes local telemetry snapshot", () => {

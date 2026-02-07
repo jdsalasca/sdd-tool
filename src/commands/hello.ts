@@ -11,6 +11,7 @@ import { runReqFinish } from "./req-finish";
 import { runRoute } from "./route";
 import { runTestPlan } from "./test-plan";
 import { recordActivationMetric } from "../telemetry/local-metrics";
+import { printError } from "../errors";
 import {
   AutopilotCheckpoint,
   AutopilotStep,
@@ -196,7 +197,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
 
   let text = input || (await ask("Describe what you want to do: "));
   let checkpoint: AutopilotCheckpoint | null = null;
-  let fromStep = normalizeStep(runtimeFlags.fromStep);
+  const rawFromStep = runtimeFlags.fromStep?.trim();
+  let fromStep = normalizeStep(rawFromStep);
+  if (rawFromStep && !fromStep) {
+    printError("SDD-1003", `Invalid --from-step value. Use one of: ${AUTOPILOT_STEPS.join(", ")}`);
+    return;
+  }
   let activeProjectForCheckpoint = runtimeFlags.project;
   if (!shouldRunQuestions && activeProjectForCheckpoint) {
     checkpoint = loadCheckpoint(activeProjectForCheckpoint);
@@ -212,7 +218,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   }
 
   if (!text) {
-    console.log("No input provided. Try again with a short description.");
+    printError("SDD-1001", "No input provided. Try again with a short description.");
     return;
   }
   const intent = classifyIntent(text);
@@ -272,7 +278,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       }
     }
     if (!activeProject) {
-      console.log("Project name is required to run autopilot.");
+      printError("SDD-1002", "Project name is required to run autopilot.");
       return;
     }
     printWhy(`Using project: ${activeProject}`);
@@ -284,17 +290,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         fromStep = candidate;
       }
     }
-    if (fromStep && !AUTOPILOT_STEPS.includes(fromStep)) {
-      console.log(`Invalid --from-step value. Use one of: ${AUTOPILOT_STEPS.join(", ")}`);
-      return;
-    }
-
     const draft = buildAutopilotDraft(text, intent.flow, intent.domain);
     draft.project_name = activeProject;
     let reqId = checkpoint?.reqId ?? "";
     const startStep: AutopilotStep = fromStep ?? "create";
     if (startStep !== "create" && !reqId) {
-      console.log("No checkpoint found for resume. Run full autopilot first or use --from-step create.");
+      printError("SDD-1004", "No checkpoint found for resume. Run full autopilot first or use --from-step create.");
       printRecoveryNext(activeProject, "create", text);
       return;
     }

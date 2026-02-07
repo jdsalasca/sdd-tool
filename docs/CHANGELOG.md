@@ -24,6 +24,9 @@
 - Expand `check:error-codes` monitoring list to enforce new command-family coverage in CI.
 - Harden release notes generation with machine-readable failure codes for invalid git ranges (`SDD-3005`) and write failures (`SDD-3006`).
 - Add release-script failure-path tests for `verify-publish-ready` and `generate-release-notes`.
+- Add `SDD-100x` hello/autopilot onboarding errors for invalid resume/input scenarios.
+- Add `SDD-1411` scope-status validation error and monitor `status`/`scope-status` in `check:error-codes` coverage.
+- Add integration tests for new error-code paths (`hello --from-step` invalid, `scope status` missing scope).
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.

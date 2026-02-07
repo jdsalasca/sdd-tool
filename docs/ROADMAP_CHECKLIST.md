@@ -78,6 +78,8 @@ Acceptance criteria:
 - [x] Publish `docs/ERROR_CODES.md` with remediation playbooks.
 - [x] Add release automation script test coverage.
 - [x] Add scope-aware command recommendations and multi-scope status views.
+- [x] Expand deterministic error handling coverage across `gen`, `learn`, `ai`, and `req` utility workflows.
+- [x] Add failure-path tests for release and command error-code enforcement.
 
 Acceptance criteria:
 - Core and edge command failures are deterministic and actionable.

@@ -1,11 +1,12 @@
 import { getFlags } from "../context/flags";
 import { ensureWorkspace, getWorkspaceInfoForScope, listProjects } from "../workspace/index";
+import { printError } from "../errors";
 
 export function runScopeStatus(scopeInput?: string): void {
   const flags = getFlags();
   const scope = scopeInput?.trim() || flags.scope || "";
   if (!scope) {
-    console.log("Scope is required. Use: sdd-cli scope status <scope-name>");
+    printError("SDD-1411", "Scope is required. Use: sdd-cli scope status <scope-name>");
     return;
   }
 
