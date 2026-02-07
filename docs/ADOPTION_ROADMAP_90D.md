@@ -36,7 +36,7 @@ make `sdd-cli` easy to adopt, easy to trust, and easy to keep in daily workflows
 
 ### Work items
 
-- [ ] Import from GitHub Issue URL.
+- [x] Import from GitHub Issue URL.
 - [ ] Import from Jira ticket.
 - [ ] Link PR review outputs back into requirement artifacts.
 - [ ] Add monorepo scope support.

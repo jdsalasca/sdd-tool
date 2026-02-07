@@ -29,6 +29,11 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-cli route`
   - Classifies intent and selects a flow
 
+## Imports
+- `sdd-cli import issue <url>`
+  - Imports a GitHub issue and uses it to bootstrap hello autopilot
+  - Good for turning existing backlog items into SDD artifacts quickly
+
 ## Requirements lifecycle
 - `sdd-cli req create`
 - `sdd-cli req refine`
