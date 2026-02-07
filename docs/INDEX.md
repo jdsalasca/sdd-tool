@@ -8,6 +8,7 @@
 ## Process and workflow
 - docs/PROCESS.md
 - docs/COMMANDS.md
+- docs/ADOPTION_ROADMAP_90D.md
 - docs/INTERACTIONS.md
 - docs/RELEASE_PROCESS.md
 - docs/GITFLOW.md
