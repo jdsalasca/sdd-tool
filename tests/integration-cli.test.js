@@ -190,6 +190,16 @@ test("hello supports non-interactive mode with defaults", () => {
   assert.match(result.stdout, /Using project: autopilot-/i);
 });
 
+test("hello auto-guides with direct input and minimal prompts", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-direct-"));
+  const result = runCli(workspaceRoot, "", ["hello", "Create a task tracker for first-time developers"], "");
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Auto-guided mode active/i);
+  assert.match(result.stdout, /Using project: autopilot-/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+});
+
 test("hello resumes from checkpoint with --from-step", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-resume-"));
   const projectName = "ResumeProject";
@@ -219,4 +229,19 @@ test("hello resumes from checkpoint with --from-step", () => {
   assert.match(result.stdout, /Autopilot completed successfully/i);
   assert.equal(fs.existsSync(path.join(projectRoot, ".autopilot-checkpoint.json")), false);
   assert.equal(fs.existsSync(path.join(projectRoot, "requirements", "done", reqId)), true);
+});
+
+test("hello prints recovery command when resume checkpoint is missing", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-resume-missing-"));
+  const projectName = "MissingCheckpointProject";
+  const result = runCli(
+    workspaceRoot,
+    projectName,
+    ["--non-interactive", "--from-step", "test", "hello", "resume the pipeline"],
+    ""
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /No checkpoint found for resume/i);
+  assert.match(result.stdout, /Next command: sdd-cli --project "MissingCheckpointProject" --from-step create hello "resume the pipeline"/i);
 });

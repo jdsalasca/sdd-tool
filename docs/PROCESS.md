@@ -6,7 +6,7 @@ This is the canonical, step-by-step lifecycle for any domain.
 Command: `sdd-cli hello`
 - Load workspace index
 - Show active projects and last activity
-- Ask: new project or continue?
+- In auto-guided default mode (direct input), auto-select new flow and skip extra confirmations
 - If no project is provided, suggest or auto-generate one in default flow
 - Run intent router and select flow
 - Default mode now runs a guided autopilot pipeline from create to finish
@@ -94,6 +94,12 @@ Command: `sdd-cli hello`
 - In default flow, provide step-by-step progress narration with intent, planning, testing, and finalization
 - Autopilot checkpoints are persisted per project and resumed automatically when available
 - Recovery can be forced with `--from-step create|plan|start|test|finish`
+
+Recovery commands:
+- Continue a known project: `sdd-cli --project <name> hello "continue this requirement"`
+- Resume a failed stage directly: `sdd-cli --project <name> --from-step test hello "resume"`
+- Run script/CI-safe defaults: `sdd-cli --non-interactive hello "<intent>"`
+- On autopilot interruption, `hello` prints a ready-to-run recovery command with `--project` and `--from-step`.
 
 ## Global gates
 - Schema validation on generated artifacts

@@ -29,6 +29,10 @@ function printWhy(message: string): void {
   console.log(`  -> ${message}`);
 }
 
+function printRecoveryNext(project: string, step: AutopilotStep, hint: string): void {
+  console.log(`Next command: sdd-cli --project "${project}" --from-step ${step} hello "${hint}"`);
+}
+
 function deriveProjectName(input: string, flow: string): string {
   const seed = input
     .trim()
@@ -111,51 +115,68 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   }
 
   let { workspace, projects } = loadWorkspace();
+  const runtimeFlags = getFlags();
+  const hasDirectIntent = input.trim().length > 0;
+  const shouldRunQuestions = runQuestions === true;
+  const autoGuidedMode = !shouldRunQuestions && (runtimeFlags.nonInteractive || hasDirectIntent);
 
   console.log("Hello from sdd-cli.");
   console.log(`Workspace: ${workspace.root}`);
-  const useWorkspace = await confirm("Use this workspace path? (y/n) ");
-  if (!useWorkspace) {
-    const nextPath = await ask("Workspace path to use (blank to exit): ");
-    if (!nextPath) {
-      console.log("Run again from the desired folder or pass --output <path>.");
-      return;
+  if (autoGuidedMode) {
+    printWhy("Auto-guided mode active: using current workspace defaults.");
+  } else {
+    const useWorkspace = await confirm("Use this workspace path? (y/n) ");
+    if (!useWorkspace) {
+      const nextPath = await ask("Workspace path to use (blank to exit): ");
+      if (!nextPath) {
+        console.log("Run again from the desired folder or pass --output <path>.");
+        return;
+      }
+      setFlags({ output: nextPath });
+      const reloaded = loadWorkspace();
+      workspace = reloaded.workspace;
+      projects = reloaded.projects;
+      console.log(`Workspace updated: ${workspace.root}`);
     }
-    setFlags({ output: nextPath });
-    const reloaded = loadWorkspace();
-    workspace = reloaded.workspace;
-    projects = reloaded.projects;
-    console.log(`Workspace updated: ${workspace.root}`);
   }
 
-  const runtimeFlags = getFlags();
   if (projects.length > 0) {
     console.log("Active projects:");
     projects.forEach((project) => {
       console.log(`- ${project.name} (${project.status})`);
     });
-    const choice = await ask("Start new or continue? (new/continue) ");
-    const normalized = choice.trim().toLowerCase();
-    if (normalized === "continue") {
-      const selected = runtimeFlags.project || (await ask("Project to continue: "));
-      if (!selected) {
-        console.log("No project selected. Continuing with new flow.");
-      } else if (!projects.find((project) => project.name === selected)) {
+    if (runtimeFlags.project) {
+      const selected = runtimeFlags.project.trim();
+      if (!projects.find((project) => project.name === selected)) {
         console.log(`Project not found: ${selected}. Continuing with new flow.`);
       } else {
         setFlags({ project: selected });
         console.log(`Continuing: ${selected}`);
       }
+    } else if (!autoGuidedMode) {
+      const choice = await ask("Start new or continue? (new/continue) ");
+      const normalized = choice.trim().toLowerCase();
+      if (normalized === "continue") {
+        const selected = await ask("Project to continue: ");
+        if (!selected) {
+          console.log("No project selected. Continuing with new flow.");
+        } else if (!projects.find((project) => project.name === selected)) {
+          console.log(`Project not found: ${selected}. Continuing with new flow.`);
+        } else {
+          setFlags({ project: selected });
+          console.log(`Continuing: ${selected}`);
+        }
+      } else {
+        console.log(`Selected: ${choice || "new"}`);
+      }
     } else {
-      console.log(`Selected: ${choice || "new"}`);
+      console.log("Auto-selected: new flow.");
     }
   } else {
     console.log("No active projects found.");
   }
 
   let text = input || (await ask("Describe what you want to do: "));
-
-  const shouldRunQuestions = runQuestions === true;
   let checkpoint: AutopilotCheckpoint | null = null;
   let fromStep = normalizeStep(runtimeFlags.fromStep);
   let activeProjectForCheckpoint = runtimeFlags.project;
@@ -223,8 +244,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   } else {
     let activeProject = getFlags().project;
     if (!activeProject) {
-      const quickProject = await ask("Project name (optional, press Enter to auto-generate): ");
-      activeProject = quickProject || deriveProjectName(text, intent.flow);
+      if (autoGuidedMode) {
+        activeProject = deriveProjectName(text, intent.flow);
+      } else {
+        const quickProject = await ask("Project name (optional, press Enter to auto-generate): ");
+        activeProject = quickProject || deriveProjectName(text, intent.flow);
+      }
     }
     if (!activeProject) {
       console.log("Project name is required to run autopilot.");
@@ -250,6 +275,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     const startStep: AutopilotStep = fromStep ?? "create";
     if (startStep !== "create" && !reqId) {
       console.log("No checkpoint found for resume. Run full autopilot first or use --from-step create.");
+      printRecoveryNext(activeProject, "create", text);
       return;
     }
     if (fromStep) {
@@ -265,6 +291,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         const created = await runReqCreate(draft, { autofill: true });
         if (!created) {
           console.log("Autopilot stopped at requirement creation.");
+          printRecoveryNext(activeProject, "create", text);
           return;
         }
         reqId = created.reqId;
@@ -281,6 +308,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         });
         if (!planned) {
           console.log("Autopilot stopped at planning.");
+          printRecoveryNext(activeProject, "plan", text);
           return;
         }
       }
@@ -296,6 +324,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         });
         if (!started) {
           console.log("Autopilot stopped at start phase.");
+          printRecoveryNext(activeProject, "start", text);
           return;
         }
       }
@@ -311,6 +340,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         });
         if (!tested) {
           console.log("Autopilot stopped at test planning.");
+          printRecoveryNext(activeProject, "test", text);
           return;
         }
       }
@@ -326,6 +356,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         });
         if (!finished) {
           console.log("Autopilot stopped at finish phase.");
+          printRecoveryNext(activeProject, "finish", text);
           return;
         }
         clearCheckpoint(activeProject);

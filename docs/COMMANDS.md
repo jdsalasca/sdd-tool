@@ -74,6 +74,10 @@ This file defines the command set, intent, and expected behavior.
 
 ## Hello behavior
 - Default: full guided autopilot run with minimal prompts
+- With direct intent input (example: `sdd-cli hello "build booking app"`), hello runs in auto-guided mode:
+  - Uses current workspace defaults without confirmation prompts
+  - Auto-selects new flow unless `--project <name>` is provided
+  - Auto-generates project name when missing
 - `--questions`: manual question packs and explicit draft confirmation
 - `--auto`: alias to trigger question-driven draft generation path
 
