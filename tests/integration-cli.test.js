@@ -611,6 +611,20 @@ test("hello emits SDD error code for invalid --from-step value", () => {
   assert.match(result.stdout, /\[SDD-1003\]/i);
 });
 
+test("hello --questions emits SDD error code when prompt packs cannot be loaded", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-questions-missing-packs-"));
+  const fakeRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-repo-missing-packs-"));
+  const result = runCli(
+    workspaceRoot,
+    "",
+    ["hello", "--questions", "plan api rollout"],
+    "y\nn\n",
+    { SDD_REPO_ROOT: fakeRepoRoot }
+  );
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1012\]/i);
+});
+
 test("hello --metrics-local writes local telemetry snapshot", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-metrics-local-"));
   const result = runCli(

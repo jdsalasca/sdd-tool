@@ -35,6 +35,7 @@
 - Add deterministic scope/status edge errors (`SDD-1402`, `SDD-1412`) with integration test coverage.
 - Add deterministic list/route failure handling (`SDD-1421`, `SDD-1424`) and include both commands in error-code enforcement checks.
 - Add `SDD-1011` quickstart invalid-example handling and enforce `quickstart`/`scope-list` in error-code checks.
+- Add `SDD-1012` for `hello --questions` prompt-pack load failures with integration coverage.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.
