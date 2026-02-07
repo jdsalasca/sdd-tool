@@ -3,12 +3,13 @@ import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { validateJson } from "../validation/validate";
+import { printError } from "../errors";
 
 export async function runReqLint(): Promise<void> {
   const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1247", "Project name and requirement ID are required.");
     return;
   }
 
@@ -17,7 +18,7 @@ export async function runReqLint(): Promise<void> {
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1248", (error as Error).message);
     return;
   }
   const base = path.join(project.root, "requirements");
@@ -26,7 +27,7 @@ export async function runReqLint(): Promise<void> {
     .map((status) => path.join(base, status, reqId))
     .find((candidate) => fs.existsSync(candidate));
   if (!dir) {
-    console.log("Requirement not found.");
+    printError("SDD-1249", "Requirement not found.");
     return;
   }
 
@@ -46,12 +47,20 @@ export async function runReqLint(): Promise<void> {
     if (!fs.existsSync(filePath)) {
       continue;
     }
-    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    let data: unknown;
+    try {
+      data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    } catch (error) {
+      failures += 1;
+      printError("SDD-1250", `Invalid JSON: ${file}`);
+      printError("SDD-1250", (error as Error).message);
+      continue;
+    }
     const result = validateJson(schema, data);
     if (!result.valid) {
       failures += 1;
-      console.log(`Invalid: ${file}`);
-      result.errors.forEach((error) => console.log(`- ${error}`));
+      printError("SDD-1250", `Invalid: ${file}`);
+      result.errors.forEach((error) => printError("SDD-1250", error));
     } else {
       console.log(`Valid: ${file}`);
     }

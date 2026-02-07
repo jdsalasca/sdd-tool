@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
+import { printError } from "../errors";
 
 const REQUIRED_FILES = [
   "requirement.json",
@@ -16,7 +17,7 @@ export async function runReqReport(): Promise<void> {
   const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1257", "Project name and requirement ID are required.");
     return;
   }
 
@@ -25,31 +26,31 @@ export async function runReqReport(): Promise<void> {
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1258", (error as Error).message);
     return;
   }
   const base = path.join(project.root, "requirements");
   const statuses = ["backlog", "wip", "in-progress", "done", "archived"];
   const dir = statuses.map((status) => path.join(base, status, reqId)).find((candidate) => fs.existsSync(candidate));
   if (!dir) {
-    console.log("Requirement not found.");
+    printError("SDD-1259", "Requirement not found.");
     return;
   }
 
   console.log(`Requirement report: ${reqId}`);
-  let missing = 0;
+  let absentCount = 0;
   for (const file of REQUIRED_FILES) {
     const exists = fs.existsSync(path.join(dir, file));
-    console.log(`${exists ? "OK" : "MISSING"}: ${file}`);
-    if (!exists) missing += 1;
+    console.log(`${exists ? "OK" : "ABSENT"}: ${file}`);
+    if (!exists) absentCount += 1;
   }
   const projectReadmePath = path.join(project.root, "project-readme.json");
   const projectReadmeExists = fs.existsSync(projectReadmePath);
-  console.log(`${projectReadmeExists ? "OK" : "MISSING"}: ../project-readme.json`);
+  console.log(`${projectReadmeExists ? "OK" : "ABSENT"}: ../project-readme.json`);
   if (!projectReadmeExists) {
-    missing += 1;
+    absentCount += 1;
   }
-  console.log(`Missing files: ${missing}`);
+  console.log(`Absent files: ${absentCount}`);
 }
 
 

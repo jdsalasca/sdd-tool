@@ -22,8 +22,14 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-cli status`
   - Shows per-status requirement counts for the selected project
   - Use `--next` to get an exact recommended next command
+- `sdd-cli scope list`
+  - Lists workspace scopes in the current workspace root
+- `sdd-cli scope status <scope>`
+  - Shows project status summary for one scope
 - `sdd-cli doctor`
   - Validates schemas, prompt packs, and templates
+  - Use `--fix` to auto-create missing `changelog.md` and `progress-log.md` in requirement folders
+  - Also repairs missing requirement folder layout and JSON skeleton artifacts
 
 ## Router
 - `sdd-cli route`
@@ -33,6 +39,8 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-cli import issue <url>`
   - Imports a GitHub issue and uses it to bootstrap hello autopilot
   - Good for turning existing backlog items into SDD artifacts quickly
+- `sdd-cli import jira <ticket>`
+  - Imports a Jira ticket key or browse URL and bootstraps hello autopilot
 
 ## Requirements lifecycle
 - `sdd-cli req create`
@@ -53,6 +61,9 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-cli pr respond`
 - `sdd-cli pr finish`
 - `sdd-cli pr report`
+- `sdd-cli pr bridge`
+- `sdd-cli pr risk`
+- `sdd-cli pr bridge-check`
 
 ## Test planning
 - `sdd-cli test plan`
@@ -79,6 +90,12 @@ This file defines the command set, intent, and expected behavior.
 - `--improve`   Trigger self-audit and regenerate
 - `--project`   Select or name the project
 - `--output`    Override workspace output root
+- `--scope`     Namespace workspace/project data for monorepo targeting
+- `--metrics-local` Enable local opt-in telemetry snapshots under `workspace/metrics`
+
+## Metrics utilities
+- `npm run metrics:summary -- <workspace-root>`
+  - Summarizes local opt-in activation and command usage snapshots
 - `--parallel`  Generate in parallel (supported: `req plan`)
 - `--questions` Use manual question flow instead of full autopilot
 - `--non-interactive` Run without prompt confirmations (CI/script usage)
@@ -97,5 +114,6 @@ This file defines the command set, intent, and expected behavior.
 - `--auto`: alias to trigger question-driven draft generation path
 
 ## Error handling
-- If validation fails, the command reports errors and stops.
+- If validation fails, the command reports machine-readable codes (`SDD-xxxx`) and exits non-zero.
+- See `docs/ERROR_CODES.md` for ranges and remediation guidance.
 

@@ -14,6 +14,7 @@ Command: `sdd-cli hello`
 - Fast onboarding entry is also available via `sdd-cli quickstart --example <name>`
 - Beginner-guided narration is available with `--beginner`
 - Existing backlog items can enter via `sdd-cli import issue <github-url>`
+- Existing Jira tickets can enter via `sdd-cli import jira <ticket|browse-url>`
 
 ## 1) Discovery (create)
 Command: `sdd-cli req create`
@@ -90,6 +91,15 @@ Command: `sdd-cli pr report`
 - Generate review report and metrics summary
 - Capture comment lifecycle status
 
+Command: `sdd-cli pr bridge`
+- Link PR review outputs back into requirement artifacts for traceability
+
+Command: `sdd-cli pr risk`
+- Build severity rollup and unresolved-risk summaries from PR responses
+
+Command: `sdd-cli pr bridge-check`
+- Validate that linked PR bridge artifacts are still present and consistent
+
 ## 7) Resume anytime
 Command: `sdd-cli hello`
 - Read metadata and status
@@ -109,6 +119,8 @@ Recovery commands:
 ## Global gates
 - Schema validation on generated artifacts
 - Required specs enforced before `req start`
+- `sdd-cli doctor` validates workspace artifacts and reports failures with `SDD-xxxx` codes
+- `sdd-cli doctor --fix` applies safe remediations for missing requirement operation logs and JSON skeletons
 
 ## Outputs by stage
 - Discovery: `requirement.md`, `requirement.json`, `summary.md`

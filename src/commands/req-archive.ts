@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
+import { printError } from "../errors";
 
 function findDoneRequirement(projectRoot: string, reqId: string): string | null {
   const done = path.join(projectRoot, "requirements", "done", reqId);
@@ -12,7 +13,7 @@ export async function runReqArchive(): Promise<void> {
   const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1241", "Project name and requirement ID are required.");
     return;
   }
 
@@ -21,12 +22,12 @@ export async function runReqArchive(): Promise<void> {
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1242", (error as Error).message);
     return;
   }
   const doneDir = findDoneRequirement(project.root, reqId);
   if (!doneDir) {
-    console.log("Requirement not found in done.");
+    printError("SDD-1243", "Requirement not found in done.");
     return;
   }
 

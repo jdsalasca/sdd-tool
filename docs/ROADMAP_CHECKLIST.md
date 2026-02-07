@@ -18,8 +18,8 @@ Acceptance criteria:
 
 - [x] Add step checkpointing to resume autopilot from last successful stage.
 - [x] Add `--from-step` execution support for targeted recovery.
-- [ ] Add workspace index locking for concurrent writes.
-- [ ] Add machine-readable error codes for common failures.
+- [x] Add workspace index locking for concurrent writes.
+- [x] Add machine-readable error codes for common failures.
 
 Acceptance criteria:
 - Interrupted runs can resume without restarting from scratch.
@@ -38,10 +38,11 @@ Acceptance criteria:
 
 ## Milestone M4 - Release Operations and Visibility
 
-- [ ] Generate release notes from conventional commits.
-- [ ] Publish GitHub Releases with structured highlights and migration notes.
-- [ ] Expand changelog automation for npm releases.
-- [ ] Track post-release quality metrics (tests, package integrity, docs drift).
+- [x] Generate release notes from conventional commits.
+- [x] Publish GitHub Releases with structured highlights and migration notes.
+- [x] Expand changelog automation for npm releases.
+- [x] Track post-release quality metrics (tests, package integrity, docs drift).
+- [x] Add npm publish workflow with release-tag validation and pre-publish checks.
 
 Acceptance criteria:
 - Every release has reproducible notes and validated artifacts.
@@ -63,10 +64,23 @@ Acceptance criteria:
 ## Milestone M6 - Workflow Integration
 
 - [x] Add GitHub issue import bootstrap (`import issue <url>`).
-- [ ] Add Jira import bootstrap (`import jira <ticket>`).
-- [ ] Add PR review bridge into requirement artifacts.
-- [ ] Add monorepo scope targeting (`--scope`).
+- [x] Add Jira import bootstrap (`import jira <ticket>`).
+- [x] Add PR review bridge into requirement artifacts.
+- [x] Add monorepo scope targeting (`--scope`).
 
 Acceptance criteria:
 - Existing work items can be imported directly into SDD flow.
 - Teams can adopt SDD without replacing current tracker systems.
+
+## Milestone M7 - Quality Standardization and Scale
+
+- [ ] Complete `SDD-xxxx` error code rollout for all command families.
+- [x] Publish `docs/ERROR_CODES.md` with remediation playbooks.
+- [x] Add release automation script test coverage.
+- [x] Add scope-aware command recommendations and multi-scope status views.
+- [x] Expand deterministic error handling coverage across `gen`, `learn`, `ai`, and `req` utility workflows.
+- [x] Add failure-path tests for release and command error-code enforcement.
+
+Acceptance criteria:
+- Core and edge command failures are deterministic and actionable.
+- Contributors can ship and troubleshoot releases with low cognitive overhead.

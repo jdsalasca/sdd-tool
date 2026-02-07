@@ -6,6 +6,7 @@ import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { validateJson } from "../validation/validate";
 import { getFlags } from "../context/flags";
+import { printError } from "../errors";
 
 export type TestPlanOptions = {
   projectName?: string;
@@ -41,7 +42,7 @@ export async function runTestPlan(options?: TestPlanOptions): Promise<TestPlanRe
   const projectName = options?.projectName ?? (await askProjectName());
   const reqId = options?.reqId ?? (await ask("Requirement ID (REQ-...): "));
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1271", "Project name and requirement ID are required.");
     return null;
   }
 
@@ -50,12 +51,12 @@ export async function runTestPlan(options?: TestPlanOptions): Promise<TestPlanRe
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1272", (error as Error).message);
     return null;
   }
   const requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
-    console.log("Requirement not found.");
+    printError("SDD-1273", "Requirement not found.");
     return null;
   }
 
@@ -78,8 +79,8 @@ export async function runTestPlan(options?: TestPlanOptions): Promise<TestPlanRe
 
   const validation = validateJson("test-plan.schema.json", testPlanJson);
   if (!validation.valid) {
-    console.log("Test plan validation failed:");
-    validation.errors.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-1274", "Test plan validation failed.");
+    validation.errors.forEach((error) => printError("SDD-1274", error));
     return null;
   }
 

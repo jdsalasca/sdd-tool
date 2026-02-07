@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { getFlags } from "../context/flags";
+import { printError } from "../errors";
 
 export function findRequirementDir(projectName: string, reqId: string): string | null {
   const workspace = getWorkspaceInfo();
@@ -9,7 +10,7 @@ export function findRequirementDir(projectName: string, reqId: string): string |
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1605", (error as Error).message);
     return null;
   }
   const base = path.join(project.root, "requirements");

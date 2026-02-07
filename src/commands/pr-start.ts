@@ -4,16 +4,17 @@ import { ask, askProjectName } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList } from "../utils/list";
 import { ensurePrReviewDir } from "./pr-utils";
+import { printError } from "../errors";
 
 export async function runPrStart(): Promise<void> {
   const projectName = await askProjectName();
   if (!projectName) {
-    console.log("Project name is required.");
+    printError("SDD-1301", "Project name is required.");
     return;
   }
   const prLink = await ask("PR link: ");
   if (!prLink) {
-    console.log("PR link is required.");
+    printError("SDD-1302", "PR link is required.");
     return;
   }
   const prIdInput = await ask("PR ID (optional): ");
@@ -36,7 +37,7 @@ export async function runPrStart(): Promise<void> {
   try {
     context = ensurePrReviewDir(projectName, prLink, prIdInput);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1303", (error as Error).message);
     return;
   }
   const reviewMeta = {

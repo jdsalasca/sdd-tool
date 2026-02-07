@@ -3,18 +3,19 @@ import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { formatList, parseList } from "../utils/list";
 import { listLearnSessions, loadLearnSession, updateLearnSession } from "./learn-utils";
+import { printError } from "../errors";
 
 export async function runLearnRefine(): Promise<void> {
   const projectName = await askProjectName();
   if (!projectName) {
-    console.log("Project name is required.");
+    printError("SDD-1721", "Project name is required.");
     return;
   }
   let sessions: string[] = [];
   try {
     sessions = listLearnSessions(projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1722", (error as Error).message);
     return;
   }
   if (sessions.length > 0) {
@@ -23,7 +24,7 @@ export async function runLearnRefine(): Promise<void> {
   }
   const sessionId = await ask("Session ID: ");
   if (!sessionId) {
-    console.log("Session ID is required.");
+    printError("SDD-1723", "Session ID is required.");
     return;
   }
 
@@ -31,11 +32,11 @@ export async function runLearnRefine(): Promise<void> {
   try {
     loaded = loadLearnSession(projectName, sessionId);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1724", (error as Error).message);
     return;
   }
   if (!loaded) {
-    console.log("Learning session not found.");
+    printError("SDD-1725", "Learning session not found.");
     return;
   }
 
@@ -57,12 +58,12 @@ export async function runLearnRefine(): Promise<void> {
       constraints: constraints ? parseList(constraints) : loaded.session.constraints
     });
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1726", (error as Error).message);
     return;
   }
 
   if (!updated) {
-    console.log("Failed to update session.");
+    printError("SDD-1727", "Failed to update session.");
     return;
   }
 

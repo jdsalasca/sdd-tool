@@ -14,10 +14,14 @@
 - docs/RELEASE_PROCESS.md
 - docs/GITFLOW.md
 - docs/CHANGELOG.md
+- docs/ERROR_CODES.md
+- docs/VALUE_BACKLOG.md
+- docs/releases/
 - docs/CONTRIBUTING.md
 - docs/MAINTENANCE.md
 - docs/TROUBLESHOOTING.md
 - .github/PULL_REQUEST_TEMPLATE.md
+- .github/PULL_REQUEST_TEMPLATE_RELEASE.md
 
 ## Architecture and design
 - docs/ARCHITECTURE.md

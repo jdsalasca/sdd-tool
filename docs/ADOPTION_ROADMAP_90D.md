@@ -37,9 +37,9 @@ make `sdd-cli` easy to adopt, easy to trust, and easy to keep in daily workflows
 ### Work items
 
 - [x] Import from GitHub Issue URL.
-- [ ] Import from Jira ticket.
-- [ ] Link PR review outputs back into requirement artifacts.
-- [ ] Add monorepo scope support.
+- [x] Import from Jira ticket.
+- [x] Link PR review outputs back into requirement artifacts.
+- [x] Add monorepo scope support.
 
 ### Success criteria
 
@@ -54,12 +54,39 @@ make `sdd-cli` easy to adopt, easy to trust, and easy to keep in daily workflows
 
 ### Work items
 
-- [ ] Add machine-readable error codes (`SDD-xxxx`).
-- [ ] Add `doctor --fix` for common remediations.
-- [ ] Auto-generate release notes from conventional commits.
-- [ ] Generate release quality summary (tests, docs check, smoke check).
+- [x] Add machine-readable error codes (`SDD-xxxx`).
+- [x] Add `doctor --fix` for common remediations.
+- [x] Auto-generate release notes from conventional commits.
+- [x] Generate release quality summary (tests, docs check, smoke check).
 
 ### Success criteria
 
 - Common failures are easy to diagnose and recover from.
 - Releases become repeatable with standardized notes and validation.
+
+## Phase 4: Scale and community (Post-90 days)
+
+### Objectives
+
+- Sustain adoption with contributor-friendly operations.
+- Improve observability for product decisions without sacrificing simplicity.
+
+### Work items
+
+- [ ] Complete full `SDD-xxxx` error-code coverage for all commands.
+- [ ] Publish a centralized `ERROR_CODES` remediation guide.
+- [ ] Expand scope-aware workflows for large monorepos.
+- [ ] Add release automation test suite and artifact quality checks.
+- [ ] Publish contributor quickstart and triage playbook.
+
+### Success criteria
+
+- Faster issue triage with lower support overhead.
+- Higher contribution throughput and safer release cadence.
+
+### Execution progress
+
+- [~] Full `SDD-xxxx` rollout started (core command families covered; remaining command groups pending).
+- [x] Centralized remediation guide published: `docs/ERROR_CODES.md`.
+- [x] Scope-aware workflows expanded (`scope list`, `scope status`, scoped recommendations).
+- [x] Release automation tests added for critical scripts.

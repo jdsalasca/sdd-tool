@@ -4,6 +4,7 @@ import { ask, askProjectName } from "../ui/prompt";
 import { getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { validateJson } from "../validation/validate";
+import { printError } from "../errors";
 
 function findRequirementDir(projectRoot: string, reqId: string): string | null {
   const backlog = path.join(projectRoot, "requirements", "backlog", reqId);
@@ -20,7 +21,7 @@ export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinis
   const projectName = options?.projectName ?? (await askProjectName());
   const reqId = options?.reqId ?? (await ask("Requirement ID (REQ-...): "));
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1231", "Project name and requirement ID are required.");
     return null;
   }
 
@@ -29,12 +30,12 @@ export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinis
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1232", (error as Error).message);
     return null;
   }
   const requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
-    console.log("Requirement not found.");
+    printError("SDD-1233", "Requirement not found.");
     return null;
   }
 
@@ -53,8 +54,8 @@ export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinis
     const data = JSON.parse(fs.readFileSync(path.join(requirementDir, file), "utf-8"));
     const result = validateJson(schema, data);
     if (!result.valid) {
-      console.log(`Validation failed for ${file}:`);
-      result.errors.forEach((error) => console.log(`- ${error}`));
+      printError("SDD-1234", `Validation failed for ${file}.`);
+      result.errors.forEach((error) => printError("SDD-1234", error));
       return null;
     }
   }
@@ -94,8 +95,8 @@ export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinis
 
   const readmeValidation = validateJson("project-readme.schema.json", readmeJson);
   if (!readmeValidation.valid) {
-    console.log("Project README validation failed:");
-    readmeValidation.errors.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-1235", "Project README validation failed.");
+    readmeValidation.errors.forEach((error) => printError("SDD-1235", error));
     return null;
   }
 
@@ -148,7 +149,7 @@ export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinis
     if (sourceStatus && sourceStatus !== "done") {
       updateProjectStatus(workspace, project.name, sourceStatus);
     }
-    console.log(`Failed to finish requirement: ${(error as Error).message}`);
+    printError("SDD-1236", `Failed to finish requirement: ${(error as Error).message}`);
     return null;
   }
 

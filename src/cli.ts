@@ -9,9 +9,11 @@ import { runDoctor } from "./commands/doctor";
 import { runQuickstart } from "./commands/quickstart";
 import { runStatus } from "./commands/status";
 import { runImportIssue } from "./commands/import-issue";
+import { runImportJira } from "./commands/import-jira";
 import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
 import { closePrompt } from "./ui/prompt";
+import { recordCommandMetric } from "./telemetry/local-metrics";
 
 const program = new Command();
 
@@ -37,7 +39,9 @@ program
   .option("--beginner", "Enable extra step-by-step guidance in hello flow")
   .option("--from-step <step>", "Resume or start autopilot from step: create|plan|start|test|finish")
   .option("--project <name>", "Select or name the project")
-  .option("--output <path>", "Override workspace output root");
+  .option("--output <path>", "Override workspace output root")
+  .option("--scope <name>", "Target a monorepo scope namespace inside the workspace")
+  .option("--metrics-local", "Enable local opt-in telemetry snapshots in workspace/metrics");
 
 program.hook("preAction", (thisCommand, actionCommand) => {
   const opts =
@@ -51,8 +55,16 @@ program.hook("preAction", (thisCommand, actionCommand) => {
     beginner: Boolean(opts.beginner),
     fromStep: typeof opts.fromStep === "string" ? opts.fromStep : undefined,
     project: typeof opts.project === "string" ? opts.project : undefined,
-    output: typeof opts.output === "string" ? opts.output : undefined
+    output: typeof opts.output === "string" ? opts.output : undefined,
+    scope: typeof opts.scope === "string" ? opts.scope : undefined,
+    metricsLocal: Boolean(opts.metricsLocal)
   });
+
+  const commandPath =
+    typeof actionCommand.name === "function"
+      ? `${thisCommand.name()} ${actionCommand.name()}`.trim()
+      : thisCommand.name();
+  recordCommandMetric(commandPath);
 });
 
 program.hook("postAction", () => {
@@ -92,6 +104,23 @@ program
   .description("Show project requirement counts and next recommended command")
   .option("--next", "Print exact next command to run")
   .action((options) => runStatus(Boolean(options.next)));
+
+const scopeCmd = program.command("scope").description("Monorepo scope workspace commands");
+scopeCmd
+  .command("list")
+  .description("List known workspace scopes")
+  .action(async () => {
+    const { runScopeList } = await import("./commands/scope-list");
+    runScopeList();
+  });
+scopeCmd
+  .command("status")
+  .description("Show project status summary for a scope")
+  .argument("[scope]", "Scope name")
+  .action(async (scope?: string) => {
+    const { runScopeStatus } = await import("./commands/scope-status");
+    runScopeStatus(scope);
+  });
 
 const req = program.command("req").description("Requirement lifecycle commands");
 req
@@ -209,6 +238,27 @@ pr
     const { runPrReport } = await import("./commands/pr-report");
     await runPrReport();
   });
+pr
+  .command("bridge")
+  .description("Link PR review artifacts into a requirement")
+  .action(async () => {
+    const { runPrBridge } = await import("./commands/pr-bridge");
+    await runPrBridge();
+  });
+pr
+  .command("risk")
+  .description("Generate PR risk severity rollup and unresolved summary")
+  .action(async () => {
+    const { runPrRisk } = await import("./commands/pr-risk");
+    await runPrRisk();
+  });
+pr
+  .command("bridge-check")
+  .description("Validate PR bridge integrity for a requirement")
+  .action(async () => {
+    const { runPrBridgeCheck } = await import("./commands/pr-bridge-check");
+    await runPrBridgeCheck();
+  });
 
 const test = program.command("test").description("Test planning commands");
 test
@@ -297,7 +347,10 @@ program
   .description("Validate workspace artifacts and schemas")
   .argument("[project]", "Optional project name to validate")
   .argument("[requirementId]", "Optional requirement ID to validate")
-  .action((project?: string, requirementId?: string) => runDoctor(project, requirementId));
+  .option("--fix", "Apply safe remediations (missing changelog/progress-log)")
+  .action((project: string | undefined, requirementId: string | undefined, options: { fix?: boolean }) =>
+    runDoctor(project, requirementId, Boolean(options.fix))
+  );
 
 const ai = program.command("ai").description("Codex provider commands");
 ai
@@ -323,6 +376,14 @@ importCmd
   .argument("<url>", "GitHub issue URL")
   .action(async (url: string) => {
     await runImportIssue(url);
+  });
+
+importCmd
+  .command("jira")
+  .description("Import a Jira ticket and bootstrap autopilot")
+  .argument("<ticket>", "Jira ticket key or browse URL")
+  .action(async (ticket: string) => {
+    await runImportJira(ticket);
   });
 
 program.parse(process.argv);

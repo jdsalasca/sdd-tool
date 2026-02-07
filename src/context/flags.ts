@@ -8,6 +8,8 @@ export type RuntimeFlags = {
   fromStep?: string;
   project?: string;
   output?: string;
+  scope?: string;
+  metricsLocal?: boolean;
 };
 
 const flags: RuntimeFlags = {
@@ -19,7 +21,9 @@ const flags: RuntimeFlags = {
   beginner: false,
   fromStep: undefined,
   project: undefined,
-  output: undefined
+  output: undefined,
+  scope: undefined,
+  metricsLocal: false
 };
 
 export function setFlags(next: Partial<RuntimeFlags>): void {
@@ -49,6 +53,12 @@ export function setFlags(next: Partial<RuntimeFlags>): void {
   }
   if ("output" in next) {
     flags.output = typeof next.output === "string" ? next.output : undefined;
+  }
+  if ("scope" in next) {
+    flags.scope = typeof next.scope === "string" ? next.scope : undefined;
+  }
+  if ("metricsLocal" in next) {
+    flags.metricsLocal = Boolean(next.metricsLocal);
   }
 }
 

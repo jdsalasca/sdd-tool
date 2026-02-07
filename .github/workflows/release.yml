@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.1.20)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Verify release tag matches package version
+        run: npm run verify:release-tag -- --tag "${RELEASE_TAG}"
+
+      - name: Resolve previous tag
+        shell: bash
+        run: |
+          git fetch --tags --force
+          PREV_TAG="$(git tag --sort=-creatordate | grep -v "^${RELEASE_TAG}$" | head -n 1 || true)"
+          if [ -z "$PREV_TAG" ]; then
+            PREV_TAG="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+          fi
+          echo "PREV_TAG=$PREV_TAG" >> "$GITHUB_ENV"
+          echo "Using previous reference: $PREV_TAG"
+
+      - name: Generate release notes
+        run: |
+          mkdir -p docs/releases
+          npm run release:notes -- --from "${PREV_TAG}" --to "${RELEASE_TAG}" --write --out "docs/releases/${RELEASE_TAG}.md"
+
+      - name: Generate release metrics
+        run: |
+          mkdir -p docs/releases
+          npm run release:metrics > "docs/releases/${RELEASE_TAG}-metrics.md"
+
+      - name: Ensure migration section
+        shell: bash
+        run: |
+          if ! grep -q "^## Migration notes" "docs/releases/${RELEASE_TAG}.md"; then
+            {
+              echo ""
+              echo "## Migration notes"
+              echo "- No breaking migration steps required."
+            } >> "docs/releases/${RELEASE_TAG}.md"
+          fi
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ env.RELEASE_TAG }}
+          path: |
+            docs/releases/${{ env.RELEASE_TAG }}.md
+            docs/releases/${{ env.RELEASE_TAG }}-metrics.md
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          body_path: docs/releases/${{ env.RELEASE_TAG }}.md
+          files: |
+            docs/releases/${{ env.RELEASE_TAG }}-metrics.md
+          draft: false
+          prerelease: false

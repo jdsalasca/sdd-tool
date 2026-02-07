@@ -7,6 +7,7 @@ import { renderTemplate, loadTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { checkRequirementGates } from "../validation/gates";
 import { validateJson } from "../validation/validate";
+import { printError } from "../errors";
 
 function findRequirementFile(projectRoot: string, reqId: string): string | null {
   const base = path.join(projectRoot, "requirements");
@@ -23,7 +24,7 @@ export async function runReqRefine(): Promise<void> {
   const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1261", "Project name and requirement ID are required.");
     return;
   }
 
@@ -32,12 +33,12 @@ export async function runReqRefine(): Promise<void> {
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1262", (error as Error).message);
     return;
   }
   const reqPath = findRequirementFile(project.root, reqId);
   if (!reqPath) {
-    console.log("Requirement not found.");
+    printError("SDD-1263", "Requirement not found.");
     return;
   }
 
@@ -78,7 +79,7 @@ export async function runReqRefine(): Promise<void> {
 
   let gates = checkRequirementGates(updated);
   if (!gates.ok) {
-    console.log("Requirement gates failed. Please provide missing fields:");
+    printError("SDD-1264", "Requirement gates failed. Please provide missing fields.");
     for (const field of gates.missing) {
       if (field === "objective") {
         updated.objective = await ask(`Objective (${updated.objective}): `);
@@ -111,16 +112,16 @@ export async function runReqRefine(): Promise<void> {
     updated.updatedAt = new Date().toISOString();
     gates = checkRequirementGates(updated);
     if (!gates.ok) {
-      console.log("Requirement gates still failing. Missing:");
-      gates.missing.forEach((field) => console.log(`- ${field}`));
+      printError("SDD-1265", "Requirement gates still failing.");
+      gates.missing.forEach((field) => printError("SDD-1265", field));
       return;
     }
   }
 
   const validation = validateJson("requirement.schema.json", updated);
   if (!validation.valid) {
-    console.log("Requirement validation failed:");
-    validation.errors.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-1266", "Requirement validation failed.");
+    validation.errors.forEach((error) => printError("SDD-1266", error));
     return;
   }
 

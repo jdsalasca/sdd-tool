@@ -1,7 +1,22 @@
 {
   "name": "sdd-cli",
   "version": "0.1.19",
-  "description": "SDD-first, AI-native CLI for end-to-end delivery.",
+  "description": "Use sdd-cli to turn ideas, GitHub/Jira work items, and PR feedback into actionable requirements, specs, plans, and done-ready delivery records with guided workflows.",
+  "keywords": [
+    "cli",
+    "specification-driven-development",
+    "software-design-document",
+    "requirements",
+    "architecture",
+    "technical-spec",
+    "workflow",
+    "autopilot",
+    "project-management"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "homepage": "https://github.com/jdsalasca/sdd-tool#readme",
   "repository": {
     "type": "git",
@@ -28,6 +43,13 @@
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
     "check:docs": "node scripts/check-docs-flags.js",
+    "check:error-codes": "node scripts/check-error-codes.js",
+    "release:notes": "node scripts/generate-release-notes.js",
+    "release:changelog": "node scripts/update-changelog.js",
+    "release:metrics": "node scripts/post-release-metrics.js",
+    "verify:publish": "node scripts/verify-publish-ready.js",
+    "verify:release-tag": "node scripts/verify-release-version.js",
+    "metrics:summary": "node scripts/metrics-summary.js",
     "smoke:autopilot": "node scripts/autopilot-smoke.js",
     "preinstall": "node scripts/preinstall.js",
     "pretest": "npm run build",

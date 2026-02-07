@@ -7,12 +7,13 @@ import { validateJson } from "../validation/validate";
 import { appendImprove, appendProgress, findRequirementDir } from "./gen-utils";
 import { getFlags } from "../context/flags";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
+import { printError } from "../errors";
 
 export async function runGenFunctionalSpec(): Promise<void> {
   const projectName = await askProjectName();
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1611", "Project name and requirement ID are required.");
     return;
   }
 
@@ -21,12 +22,12 @@ export async function runGenFunctionalSpec(): Promise<void> {
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1612", (error as Error).message);
     return;
   }
   const requirementDir = findRequirementDir(project.name, reqId);
   if (!requirementDir) {
-    console.log("Requirement not found.");
+    printError("SDD-1613", "Requirement not found.");
     return;
   }
 
@@ -52,8 +53,8 @@ export async function runGenFunctionalSpec(): Promise<void> {
 
   const validation = validateJson("functional-spec.schema.json", functionalJson);
   if (!validation.valid) {
-    console.log("Functional spec validation failed:");
-    validation.errors.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-1614", "Functional spec validation failed.");
+    validation.errors.forEach((error) => printError("SDD-1614", error));
     return;
   }
 

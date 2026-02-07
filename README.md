@@ -157,13 +157,17 @@ Use `--questions` when you want the manual question-by-question flow.
 - `sdd-cli init` -- create SDD workspace and config
 - `sdd-cli list` -- list flows, router flows, templates, prompt packs, and projects
 - `sdd-cli status --next` -- show current project state and exact next command
+- `sdd-cli scope list` -- list monorepo workspace scopes
+- `sdd-cli scope status <scope>` -- show status summary for one scope
 - `sdd-cli doctor` -- validate completeness and consistency
+  - `sdd-cli doctor --fix` -- apply safe remediations for missing requirement ops files
 
 ### Router
 - `sdd-cli route` -- classify user intent and route to the right flow
 
 ### Imports
 - `sdd-cli import issue <github-issue-url>` -- import issue context and bootstrap autopilot
+- `sdd-cli import jira <ticket-or-browse-url>` -- import Jira context and bootstrap autopilot
 
 ### Requirement lifecycle
 - `sdd-cli req create`
@@ -188,10 +192,22 @@ Use `--questions` when you want the manual question-by-question flow.
 - `sdd-cli learn refine`
 - `sdd-cli learn deliver`
 
+### PR review
+- `sdd-cli pr start`
+- `sdd-cli pr audit`
+- `sdd-cli pr respond`
+- `sdd-cli pr finish`
+- `sdd-cli pr report`
+- `sdd-cli pr bridge`
+- `sdd-cli pr risk`
+- `sdd-cli pr bridge-check`
+
 ### Flags
 - `--approve` -- run without extra confirmations
 - `--improve` -- re-open and enhance existing docs
 - `--output <path>` -- override workspace output
+- `--scope <name>` -- isolate artifacts by monorepo scope namespace
+- `--metrics-local` -- record local opt-in telemetry snapshots in `workspace/metrics`
 - `--project <name>` -- set project name
 - `--parallel` -- generate in parallel
 - `--questions` -- use manual question-driven discovery flow
@@ -235,6 +251,8 @@ For a full onboarding walkthrough, see:
 
 - Adoption execution tracker: `AGENTS.md`
 - 90-day roadmap: `docs/ADOPTION_ROADMAP_90D.md`
+- Value backlog: `docs/VALUE_BACKLOG.md`
+- Error codes and remediation guide: `docs/ERROR_CODES.md`
 
 ## Where files are stored (clean repos)
 
@@ -247,6 +265,29 @@ By default, the tool writes to a dedicated workspace, not into your repo:
 Optional:
 - `--output ./docs/sdd` to keep SDD next to the repo
 - `--output ../_sdd/<project>` for a separate shared directory
+- `--scope apps-payments` to isolate workspaces for one monorepo domain
+
+## Release notes automation
+
+- Generate notes from conventional commits:
+`npm run release:notes`
+- Write notes to `docs/releases/<version>.md`:
+`npm run release:notes -- --write --version v0.1.20`
+- Generate post-release quality summary:
+`npm run release:metrics`
+- Promote `Unreleased` changelog entries into a version:
+`npm run release:changelog -- --version v0.1.20`
+- Verify tag/version consistency:
+`npm run verify:release-tag -- --tag v0.1.20`
+- Verify npm publish bundle before publishing:
+`npm run verify:publish`
+
+## Local metrics (opt-in)
+
+- Enable local snapshots:
+`sdd-cli --metrics-local hello "your intent"`
+- View summary from current workspace root:
+`npm run metrics:summary -- <workspace-path>`
 
 ## Lifecycle folders
 
