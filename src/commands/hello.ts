@@ -33,6 +33,13 @@ function printRecoveryNext(project: string, step: AutopilotStep, hint: string): 
   console.log(`Next command: sdd-cli --project "${project}" --from-step ${step} hello "${hint}"`);
 }
 
+function printBeginnerTip(enabled: boolean, tip: string): void {
+  if (!enabled) {
+    return;
+  }
+  console.log(`  [Beginner] ${tip}`);
+}
+
 function deriveProjectName(input: string, flow: string): string {
   const seed = input
     .trim()
@@ -120,9 +127,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   const shouldRunQuestions = runQuestions === true;
   const autoGuidedMode = !shouldRunQuestions && (runtimeFlags.nonInteractive || hasDirectIntent);
   const dryRun = runtimeFlags.dryRun;
+  const beginnerMode = runtimeFlags.beginner;
 
   console.log("Hello from sdd-cli.");
   console.log(`Workspace: ${workspace.root}`);
+  if (beginnerMode) {
+    printBeginnerTip(true, "I will explain each step and tell you what happens next.");
+  }
   if (autoGuidedMode) {
     printWhy("Auto-guided mode active: using current workspace defaults.");
   } else {
@@ -202,6 +213,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   console.log(`Detected intent: ${intent.intent} -> ${intent.flow}`);
   printStep("Step 1/7", "Intent detected");
   printWhy("I classified your goal and selected the best starting flow.");
+  printBeginnerTip(beginnerMode, "Intent helps me pick the right workflow and defaults.");
   const showRoute = runQuestions === true ? await confirm("View route details now? (y/n) ") : false;
   if (showRoute && runQuestions === true) {
     runRoute(text);
@@ -211,6 +223,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
 
   printStep("Step 2/7", "Requirement setup");
   printWhy("I will gather enough context to generate a valid first draft.");
+  printBeginnerTip(beginnerMode, "A requirement draft defines scope, acceptance criteria, and constraints.");
   if (shouldRunQuestions) {
     const packs = loadPromptPacks();
     const packIds = FLOW_PROMPT_PACKS[intent.flow] ?? [];
@@ -286,6 +299,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     const stepIndex = AUTOPILOT_STEPS.indexOf(startStep);
     if (dryRun) {
       printWhy("Dry run active: previewing autopilot plan without writing files.");
+      printBeginnerTip(beginnerMode, "Dry run is safe: it shows plan only and does not change files.");
       for (let i = stepIndex; i < AUTOPILOT_STEPS.length; i += 1) {
         const step = AUTOPILOT_STEPS[i];
         console.log(`Would run step: ${step}`);
@@ -298,6 +312,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       if (step === "create") {
         printStep("Step 3/7", "Creating requirement draft automatically");
         printWhy("This creates your baseline scope, acceptance criteria, and NFRs.");
+        printBeginnerTip(beginnerMode, "After this, your requirement is ready for planning artifacts.");
         const created = await runReqCreate(draft, { autofill: true });
         if (!created) {
           console.log("Autopilot stopped at requirement creation.");
@@ -310,6 +325,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       if (step === "plan") {
         printStep("Step 4/7", `Planning requirement ${reqId}`);
         printWhy("I am generating functional, technical, architecture, and test artifacts.");
+        printBeginnerTip(beginnerMode, "Planning creates the blueprint before implementation.");
         const planned = await runReqPlan({
           projectName: activeProject,
           reqId,
@@ -326,6 +342,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       if (step === "start") {
         printStep("Step 5/7", `Preparing implementation plan for ${reqId}`);
         printWhy("This stage defines milestones, tasks, quality thresholds, and decisions.");
+        printBeginnerTip(beginnerMode, "Start phase prepares execution details and quality guardrails.");
         const started = await runReqStart({
           projectName: activeProject,
           reqId,
@@ -342,6 +359,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       if (step === "test") {
         printStep("Step 6/7", `Updating test plan for ${reqId}`);
         printWhy("I am ensuring critical paths, edge cases, and regression tests are documented.");
+        printBeginnerTip(beginnerMode, "Testing focus reduces regressions before delivery.");
         const tested = await runTestPlan({
           projectName: activeProject,
           reqId,
@@ -358,6 +376,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       if (step === "finish") {
         printStep("Step 7/7", `Finalizing requirement ${reqId}`);
         printWhy("I will move artifacts to done state and generate project-level summary files.");
+        printBeginnerTip(beginnerMode, "Finish locks outputs and leaves a reusable delivery record.");
         const finished = await runReqFinish({
           projectName: activeProject,
           reqId,

@@ -156,6 +156,7 @@ Use `--questions` when you want the manual question-by-question flow.
 - `sdd-cli quickstart` -- one-command demo flow with built-in examples
 - `sdd-cli init` -- create SDD workspace and config
 - `sdd-cli list` -- list flows, router flows, templates, prompt packs, and projects
+- `sdd-cli status --next` -- show current project state and exact next command
 - `sdd-cli doctor` -- validate completeness and consistency
 
 ### Router
@@ -192,6 +193,9 @@ Use `--questions` when you want the manual question-by-question flow.
 - `--parallel` -- generate in parallel
 - `--questions` -- use manual question-driven discovery flow
 - `--non-interactive` -- run without confirmations (script/CI friendly)
+- `--beginner` -- show extra step-by-step explanations during hello autopilot
+- `--dry-run` -- preview autopilot stages without writing artifacts
+- `--from-step` -- resume autopilot from `create|plan|start|test|finish`
 - `--alias sdd` -- optional alias to run as `sdd`
 
 ## Beginner quickstart

@@ -52,8 +52,8 @@ Acceptance criteria:
 - [x] Add `quickstart` command for one-command first success.
 - [x] Add an execution tracker (`AGENTS.md`) for adoption workstream.
 - [x] Add a 90-day adoption roadmap in docs.
-- [ ] Add beginner mode (`--beginner`) for richer guided narration.
-- [ ] Add `status --next` recommendation command.
+- [x] Add beginner mode (`--beginner`) for richer guided narration.
+- [x] Add `status --next` recommendation command.
 
 Acceptance criteria:
 - New users can reach first successful done requirement with minimal friction.

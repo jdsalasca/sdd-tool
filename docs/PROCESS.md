@@ -12,6 +12,7 @@ Command: `sdd-cli hello`
 - Default mode now runs a guided autopilot pipeline from create to finish
 - Manual question flow remains available with `--questions`
 - Fast onboarding entry is also available via `sdd-cli quickstart --example <name>`
+- Beginner-guided narration is available with `--beginner`
 
 ## 1) Discovery (create)
 Command: `sdd-cli req create`
@@ -102,6 +103,7 @@ Recovery commands:
 - Run script/CI-safe defaults: `sdd-cli --non-interactive hello "<intent>"`
 - Preview full autopilot without writes: `sdd-cli --dry-run hello "<intent>"`
 - On autopilot interruption, `hello` prints a ready-to-run recovery command with `--project` and `--from-step`.
+- Run `sdd-cli --project <name> status --next` to get the next recommended command from current requirement states.
 
 ## Global gates
 - Schema validation on generated artifacts

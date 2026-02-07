@@ -4,6 +4,7 @@ export type RuntimeFlags = {
   parallel: boolean;
   nonInteractive: boolean;
   dryRun: boolean;
+  beginner: boolean;
   fromStep?: string;
   project?: string;
   output?: string;
@@ -15,6 +16,7 @@ const flags: RuntimeFlags = {
   parallel: false,
   nonInteractive: false,
   dryRun: false,
+  beginner: false,
   fromStep: undefined,
   project: undefined,
   output: undefined
@@ -35,6 +37,9 @@ export function setFlags(next: Partial<RuntimeFlags>): void {
   }
   if ("dryRun" in next) {
     flags.dryRun = Boolean(next.dryRun);
+  }
+  if ("beginner" in next) {
+    flags.beginner = Boolean(next.beginner);
   }
   if ("fromStep" in next) {
     flags.fromStep = typeof next.fromStep === "string" ? next.fromStep : undefined;

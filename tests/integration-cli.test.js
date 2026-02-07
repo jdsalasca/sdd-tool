@@ -274,3 +274,39 @@ test("quickstart runs autopilot with built-in example prompts", () => {
   assert.match(result.stdout, /Running quickstart example: bugfix/i);
   assert.match(result.stdout, /Autopilot completed successfully/i);
 });
+
+test("hello beginner mode prints extra guidance", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-beginner-"));
+  const result = runCli(
+    workspaceRoot,
+    "",
+    ["--non-interactive", "--beginner", "hello", "Build a beginner onboarding helper"],
+    ""
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[Beginner\]/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+});
+
+test("status --next recommends requirement progression command", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-status-next-"));
+  const projectName = "StatusProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  const reqId = "REQ-STATUS";
+  createSpecBundle(projectRoot, "backlog", reqId, projectName);
+
+  const result = runCli(workspaceRoot, projectName, ["status", "--next"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Project: StatusProject/i);
+  assert.match(result.stdout, /- backlog: 1/i);
+  assert.match(result.stdout, /Next command: sdd-cli --project "StatusProject" req plan/i);
+});
+
+test("status --next recommends quickstart when no projects exist", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-status-empty-"));
+  const result = runCli(workspaceRoot, "", ["status", "--next"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /No projects found/i);
+  assert.match(result.stdout, /Next command: sdd-cli quickstart --example saas/i);
+});

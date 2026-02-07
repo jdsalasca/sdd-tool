@@ -18,8 +18,8 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 ### Phase 1 (Days 1-30): Activation and onboarding
 
 - [x] Add `quickstart` command for one-command demo.
-- [ ] Add beginner mode (`--beginner`) with extra guided narration.
-- [ ] Add `status --next` command to recommend exact next command.
+- [x] Add beginner mode (`--beginner`) with extra guided narration.
+- [x] Add `status --next` command to recommend exact next command.
 - [ ] Add first-run onboarding transcript/gif in docs.
 
 ### Phase 2 (Days 31-60): Workflow integration

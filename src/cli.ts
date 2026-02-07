@@ -7,6 +7,7 @@ import { runInit } from "./commands/init";
 import { runRoute } from "./commands/route";
 import { runDoctor } from "./commands/doctor";
 import { runQuickstart } from "./commands/quickstart";
+import { runStatus } from "./commands/status";
 import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
 import { closePrompt } from "./ui/prompt";
@@ -32,6 +33,7 @@ program
   .option("--parallel", "Generate in parallel when supported")
   .option("--non-interactive", "Run with defaults and without prompt confirmations")
   .option("--dry-run", "Preview autopilot steps without writing artifacts")
+  .option("--beginner", "Enable extra step-by-step guidance in hello flow")
   .option("--from-step <step>", "Resume or start autopilot from step: create|plan|start|test|finish")
   .option("--project <name>", "Select or name the project")
   .option("--output <path>", "Override workspace output root");
@@ -45,6 +47,7 @@ program.hook("preAction", (thisCommand, actionCommand) => {
     parallel: Boolean(opts.parallel),
     nonInteractive: Boolean(opts.nonInteractive),
     dryRun: Boolean(opts.dryRun),
+    beginner: Boolean(opts.beginner),
     fromStep: typeof opts.fromStep === "string" ? opts.fromStep : undefined,
     project: typeof opts.project === "string" ? opts.project : undefined,
     output: typeof opts.output === "string" ? opts.output : undefined
@@ -82,6 +85,12 @@ program
     const { runList } = await import("./commands/list");
     runList();
   });
+
+program
+  .command("status")
+  .description("Show project requirement counts and next recommended command")
+  .option("--next", "Print exact next command to run")
+  .action((options) => runStatus(Boolean(options.next)));
 
 const req = program.command("req").description("Requirement lifecycle commands");
 req
