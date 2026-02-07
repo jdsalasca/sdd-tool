@@ -190,6 +190,16 @@ test("hello supports non-interactive mode with defaults", () => {
   assert.match(result.stdout, /Using project: autopilot-/i);
 });
 
+test("hello auto-guides with direct input and minimal prompts", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-direct-"));
+  const result = runCli(workspaceRoot, "", ["hello", "Create a task tracker for first-time developers"], "");
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Auto-guided mode active/i);
+  assert.match(result.stdout, /Using project: autopilot-/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+});
+
 test("hello resumes from checkpoint with --from-step", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-resume-"));
   const projectName = "ResumeProject";
