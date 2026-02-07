@@ -14,6 +14,7 @@
 - docs/RELEASE_PROCESS.md
 - docs/GITFLOW.md
 - docs/CHANGELOG.md
+- docs/releases/
 - docs/CONTRIBUTING.md
 - docs/MAINTENANCE.md
 - docs/TROUBLESHOOTING.md

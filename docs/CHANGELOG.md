@@ -1,7 +1,10 @@
 # Changelog
 
 ## Unreleased
-- None.
+- Add `sdd-cli import jira <ticket|browse-url>` to bootstrap autopilot from Jira work items.
+- Add monorepo scope targeting with global `--scope <name>` workspace namespacing.
+- Add `sdd-cli pr bridge` to link PR review outputs back into requirement artifacts.
+- Add release notes automation via `npm run release:notes` and generated milestone notes.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.
