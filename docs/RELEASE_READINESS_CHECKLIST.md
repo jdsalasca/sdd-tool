@@ -17,5 +17,6 @@
 - npm package version bumped
 - `bin` entry verified
 - Basic install/run test executed
+- Tag push triggers `.github/workflows/release.yml` successfully
 
 
