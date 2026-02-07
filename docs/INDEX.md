@@ -18,6 +18,8 @@
 - docs/VALUE_BACKLOG.md
 - docs/releases/
 - docs/CONTRIBUTING.md
+- docs/CONTRIBUTOR_QUICKSTART.md
+- docs/ISSUE_TRIAGE_PLAYBOOK.md
 - docs/MAINTENANCE.md
 - docs/TROUBLESHOOTING.md
 - .github/PULL_REQUEST_TEMPLATE.md

@@ -1,7 +1,8 @@
 # Changelog
 
 ## Unreleased
-- None.
+- Add contributor onboarding pack (`docs/CONTRIBUTOR_QUICKSTART.md`) and issue triage taxonomy (`docs/ISSUE_TRIAGE_PLAYBOOK.md`).
+- Add contributor-focused dev shortcuts: `npm run dev:smoke` and `npm run dev:release-check`.
 
 ## 0.1.21
 - Release notes: _pending_

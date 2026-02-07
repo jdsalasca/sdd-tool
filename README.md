@@ -14,6 +14,8 @@ Mission and vision live in `docs/MISSION.md` and `docs/VISION.md`.
 
 Start with `docs/INDEX.md` for a full documentation map and `docs/STYLE.md` for formatting guidance.
 Contributing guidelines live in `docs/CONTRIBUTING.md`.
+Contributor quickstart lives in `docs/CONTRIBUTOR_QUICKSTART.md`.
+Issue triage taxonomy lives in `docs/ISSUE_TRIAGE_PLAYBOOK.md`.
 Use the PR template in `.github/PULL_REQUEST_TEMPLATE.md`.
 Maintenance guidance lives in `docs/MAINTENANCE.md`.
 Install troubleshooting lives in `docs/TROUBLESHOOTING.md`.
@@ -275,6 +277,10 @@ Optional:
 `npm run release:notes -- --write --version v0.1.20`
 - Generate post-release quality summary:
 `npm run release:metrics`
+- Run fast contributor smoke checks:
+`npm run dev:smoke`
+- Run contributor pre-PR release checks:
+`npm run dev:release-check`
 - Promote `Unreleased` changelog entries into a version:
 `npm run release:changelog -- --version v0.1.20`
 - Verify tag/version consistency:

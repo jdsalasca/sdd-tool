@@ -18,3 +18,7 @@
 
 ## Tests
 - Run `npm test` before pushing.
+
+## Quickstart
+- New contributors should start with `docs/CONTRIBUTOR_QUICKSTART.md`.
+- Issue labeling and prioritization rules live in `docs/ISSUE_TRIAGE_PLAYBOOK.md`.
