@@ -5,6 +5,9 @@
 - Add monorepo scope targeting with global `--scope <name>` workspace namespacing.
 - Add `sdd-cli pr bridge` to link PR review outputs back into requirement artifacts.
 - Add release notes automation via `npm run release:notes` and generated milestone notes.
+- Add machine-readable doctor diagnostics with `SDD-xxxx` error codes and non-zero exit behavior.
+- Add `sdd-cli doctor --fix` for safe remediation of missing requirement operation logs.
+- Add release quality summary automation via `npm run release:metrics`.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.

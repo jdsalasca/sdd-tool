@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { getProjectInfo, getWorkspaceInfo } from "../workspace/index";
+import { ensureWorkspace, getProjectInfo, getWorkspaceInfo } from "../workspace/index";
 import { validateJson } from "../validation/validate";
 import { validatePromptPacks } from "../router/validate-prompt-packs";
 import { validateTemplates } from "../templates/validate";
@@ -33,14 +33,54 @@ function inferSchema(filePath: string): string | null {
   return null;
 }
 
-export function runDoctor(projectName?: string, reqId?: string): void {
+function printError(code: string, message: string): void {
+  console.log(`[${code}] ${message}`);
+}
+
+function ensureOpsFiles(requirementDir: string): string[] {
+  const fixed: string[] = [];
+  const changelog = path.join(requirementDir, "changelog.md");
+  const progressLog = path.join(requirementDir, "progress-log.md");
+  if (!fs.existsSync(changelog)) {
+    fs.writeFileSync(changelog, "# Changelog\n\n", "utf-8");
+    fixed.push(changelog);
+  }
+  if (!fs.existsSync(progressLog)) {
+    fs.writeFileSync(progressLog, "# Progress Log\n\n", "utf-8");
+    fixed.push(progressLog);
+  }
+  return fixed;
+}
+
+function collectRequirementDirs(root: string): string[] {
+  const base = path.join(root, "requirements");
+  const statuses = ["backlog", "wip", "in-progress", "done", "archived"];
+  const dirs: string[] = [];
+  for (const status of statuses) {
+    const statusDir = path.join(base, status);
+    if (!fs.existsSync(statusDir)) {
+      continue;
+    }
+    const entries = fs.readdirSync(statusDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        dirs.push(path.join(statusDir, entry.name));
+      }
+    }
+  }
+  return dirs;
+}
+
+export function runDoctor(projectName?: string, reqId?: string, autoFix?: boolean): void {
   const workspace = getWorkspaceInfo();
+  ensureWorkspace(workspace);
   let root = workspace.root;
   if (projectName) {
     try {
       root = getProjectInfo(workspace, projectName).root;
     } catch (error) {
-      console.log((error as Error).message);
+      printError("SDD-2001", (error as Error).message);
+      process.exitCode = 1;
       return;
     }
   }
@@ -57,17 +97,27 @@ export function runDoctor(projectName?: string, reqId?: string): void {
   }
 
   let failures = 0;
+  let fixes = 0;
   const promptResult = validatePromptPacks();
   if (!promptResult.valid) {
     failures += promptResult.errors.length;
-    console.log("Prompt pack validation failed:");
-    promptResult.errors.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-2002", "Prompt pack validation failed:");
+    promptResult.errors.forEach((error) => printError("SDD-2002", error));
   }
   const templateResult = validateTemplates();
   if (!templateResult.valid) {
     failures += templateResult.errors.length;
-    console.log("Template validation failed:");
-    templateResult.errors.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-2003", "Template validation failed:");
+    templateResult.errors.forEach((error) => printError("SDD-2003", error));
+  }
+
+  if (autoFix) {
+    const requirementDirs = reqId ? [root] : collectRequirementDirs(root);
+    for (const dir of requirementDirs) {
+      const fixed = ensureOpsFiles(dir);
+      fixes += fixed.length;
+      fixed.forEach((filePath) => console.log(`[SDD-2004] Fixed: ${filePath}`));
+    }
   }
 
   const jsonFiles = collectJsonFiles(root);
@@ -80,15 +130,27 @@ export function runDoctor(projectName?: string, reqId?: string): void {
     if (!schema) {
       continue;
     }
-    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    let data: unknown;
+    try {
+      data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    } catch (error) {
+      failures += 1;
+      printError("SDD-2005", `Invalid JSON: ${filePath}`);
+      printError("SDD-2005", (error as Error).message);
+      continue;
+    }
     const result = validateJson(schema, data);
     if (!result.valid) {
       failures += 1;
-      console.log(`Invalid: ${filePath}`);
-      result.errors.forEach((error) => console.log(`- ${error}`));
+      printError("SDD-2006", `Invalid: ${filePath}`);
+      result.errors.forEach((error) => printError("SDD-2006", error));
     } else {
       console.log(`Valid: ${filePath}`);
     }
+  }
+
+  if (fixes > 0) {
+    console.log(`[SDD-2004] Applied fixes: ${fixes}`);
   }
 
   if (failures === 0 && jsonFiles.length > 0) {
@@ -96,6 +158,7 @@ export function runDoctor(projectName?: string, reqId?: string): void {
   } else if (failures === 0) {
     console.log("Prompt packs and templates are valid.");
   } else {
-    console.log(`Validation failed for ${failures} artifact(s).`);
+    printError("SDD-2007", `Validation failed for ${failures} artifact(s).`);
+    process.exitCode = 1;
   }
 }

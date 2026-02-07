@@ -468,3 +468,37 @@ test("pr bridge links PR review artifacts into requirement directory", () => {
   assert.match(fs.readFileSync(progressLog, "utf-8"), /linked PR review PR-123 into REQ-BRIDGE/i);
   assert.match(fs.readFileSync(changelog, "utf-8"), /linked PR review PR-123 into REQ-BRIDGE/i);
 });
+
+test("doctor --fix creates missing changelog and progress-log files", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-doctor-fix-"));
+  const projectName = "DoctorFixProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  const reqId = "REQ-DOCTOR-FIX";
+  const requirementDir = createSpecBundle(projectRoot, "backlog", reqId, projectName);
+
+  fs.rmSync(path.join(requirementDir, "changelog.md"), { force: true });
+  fs.rmSync(path.join(requirementDir, "progress-log.md"), { force: true });
+
+  const result = runCli(workspaceRoot, "", ["doctor", "--fix", projectName, reqId], "");
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-2004\] Fixed:/i);
+  assert.equal(fs.existsSync(path.join(requirementDir, "changelog.md")), true);
+  assert.equal(fs.existsSync(path.join(requirementDir, "progress-log.md")), true);
+});
+
+test("doctor returns SDD error code and non-zero exit when artifact schema is invalid", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-doctor-invalid-"));
+  const projectName = "DoctorInvalidProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  const reqId = "REQ-DOCTOR-INVALID";
+  const requirementDir = path.join(projectRoot, "requirements", "backlog", reqId);
+  fs.mkdirSync(requirementDir, { recursive: true });
+  fs.writeFileSync(path.join(requirementDir, "requirement.json"), JSON.stringify({ id: reqId }, null, 2), "utf-8");
+
+  const result = runCli(workspaceRoot, "", ["doctor", projectName, reqId], "");
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /\[SDD-2006\]/i);
+  assert.match(result.stdout, /\[SDD-2007\]/i);
+});
