@@ -38,6 +38,6 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 
 ## Current Milestone
 
-- Milestone: `release-ops-hardening`
-- Branch: `feature/npm-publish-quality-automation`
-- Goal: harden release operations with publish-readiness CI, release PR checklists, and practical troubleshooting guides.
+- Milestone: `quality-error-standardization`
+- Branch: `feature/error-codes-core-commands`
+- Goal: make core command failures deterministic with machine-readable `SDD-xxxx` diagnostics and test coverage.

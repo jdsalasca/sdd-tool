@@ -1,4 +1,5 @@
 import { runHello } from "./hello";
+import { printError } from "../errors";
 
 type JiraTicketRef = {
   key: string;
@@ -147,7 +148,8 @@ function buildSeedText(ticket: { key: string; summary: string; description: stri
 export async function runImportJira(ticketInput: string): Promise<void> {
   const ref = parseJiraTicket(ticketInput);
   if (!ref) {
-    console.log(
+    printError(
+      "SDD-1111",
       "Invalid Jira ticket. Expected format: PROJ-123 or https://<your-jira-site>/browse/PROJ-123"
     );
     return;
@@ -159,6 +161,6 @@ export async function runImportJira(ticketInput: string): Promise<void> {
     console.log(`Imported: ${ticket.summary}`);
     await runHello(buildSeedText(ticket), false);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1112", (error as Error).message);
   }
 }

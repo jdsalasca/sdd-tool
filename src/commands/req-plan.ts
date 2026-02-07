@@ -7,6 +7,7 @@ import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { checkRequirementGates } from "../validation/gates";
 import { validateJson } from "../validation/validate";
+import { printError } from "../errors";
 
 export type ReqPlanOptions = {
   projectName?: string;
@@ -38,7 +39,7 @@ export async function runReqPlan(options?: ReqPlanOptions): Promise<ReqPlanResul
   const projectName = options?.projectName ?? (await askProjectName());
   const reqId = options?.reqId ?? (await ask("Requirement ID (REQ-...): "));
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1211", "Project name and requirement ID are required.");
     return null;
   }
 
@@ -47,18 +48,18 @@ export async function runReqPlan(options?: ReqPlanOptions): Promise<ReqPlanResul
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1212", (error as Error).message);
     return null;
   }
   let requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
-    console.log("Requirement not found in backlog or wip.");
+    printError("SDD-1213", "Requirement not found in backlog or wip.");
     return null;
   }
 
   const requirementJsonPath = path.join(requirementDir, "requirement.json");
   if (!fs.existsSync(requirementJsonPath)) {
-    console.log("Missing requirement.json. Run `req create` first.");
+    printError("SDD-1214", "Missing requirement.json. Run `req create` first.");
     return null;
   }
   const requirementJson = JSON.parse(fs.readFileSync(requirementJsonPath, "utf-8"));
@@ -71,8 +72,8 @@ export async function runReqPlan(options?: ReqPlanOptions): Promise<ReqPlanResul
   }
   const requirementValidation = validateJson("requirement.schema.json", requirementJson);
   if (!requirementValidation.valid) {
-    console.log("Requirement validation failed:");
-    requirementValidation.errors.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-1215", "Requirement validation failed.");
+    requirementValidation.errors.forEach((error) => printError("SDD-1215", error));
     return null;
   }
 
@@ -163,8 +164,8 @@ export async function runReqPlan(options?: ReqPlanOptions): Promise<ReqPlanResul
   ];
   const failures = validations.flatMap((result) => result.errors);
   if (failures.length > 0) {
-    console.log("Spec validation failed:");
-    failures.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-1216", "Spec validation failed.");
+    failures.forEach((error) => printError("SDD-1216", error));
     return null;
   }
 

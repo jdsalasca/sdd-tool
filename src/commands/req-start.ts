@@ -6,6 +6,7 @@ import { getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../worksp
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList } from "../utils/list";
 import { validateJson } from "../validation/validate";
+import { printError } from "../errors";
 
 export type ReqStartOptions = {
   projectName?: string;
@@ -39,7 +40,7 @@ export async function runReqStart(options?: ReqStartOptions): Promise<ReqStartRe
   const projectName = options?.projectName ?? (await askProjectName());
   const reqId = options?.reqId ?? (await ask("Requirement ID (REQ-...): "));
   if (!projectName || !reqId) {
-    console.log("Project name and requirement ID are required.");
+    printError("SDD-1221", "Project name and requirement ID are required.");
     return null;
   }
 
@@ -48,12 +49,12 @@ export async function runReqStart(options?: ReqStartOptions): Promise<ReqStartRe
   try {
     project = getProjectInfo(workspace, projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1222", (error as Error).message);
     return null;
   }
   let requirementDir = findRequirementDir(project.root, reqId);
   if (!requirementDir) {
-    console.log("Requirement not found.");
+    printError("SDD-1223", "Requirement not found.");
     return null;
   }
 
@@ -66,8 +67,8 @@ export async function runReqStart(options?: ReqStartOptions): Promise<ReqStartRe
   ];
   const missing = requiredSpecs.filter((spec) => !fs.existsSync(path.join(requirementPath, spec.file)));
   if (missing.length > 0) {
-    console.log("Cannot start. Missing specs:");
-    missing.forEach((spec) => console.log(`- ${spec.file}`));
+    printError("SDD-1224", "Cannot start. Missing specs.");
+    missing.forEach((spec) => printError("SDD-1224", spec.file));
     return null;
   }
 
@@ -75,8 +76,8 @@ export async function runReqStart(options?: ReqStartOptions): Promise<ReqStartRe
     const data = JSON.parse(fs.readFileSync(path.join(requirementPath, spec.file), "utf-8"));
     const result = validateJson(spec.schema, data);
     if (!result.valid) {
-      console.log(`Spec validation failed for ${spec.file}:`);
-      result.errors.forEach((error) => console.log(`- ${error}`));
+      printError("SDD-1225", `Spec validation failed for ${spec.file}.`);
+      result.errors.forEach((error) => printError("SDD-1225", error));
       return null;
     }
   }
@@ -128,8 +129,8 @@ export async function runReqStart(options?: ReqStartOptions): Promise<ReqStartRe
   };
   const validation = validateJson("quality.schema.json", qualityJson);
   if (!validation.valid) {
-    console.log("Quality validation failed:");
-    validation.errors.forEach((error) => console.log(`- ${error}`));
+    printError("SDD-1226", "Quality validation failed.");
+    validation.errors.forEach((error) => printError("SDD-1226", error));
     return null;
   }
 

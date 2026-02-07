@@ -14,6 +14,7 @@
 - Add npm publish workflow with tag/version guardrails and pre-publish bundle verification.
 - Add publish-readiness CI workflow for PR/push dry-run npm bundle validation.
 - Add release PR template and npm publish troubleshooting guide.
+- Standardize `SDD-xxxx` error codes across core `import`, `req`, and `pr` command failure paths.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.
