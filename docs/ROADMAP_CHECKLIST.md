@@ -29,8 +29,8 @@ Acceptance criteria:
 
 - [x] Add `--non-interactive` mode for CI/script usage.
 - [x] Add `--dry-run` mode for safe previews.
-- [ ] Add CI coverage for full autopilot integration tests (Windows + Linux).
-- [ ] Add docs-vs-code consistency checks in CI.
+- [x] Add CI coverage for full autopilot integration tests (Windows + Linux).
+- [x] Add docs-vs-code consistency checks in CI.
 
 Acceptance criteria:
 - Pipeline is script-friendly and testable in CI.
