@@ -12,6 +12,7 @@ Command: `sdd-cli hello`
 - Default mode now runs a guided autopilot pipeline from create to finish
 - Manual question flow remains available with `--questions`
 - Fast onboarding entry is also available via `sdd-cli quickstart --example <name>`
+- Beginner-guided narration is available with `--beginner`
 
 ## 1) Discovery (create)
 Command: `sdd-cli req create`

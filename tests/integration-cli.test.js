@@ -274,3 +274,17 @@ test("quickstart runs autopilot with built-in example prompts", () => {
   assert.match(result.stdout, /Running quickstart example: bugfix/i);
   assert.match(result.stdout, /Autopilot completed successfully/i);
 });
+
+test("hello beginner mode prints extra guidance", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-beginner-"));
+  const result = runCli(
+    workspaceRoot,
+    "",
+    ["--non-interactive", "--beginner", "hello", "Build a beginner onboarding helper"],
+    ""
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[Beginner\]/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+});

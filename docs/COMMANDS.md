@@ -75,6 +75,7 @@ This file defines the command set, intent, and expected behavior.
 - `--questions` Use manual question flow instead of full autopilot
 - `--non-interactive` Run without prompt confirmations (CI/script usage)
 - `--dry-run` Preview hello autopilot steps without writing artifacts
+- `--beginner` Enable extra step-by-step guidance in hello flow
 - `--from-step` Resume autopilot from a specific stage (`create|plan|start|test|finish`)
 
 ## Hello behavior
@@ -84,6 +85,7 @@ This file defines the command set, intent, and expected behavior.
   - Auto-selects new flow unless `--project <name>` is provided
   - Auto-generates project name when missing
 - `--questions`: manual question packs and explicit draft confirmation
+- `--beginner`: keeps autopilot behavior but adds beginner-friendly explanations at each step
 - `--auto`: alias to trigger question-driven draft generation path
 
 ## Error handling
