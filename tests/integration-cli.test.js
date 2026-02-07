@@ -502,3 +502,24 @@ test("doctor returns SDD error code and non-zero exit when artifact schema is in
   assert.match(result.stdout, /\[SDD-2006\]/i);
   assert.match(result.stdout, /\[SDD-2007\]/i);
 });
+
+test("import issue reports machine-readable error code for invalid URL", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-import-issue-invalid-"));
+  const result = runCli(workspaceRoot, "", ["import", "issue", "not-a-url"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1101\]/i);
+});
+
+test("req plan reports machine-readable error code when required input is missing", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-req-plan-missing-"));
+  const result = runCli(workspaceRoot, "", ["req", "plan"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1211\]/i);
+});
+
+test("pr bridge reports machine-readable error code when PR ID is missing", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-pr-bridge-missing-prid-"));
+  const result = runCli(workspaceRoot, "BridgeMissingPrIdProject", ["pr", "bridge"], "\n");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1313\]/i);
+});

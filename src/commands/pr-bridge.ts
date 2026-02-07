@@ -3,6 +3,7 @@ import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { appendProgress, findRequirementDir } from "./gen-utils";
 import { listPrReviews, resolvePrDir } from "./pr-utils";
+import { printError } from "../errors";
 
 type PrLinkEntry = {
   prId: string;
@@ -70,7 +71,7 @@ function appendChangelog(requirementDir: string, message: string): void {
 export async function runPrBridge(): Promise<void> {
   const projectName = await askProjectName();
   if (!projectName) {
-    console.log("Project name is required.");
+    printError("SDD-1311", "Project name is required.");
     return;
   }
 
@@ -78,7 +79,7 @@ export async function runPrBridge(): Promise<void> {
   try {
     available = listPrReviews(projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1312", (error as Error).message);
     return;
   }
   if (available.length > 0) {
@@ -88,7 +89,7 @@ export async function runPrBridge(): Promise<void> {
 
   const prId = await ask("PR ID: ");
   if (!prId) {
-    console.log("PR ID is required.");
+    printError("SDD-1313", "PR ID is required.");
     return;
   }
 
@@ -96,23 +97,23 @@ export async function runPrBridge(): Promise<void> {
   try {
     prDir = resolvePrDir(projectName, prId);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1314", (error as Error).message);
     return;
   }
   if (!fs.existsSync(prDir)) {
-    console.log(`PR review not found at ${prDir}`);
+    printError("SDD-1315", `PR review not found at ${prDir}`);
     return;
   }
 
   const reqId = await ask("Requirement ID (REQ-...): ");
   if (!reqId) {
-    console.log("Requirement ID is required.");
+    printError("SDD-1316", "Requirement ID is required.");
     return;
   }
 
   const requirementDir = findRequirementDir(projectName, reqId);
   if (!requirementDir) {
-    console.log(`Requirement not found: ${reqId}`);
+    printError("SDD-1317", `Requirement not found: ${reqId}`);
     return;
   }
 

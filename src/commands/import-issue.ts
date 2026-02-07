@@ -1,4 +1,5 @@
 import { runHello } from "./hello";
+import { printError } from "../errors";
 
 type GitHubIssueRef = {
   owner: string;
@@ -43,7 +44,7 @@ function buildSeedText(issue: { title: string; body: string; url: string }): str
 export async function runImportIssue(issueUrl: string): Promise<void> {
   const ref = parseGitHubIssueUrl(issueUrl);
   if (!ref) {
-    console.log("Invalid GitHub issue URL. Expected format: https://github.com/<owner>/<repo>/issues/<number>");
+    printError("SDD-1101", "Invalid GitHub issue URL. Expected format: https://github.com/<owner>/<repo>/issues/<number>");
     return;
   }
 
@@ -54,6 +55,6 @@ export async function runImportIssue(issueUrl: string): Promise<void> {
     console.log(`Imported: ${issue.title}`);
     await runHello(seedText, false);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1102", (error as Error).message);
   }
 }
