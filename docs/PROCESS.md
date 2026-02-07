@@ -92,6 +92,8 @@ Command: `sdd-cli hello`
 - Read metadata and status
 - Offer next recommended step
 - In default flow, provide step-by-step progress narration with intent, planning, testing, and finalization
+- Autopilot checkpoints are persisted per project and resumed automatically when available
+- Recovery can be forced with `--from-step create|plan|start|test|finish`
 
 ## Global gates
 - Schema validation on generated artifacts
