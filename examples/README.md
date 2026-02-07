@@ -2,6 +2,7 @@
 
 ## Transcripts
 - examples/transcripts/
+- examples/transcripts/FIRST_15_MINUTES.md
 
 ## Artifacts
 - examples/artifacts/
