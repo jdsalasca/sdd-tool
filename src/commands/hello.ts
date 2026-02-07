@@ -1,7 +1,7 @@
 import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
 import { ask, confirm } from "../ui/prompt";
-import { getPromptPackById, loadPromptPacks } from "../router/prompt-packs";
+import { getPromptPackById, loadPromptPacks, PromptPack } from "../router/prompt-packs";
 import { mapAnswersToRequirement } from "../router/prompt-map";
 import { RequirementDraft, runReqCreate } from "./req-create";
 import { getFlags, setFlags } from "../context/flags";
@@ -237,7 +237,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   printWhy("I will gather enough context to generate a valid first draft.");
   printBeginnerTip(beginnerMode, "A requirement draft defines scope, acceptance criteria, and constraints.");
   if (shouldRunQuestions) {
-    const packs = loadPromptPacks();
+    let packs: PromptPack[];
+    try {
+      packs = loadPromptPacks();
+    } catch (error) {
+      printError("SDD-1012", `Unable to load prompt packs: ${(error as Error).message}`);
+      return;
+    }
     const packIds = FLOW_PROMPT_PACKS[intent.flow] ?? [];
     const answers: Record<string, string> = {};
     for (const packId of packIds) {
