@@ -74,7 +74,7 @@ Acceptance criteria:
 
 ## Milestone M7 - Quality Standardization and Scale
 
-- [ ] Complete `SDD-xxxx` error code rollout for all command families.
+- [x] Complete `SDD-xxxx` error code rollout for all command families.
 - [x] Publish `docs/ERROR_CODES.md` with remediation playbooks.
 - [x] Add release automation script test coverage.
 - [x] Add scope-aware command recommendations and multi-scope status views.

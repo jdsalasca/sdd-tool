@@ -1,7 +1,8 @@
 # Changelog
 
 ## Unreleased
-- None.
+- Mark Milestone M7 complete with deterministic `SDD-xxxx` error coverage and enforcement across command families.
+- Add deterministic error handling for `hello --questions` prompt-pack load failures (`SDD-1012`).
 
 ## 0.1.20
 - Release notes: `docs/releases/v0.1.20.md`
