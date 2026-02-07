@@ -18,7 +18,7 @@ Acceptance criteria:
 
 - [x] Add step checkpointing to resume autopilot from last successful stage.
 - [x] Add `--from-step` execution support for targeted recovery.
-- [ ] Add workspace index locking for concurrent writes.
+- [x] Add workspace index locking for concurrent writes.
 - [x] Add machine-readable error codes for common failures.
 
 Acceptance criteria:

@@ -30,6 +30,10 @@ type WorkspaceIndex = {
   projects: Array<{ name: string; status: string }>;
 };
 
+const WORKSPACE_LOCK_RETRY_MS = 50;
+const WORKSPACE_LOCK_WAIT_MS = 5000;
+const WORKSPACE_LOCK_STALE_MS = 30000;
+
 export function normalizeScopeName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -61,6 +65,60 @@ function readWorkspaceIndex(workspace: WorkspaceInfo): WorkspaceIndex {
   return { projects: parsed.projects };
 }
 
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function isStaleLock(lockPath: string): boolean {
+  try {
+    const stats = fs.statSync(lockPath);
+    return Date.now() - stats.mtimeMs > WORKSPACE_LOCK_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function withWorkspaceIndexLock<T>(workspace: WorkspaceInfo, fn: () => T): T {
+  const lockPath = `${workspace.indexPath}.lock`;
+  const start = Date.now();
+
+  while (true) {
+    try {
+      const fd = fs.openSync(lockPath, "wx");
+      try {
+        const payload = JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() });
+        fs.writeFileSync(fd, payload, "utf-8");
+      } finally {
+        fs.closeSync(fd);
+      }
+      break;
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code !== "EEXIST") {
+        throw err;
+      }
+      if (isStaleLock(lockPath)) {
+        fs.rmSync(lockPath, { force: true });
+        continue;
+      }
+      if (Date.now() - start > WORKSPACE_LOCK_WAIT_MS) {
+        throw new Error("Workspace index is locked by another process. Retry shortly.");
+      }
+      sleepSync(WORKSPACE_LOCK_RETRY_MS);
+    }
+  }
+
+  try {
+    return fn();
+  } finally {
+    try {
+      fs.rmSync(lockPath, { force: true });
+    } catch {
+      // ignore cleanup errors
+    }
+  }
+}
+
 export function getWorkspaceInfo(): WorkspaceInfo {
   const flags = getFlags();
   const baseRoot = flags.output
@@ -78,10 +136,12 @@ export function ensureWorkspace(workspace: WorkspaceInfo): void {
   if (!fs.existsSync(workspace.root)) {
     fs.mkdirSync(workspace.root, { recursive: true });
   }
-  if (!fs.existsSync(workspace.indexPath)) {
-    const emptyIndex: WorkspaceIndex = { projects: [] };
-    fs.writeFileSync(workspace.indexPath, JSON.stringify(emptyIndex, null, 2), "utf-8");
-  }
+  withWorkspaceIndexLock(workspace, () => {
+    if (!fs.existsSync(workspace.indexPath)) {
+      const emptyIndex: WorkspaceIndex = { projects: [] };
+      fs.writeFileSync(workspace.indexPath, JSON.stringify(emptyIndex, null, 2), "utf-8");
+    }
+  });
 }
 
 export function normalizeProjectName(name: string): string {
@@ -159,15 +219,17 @@ export function ensureProject(workspace: WorkspaceInfo, name: string, domain: st
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");
   }
 
-  const index = readWorkspaceIndex(workspace);
-  index.projects = index.projects ?? [];
-  const existing = index.projects.find((entry) => entry.name === project.name);
-  if (existing) {
-    existing.status = metadata.status;
-  } else {
-    index.projects.push({ name: metadata.name, status: metadata.status });
-  }
-  fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
+  withWorkspaceIndexLock(workspace, () => {
+    const index = readWorkspaceIndex(workspace);
+    index.projects = index.projects ?? [];
+    const existing = index.projects.find((entry) => entry.name === project.name);
+    if (existing) {
+      existing.status = metadata.status;
+    } else {
+      index.projects.push({ name: metadata.name, status: metadata.status });
+    }
+    fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
+  });
 
   return metadata;
 }
@@ -179,15 +241,17 @@ export function createProject(workspace: WorkspaceInfo, name: string, domain: st
 export function updateProjectStatus(workspace: WorkspaceInfo, name: string, status: string): void {
   ensureWorkspace(workspace);
   const project = getProjectInfo(workspace, name);
-  const index = readWorkspaceIndex(workspace);
-  index.projects = index.projects ?? [];
-  const existing = index.projects.find((entry) => entry.name === project.name);
-  if (existing) {
-    existing.status = status;
-  } else {
-    index.projects.push({ name: project.name, status });
-  }
-  fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
+  withWorkspaceIndexLock(workspace, () => {
+    const index = readWorkspaceIndex(workspace);
+    index.projects = index.projects ?? [];
+    const existing = index.projects.find((entry) => entry.name === project.name);
+    if (existing) {
+      existing.status = status;
+    } else {
+      index.projects.push({ name: project.name, status });
+    }
+    fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
+  });
 
   const projectRoot = project.root;
   const metadataPath = path.join(projectRoot, "metadata.json");
