@@ -27,7 +27,7 @@ Acceptance criteria:
 
 ## Milestone M3 - Automation and CI Hardening
 
-- [ ] Add `--non-interactive` mode for CI/script usage.
+- [x] Add `--non-interactive` mode for CI/script usage.
 - [ ] Add `--dry-run` mode for safe previews.
 - [ ] Add CI coverage for full autopilot integration tests (Windows + Linux).
 - [ ] Add docs-vs-code consistency checks in CI.

@@ -69,6 +69,7 @@ This file defines the command set, intent, and expected behavior.
 - `--output`    Override workspace output root
 - `--parallel`  Generate in parallel (supported: `req plan`)
 - `--questions` Use manual question flow instead of full autopilot
+- `--non-interactive` Run without prompt confirmations (CI/script usage)
 
 ## Hello behavior
 - Default: full guided autopilot run with minimal prompts

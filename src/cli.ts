@@ -29,6 +29,7 @@ program
   .option("--approve", "Skip confirmations if gates pass")
   .option("--improve", "Trigger self-audit and regenerate")
   .option("--parallel", "Generate in parallel when supported")
+  .option("--non-interactive", "Run with defaults and without prompt confirmations")
   .option("--project <name>", "Select or name the project")
   .option("--output <path>", "Override workspace output root");
 
@@ -39,6 +40,7 @@ program.hook("preAction", (thisCommand, actionCommand) => {
     approve: Boolean(opts.approve),
     improve: Boolean(opts.improve),
     parallel: Boolean(opts.parallel),
+    nonInteractive: Boolean(opts.nonInteractive),
     project: typeof opts.project === "string" ? opts.project : undefined,
     output: typeof opts.output === "string" ? opts.output : undefined
   });
