@@ -25,19 +25,19 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 ### Phase 2 (Days 31-60): Workflow integration
 
 - [x] Add issue import command (`import issue <url>`).
-- [ ] Add Jira ticket import command (`import jira <ticket>`).
-- [ ] Add PR review bridge from existing PR commands to SDD artifacts.
-- [ ] Add monorepo scope targeting (`--scope`).
+- [x] Add Jira ticket import command (`import jira <ticket>`).
+- [x] Add PR review bridge from existing PR commands to SDD artifacts.
+- [x] Add monorepo scope targeting (`--scope`).
 
 ### Phase 3 (Days 61-90): Reliability and scale
 
 - [ ] Add machine-readable error codes (`SDD-xxxx`) for common failures.
 - [ ] Add `doctor --fix` auto-remediation for common workspace issues.
-- [ ] Add release notes generation from conventional commits.
+- [x] Add release notes generation from conventional commits.
 - [ ] Add post-release metrics summary script.
 
 ## Current Milestone
 
-- Milestone: `integration-import-issue`
+- Milestone: `integration-import-workitems`
 - Branch: `feature/import-issue-bootstrap`
-- Goal: bootstrap SDD autopilot from existing GitHub issue URLs.
+- Goal: bootstrap SDD autopilot from existing GitHub issue and Jira work items.

@@ -30,6 +30,20 @@ type WorkspaceIndex = {
   projects: Array<{ name: string; status: string }>;
 };
 
+export function normalizeScopeName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error("Scope name is required.");
+  }
+  if (trimmed.includes("..") || trimmed.includes("/") || trimmed.includes("\\")) {
+    throw new Error("Scope name cannot contain path separators.");
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(trimmed)) {
+    throw new Error("Scope name must use letters, numbers, spaces, '-' or '_' only.");
+  }
+  return trimmed;
+}
+
 function readJsonFile<T>(filePath: string): T | null {
   try {
     const raw = fs.readFileSync(filePath, "utf-8");
@@ -49,11 +63,13 @@ function readWorkspaceIndex(workspace: WorkspaceInfo): WorkspaceIndex {
 
 export function getWorkspaceInfo(): WorkspaceInfo {
   const flags = getFlags();
-  const root = flags.output
+  const baseRoot = flags.output
     ? path.resolve(flags.output)
     : process.env.APPDATA
       ? path.join(process.env.APPDATA, "sdd-cli", "workspaces")
       : path.join(os.homedir(), ".config", "sdd-cli", "workspaces");
+  const scope = flags.scope && flags.scope.trim().length > 0 ? normalizeScopeName(flags.scope) : "";
+  const root = scope ? path.join(baseRoot, scope) : baseRoot;
   const indexPath = path.join(root, "workspaces.json");
   return { root, indexPath };
 }

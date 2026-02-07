@@ -164,6 +164,7 @@ Use `--questions` when you want the manual question-by-question flow.
 
 ### Imports
 - `sdd-cli import issue <github-issue-url>` -- import issue context and bootstrap autopilot
+- `sdd-cli import jira <ticket-or-browse-url>` -- import Jira context and bootstrap autopilot
 
 ### Requirement lifecycle
 - `sdd-cli req create`
@@ -188,10 +189,19 @@ Use `--questions` when you want the manual question-by-question flow.
 - `sdd-cli learn refine`
 - `sdd-cli learn deliver`
 
+### PR review
+- `sdd-cli pr start`
+- `sdd-cli pr audit`
+- `sdd-cli pr respond`
+- `sdd-cli pr finish`
+- `sdd-cli pr report`
+- `sdd-cli pr bridge`
+
 ### Flags
 - `--approve` -- run without extra confirmations
 - `--improve` -- re-open and enhance existing docs
 - `--output <path>` -- override workspace output
+- `--scope <name>` -- isolate artifacts by monorepo scope namespace
 - `--project <name>` -- set project name
 - `--parallel` -- generate in parallel
 - `--questions` -- use manual question-driven discovery flow
@@ -247,6 +257,14 @@ By default, the tool writes to a dedicated workspace, not into your repo:
 Optional:
 - `--output ./docs/sdd` to keep SDD next to the repo
 - `--output ../_sdd/<project>` for a separate shared directory
+- `--scope apps-payments` to isolate workspaces for one monorepo domain
+
+## Release notes automation
+
+- Generate notes from conventional commits:
+`npm run release:notes`
+- Write notes to `docs/releases/<version>.md`:
+`npm run release:notes -- --write --version v0.1.20`
 
 ## Lifecycle folders
 

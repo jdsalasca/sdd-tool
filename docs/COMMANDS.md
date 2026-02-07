@@ -33,6 +33,8 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-cli import issue <url>`
   - Imports a GitHub issue and uses it to bootstrap hello autopilot
   - Good for turning existing backlog items into SDD artifacts quickly
+- `sdd-cli import jira <ticket>`
+  - Imports a Jira ticket key or browse URL and bootstraps hello autopilot
 
 ## Requirements lifecycle
 - `sdd-cli req create`
@@ -53,6 +55,7 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-cli pr respond`
 - `sdd-cli pr finish`
 - `sdd-cli pr report`
+- `sdd-cli pr bridge`
 
 ## Test planning
 - `sdd-cli test plan`
@@ -79,6 +82,7 @@ This file defines the command set, intent, and expected behavior.
 - `--improve`   Trigger self-audit and regenerate
 - `--project`   Select or name the project
 - `--output`    Override workspace output root
+- `--scope`     Namespace workspace/project data for monorepo targeting
 - `--parallel`  Generate in parallel (supported: `req plan`)
 - `--questions` Use manual question flow instead of full autopilot
 - `--non-interactive` Run without prompt confirmations (CI/script usage)

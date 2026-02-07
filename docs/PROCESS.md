@@ -14,6 +14,7 @@ Command: `sdd-cli hello`
 - Fast onboarding entry is also available via `sdd-cli quickstart --example <name>`
 - Beginner-guided narration is available with `--beginner`
 - Existing backlog items can enter via `sdd-cli import issue <github-url>`
+- Existing Jira tickets can enter via `sdd-cli import jira <ticket|browse-url>`
 
 ## 1) Discovery (create)
 Command: `sdd-cli req create`
@@ -89,6 +90,9 @@ Command: `sdd-cli pr finish`
 Command: `sdd-cli pr report`
 - Generate review report and metrics summary
 - Capture comment lifecycle status
+
+Command: `sdd-cli pr bridge`
+- Link PR review outputs back into requirement artifacts for traceability
 
 ## 7) Resume anytime
 Command: `sdd-cli hello`

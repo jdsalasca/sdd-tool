@@ -9,6 +9,7 @@ import { runDoctor } from "./commands/doctor";
 import { runQuickstart } from "./commands/quickstart";
 import { runStatus } from "./commands/status";
 import { runImportIssue } from "./commands/import-issue";
+import { runImportJira } from "./commands/import-jira";
 import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
 import { closePrompt } from "./ui/prompt";
@@ -37,7 +38,8 @@ program
   .option("--beginner", "Enable extra step-by-step guidance in hello flow")
   .option("--from-step <step>", "Resume or start autopilot from step: create|plan|start|test|finish")
   .option("--project <name>", "Select or name the project")
-  .option("--output <path>", "Override workspace output root");
+  .option("--output <path>", "Override workspace output root")
+  .option("--scope <name>", "Target a monorepo scope namespace inside the workspace");
 
 program.hook("preAction", (thisCommand, actionCommand) => {
   const opts =
@@ -51,7 +53,8 @@ program.hook("preAction", (thisCommand, actionCommand) => {
     beginner: Boolean(opts.beginner),
     fromStep: typeof opts.fromStep === "string" ? opts.fromStep : undefined,
     project: typeof opts.project === "string" ? opts.project : undefined,
-    output: typeof opts.output === "string" ? opts.output : undefined
+    output: typeof opts.output === "string" ? opts.output : undefined,
+    scope: typeof opts.scope === "string" ? opts.scope : undefined
   });
 });
 
@@ -209,6 +212,13 @@ pr
     const { runPrReport } = await import("./commands/pr-report");
     await runPrReport();
   });
+pr
+  .command("bridge")
+  .description("Link PR review artifacts into a requirement")
+  .action(async () => {
+    const { runPrBridge } = await import("./commands/pr-bridge");
+    await runPrBridge();
+  });
 
 const test = program.command("test").description("Test planning commands");
 test
@@ -323,6 +333,14 @@ importCmd
   .argument("<url>", "GitHub issue URL")
   .action(async (url: string) => {
     await runImportIssue(url);
+  });
+
+importCmd
+  .command("jira")
+  .description("Import a Jira ticket and bootstrap autopilot")
+  .argument("<ticket>", "Jira ticket key or browse URL")
+  .action(async (ticket: string) => {
+    await runImportJira(ticket);
   });
 
 program.parse(process.argv);
