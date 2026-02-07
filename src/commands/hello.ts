@@ -10,6 +10,7 @@ import { runReqStart } from "./req-start";
 import { runReqFinish } from "./req-finish";
 import { runRoute } from "./route";
 import { runTestPlan } from "./test-plan";
+import { recordActivationMetric } from "../telemetry/local-metrics";
 import {
   AutopilotCheckpoint,
   AutopilotStep,
@@ -114,6 +115,11 @@ function buildAutopilotDraft(input: string, flow: string, domain: string): Requi
 }
 
 export async function runHello(input: string, runQuestions?: boolean): Promise<void> {
+  recordActivationMetric("started", {
+    directIntent: input.trim().length > 0,
+    questionMode: runQuestions === true
+  });
+
   function loadWorkspace() {
     const workspace = getWorkspaceInfo();
     ensureWorkspace(workspace);
@@ -389,6 +395,10 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           return;
         }
         clearCheckpoint(activeProject);
+        recordActivationMetric("completed", {
+          project: activeProject,
+          reqId
+        });
         console.log(`Autopilot completed successfully for ${reqId}.`);
         console.log(`Artifacts finalized at: ${finished.doneDir}`);
         return;

@@ -157,6 +157,8 @@ Use `--questions` when you want the manual question-by-question flow.
 - `sdd-cli init` -- create SDD workspace and config
 - `sdd-cli list` -- list flows, router flows, templates, prompt packs, and projects
 - `sdd-cli status --next` -- show current project state and exact next command
+- `sdd-cli scope list` -- list monorepo workspace scopes
+- `sdd-cli scope status <scope>` -- show status summary for one scope
 - `sdd-cli doctor` -- validate completeness and consistency
   - `sdd-cli doctor --fix` -- apply safe remediations for missing requirement ops files
 
@@ -197,12 +199,15 @@ Use `--questions` when you want the manual question-by-question flow.
 - `sdd-cli pr finish`
 - `sdd-cli pr report`
 - `sdd-cli pr bridge`
+- `sdd-cli pr risk`
+- `sdd-cli pr bridge-check`
 
 ### Flags
 - `--approve` -- run without extra confirmations
 - `--improve` -- re-open and enhance existing docs
 - `--output <path>` -- override workspace output
 - `--scope <name>` -- isolate artifacts by monorepo scope namespace
+- `--metrics-local` -- record local opt-in telemetry snapshots in `workspace/metrics`
 - `--project <name>` -- set project name
 - `--parallel` -- generate in parallel
 - `--questions` -- use manual question-driven discovery flow
@@ -247,6 +252,7 @@ For a full onboarding walkthrough, see:
 - Adoption execution tracker: `AGENTS.md`
 - 90-day roadmap: `docs/ADOPTION_ROADMAP_90D.md`
 - Value backlog: `docs/VALUE_BACKLOG.md`
+- Error codes and remediation guide: `docs/ERROR_CODES.md`
 
 ## Where files are stored (clean repos)
 
@@ -275,6 +281,13 @@ Optional:
 `npm run verify:release-tag -- --tag v0.1.20`
 - Verify npm publish bundle before publishing:
 `npm run verify:publish`
+
+## Local metrics (opt-in)
+
+- Enable local snapshots:
+`sdd-cli --metrics-local hello "your intent"`
+- View summary from current workspace root:
+`npm run metrics:summary -- <workspace-path>`
 
 ## Lifecycle folders
 

@@ -3,6 +3,7 @@ import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { listPrReviews, resolvePrDir } from "./pr-utils";
+import { printError } from "../errors";
 
 function sanitizeId(value: string): string {
   return value
@@ -16,14 +17,14 @@ function sanitizeId(value: string): string {
 export async function runPrRespond(): Promise<void> {
   const projectName = await askProjectName();
   if (!projectName) {
-    console.log("Project name is required.");
+    printError("SDD-1356", "Project name is required.");
     return;
   }
   let available: string[] = [];
   try {
     available = listPrReviews(projectName);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1357", (error as Error).message);
     return;
   }
   if (available.length > 0) {
@@ -32,18 +33,18 @@ export async function runPrRespond(): Promise<void> {
   }
   const prId = await ask("PR ID: ");
   if (!prId) {
-    console.log("PR ID is required.");
+    printError("SDD-1358", "PR ID is required.");
     return;
   }
   let prDir: string;
   try {
     prDir = resolvePrDir(projectName, prId);
   } catch (error) {
-    console.log((error as Error).message);
+    printError("SDD-1359", (error as Error).message);
     return;
   }
   if (!fs.existsSync(prDir)) {
-    console.log(`PR review not found at ${prDir}`);
+    printError("SDD-1360", `PR review not found at ${prDir}`);
     return;
   }
 
@@ -55,7 +56,7 @@ export async function runPrRespond(): Promise<void> {
   const responseText = await ask("Response text: ");
 
   if (!commentId) {
-    console.log("Comment ID is required.");
+    printError("SDD-1361", "Comment ID is required.");
     return;
   }
 

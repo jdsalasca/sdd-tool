@@ -26,23 +26,29 @@ function latestId(ids: string[]): string | null {
   return ids[ids.length - 1];
 }
 
+function scopePrefix(): string {
+  const flags = getFlags();
+  return flags.scope && flags.scope.trim().length > 0 ? `--scope "${flags.scope.trim()}" ` : "";
+}
+
 function recommendNext(projectName: string, counts: Record<StatusName, number>, ids: Record<StatusName, string[]>): string {
+  const prefix = scopePrefix();
   const nextInProgress = latestId(ids["in-progress"]);
   if (nextInProgress) {
-    return `sdd-cli --project "${projectName}" req finish  # then enter ${nextInProgress} when prompted`;
+    return `sdd-cli ${prefix}--project "${projectName}" req finish  # then enter ${nextInProgress} when prompted`;
   }
   const nextWip = latestId(ids.wip);
   if (nextWip) {
-    return `sdd-cli --project "${projectName}" req start  # then enter ${nextWip} when prompted`;
+    return `sdd-cli ${prefix}--project "${projectName}" req start  # then enter ${nextWip} when prompted`;
   }
   const nextBacklog = latestId(ids.backlog);
   if (nextBacklog) {
-    return `sdd-cli --project "${projectName}" req plan  # then enter ${nextBacklog} when prompted`;
+    return `sdd-cli ${prefix}--project "${projectName}" req plan  # then enter ${nextBacklog} when prompted`;
   }
   if (counts.done > 0 && counts.archived === 0) {
-    return `sdd-cli --project "${projectName}" hello "start next requirement"`;
+    return `sdd-cli ${prefix}--project "${projectName}" hello "start next requirement"`;
   }
-  return `sdd-cli --project "${projectName}" hello "continue"`;
+  return `sdd-cli ${prefix}--project "${projectName}" hello "continue"`;
 }
 
 export function runStatus(showNext?: boolean): void {
@@ -88,6 +94,9 @@ export function runStatus(showNext?: boolean): void {
     archived: ids.archived.length
   };
 
+  if (flags.scope && flags.scope.trim().length > 0) {
+    console.log(`Scope: ${flags.scope.trim()}`);
+  }
   console.log(`Project: ${project.name}`);
   REQUIREMENT_STATUSES.forEach((status) => {
     console.log(`- ${status}: ${counts[status]}`);

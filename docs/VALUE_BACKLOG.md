@@ -11,7 +11,7 @@ Priority is driven by adoption, reliability, and contributor experience.
 ## P0 (Next 2-4 weeks)
 
 ### 1) Error code coverage completion (`SDD-xxxx`)
-- Status: In progress
+- Status: In progress (core + PR workflows largely covered)
 - Why it matters:
   - Makes failures deterministic for users and CI.
   - Reduces support turnaround time.
@@ -24,7 +24,7 @@ Priority is driven by adoption, reliability, and contributor experience.
   - Higher CI integration confidence.
 
 ### 2) Release confidence hardening
-- Status: Planned
+- Status: In progress
 - Why it matters:
   - Release quality directly impacts trust and retention.
 - Scope:
@@ -36,7 +36,7 @@ Priority is driven by adoption, reliability, and contributor experience.
   - Fewer release rollbacks.
 
 ### 3) First-run activation telemetry scaffold (privacy-safe)
-- Status: Planned
+- Status: In progress
 - Why it matters:
   - Current KPIs are defined but weakly instrumented.
 - Scope:
@@ -49,7 +49,7 @@ Priority is driven by adoption, reliability, and contributor experience.
 ## P1 (Next 1-2 months)
 
 ### 4) Monorepo scale UX
-- Status: Planned
+- Status: In progress
 - Why it matters:
   - `--scope` exists; teams need richer scope ergonomics.
 - Scope:
@@ -58,7 +58,7 @@ Priority is driven by adoption, reliability, and contributor experience.
   - Add docs with multi-scope examples for platform teams.
 
 ### 5) PR review intelligence improvements
-- Status: Planned
+- Status: In progress
 - Why it matters:
   - PR workflows are a major adoption channel.
 - Scope:
@@ -67,7 +67,7 @@ Priority is driven by adoption, reliability, and contributor experience.
   - Add bridge integrity check to ensure PR links remain valid.
 
 ### 6) Doctor remediation expansion
-- Status: Planned
+- Status: In progress
 - Why it matters:
   - `doctor --fix` currently handles a narrow set of remediations.
 - Scope:
