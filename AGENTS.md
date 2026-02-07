@@ -38,6 +38,6 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 
 ## Current Milestone
 
-- Milestone: `quality-error-standardization`
-- Branch: `feature/error-codes-core-commands`
-- Goal: make core command failures deterministic with machine-readable `SDD-xxxx` diagnostics and test coverage.
+- Milestone: `value-backlog-refresh`
+- Branch: `develop`
+- Goal: align next high-impact initiatives and execution order in a single prioritized backlog (`docs/VALUE_BACKLOG.md`).
