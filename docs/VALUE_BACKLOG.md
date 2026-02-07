@@ -85,10 +85,10 @@ Priority is driven by adoption, reliability, and contributor experience.
   - [x] Add issue labels taxonomy and triage playbook.
 
 ### 8) Integration adapters roadmap
-- Status: Planned
+- Status: In progress
 - Scope:
-  - Define adapter contract for trackers (Linear, Azure Boards, GitLab issues).
-  - Add one additional importer to validate architecture.
+  - [x] Define adapter contract for trackers (Linear, Azure Boards, GitLab issues).
+  - [ ] Add one additional importer to validate architecture.
 
 ### 9) Templates quality uplift
 - Status: Planned

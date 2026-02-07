@@ -15,6 +15,7 @@ Command: `sdd-cli hello`
 - Beginner-guided narration is available with `--beginner`
 - Existing backlog items can enter via `sdd-cli import issue <github-url>`
 - Existing Jira tickets can enter via `sdd-cli import jira <ticket|browse-url>`
+- Next adapters roadmap (Linear/Azure/GitLab) is documented in `docs/INTEGRATION_ADAPTERS.md`
 
 ## 1) Discovery (create)
 Command: `sdd-cli req create`
