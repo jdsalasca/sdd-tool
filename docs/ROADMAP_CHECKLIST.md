@@ -16,8 +16,8 @@ Acceptance criteria:
 
 ## Milestone M2 - Execution Reliability and Recovery
 
-- [ ] Add step checkpointing to resume autopilot from last successful stage.
-- [ ] Add `--from-step` execution support for targeted recovery.
+- [x] Add step checkpointing to resume autopilot from last successful stage.
+- [x] Add `--from-step` execution support for targeted recovery.
 - [ ] Add workspace index locking for concurrent writes.
 - [ ] Add machine-readable error codes for common failures.
 

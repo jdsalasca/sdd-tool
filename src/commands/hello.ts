@@ -10,6 +10,16 @@ import { runReqStart } from "./req-start";
 import { runReqFinish } from "./req-finish";
 import { runRoute } from "./route";
 import { runTestPlan } from "./test-plan";
+import {
+  AutopilotCheckpoint,
+  AutopilotStep,
+  AUTOPILOT_STEPS,
+  clearCheckpoint,
+  loadCheckpoint,
+  nextStep,
+  normalizeStep,
+  saveCheckpoint
+} from "./autopilot-checkpoint";
 
 function printStep(step: string, description: string): void {
   console.log(`${step}: ${description}`);
@@ -118,7 +128,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     console.log(`Workspace updated: ${workspace.root}`);
   }
 
-  const flags = getFlags();
+  const runtimeFlags = getFlags();
   if (projects.length > 0) {
     console.log("Active projects:");
     projects.forEach((project) => {
@@ -127,7 +137,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     const choice = await ask("Start new or continue? (new/continue) ");
     const normalized = choice.trim().toLowerCase();
     if (normalized === "continue") {
-      const selected = flags.project || (await ask("Project to continue: "));
+      const selected = runtimeFlags.project || (await ask("Project to continue: "));
       if (!selected) {
         console.log("No project selected. Continuing with new flow.");
       } else if (!projects.find((project) => project.name === selected)) {
@@ -143,7 +153,25 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     console.log("No active projects found.");
   }
 
-  const text = input || (await ask("Describe what you want to do: "));
+  let text = input || (await ask("Describe what you want to do: "));
+
+  const shouldRunQuestions = runQuestions === true;
+  let checkpoint: AutopilotCheckpoint | null = null;
+  let fromStep = normalizeStep(runtimeFlags.fromStep);
+  let activeProjectForCheckpoint = runtimeFlags.project;
+  if (!shouldRunQuestions && activeProjectForCheckpoint) {
+    checkpoint = loadCheckpoint(activeProjectForCheckpoint);
+    if (!text && checkpoint?.seedText) {
+      text = checkpoint.seedText;
+    }
+    if (!fromStep && checkpoint?.lastCompleted) {
+      const candidate = nextStep(checkpoint.lastCompleted);
+      if (candidate) {
+        fromStep = candidate;
+      }
+    }
+  }
+
   if (!text) {
     console.log("No input provided. Try again with a short description.");
     return;
@@ -159,7 +187,6 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     console.log("Next: run `sdd-cli route <your input>` to view details.");
   }
 
-  const shouldRunQuestions = runQuestions === true;
   printStep("Step 2/7", "Requirement setup");
   printWhy("I will gather enough context to generate a valid first draft.");
   if (shouldRunQuestions) {
@@ -205,70 +232,118 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     }
     printWhy(`Using project: ${activeProject}`);
     setFlags({ project: activeProject });
+    checkpoint = loadCheckpoint(activeProject);
+    if (checkpoint && !fromStep) {
+      const candidate = nextStep(checkpoint.lastCompleted);
+      if (candidate) {
+        fromStep = candidate;
+      }
+    }
+    if (fromStep && !AUTOPILOT_STEPS.includes(fromStep)) {
+      console.log(`Invalid --from-step value. Use one of: ${AUTOPILOT_STEPS.join(", ")}`);
+      return;
+    }
+
     const draft = buildAutopilotDraft(text, intent.flow, intent.domain);
     draft.project_name = activeProject;
-
-    printStep("Step 3/7", "Creating requirement draft automatically");
-    printWhy("This creates your baseline scope, acceptance criteria, and NFRs.");
-    const created = await runReqCreate(draft, { autofill: true });
-    if (!created) {
-      console.log("Autopilot stopped at requirement creation.");
+    let reqId = checkpoint?.reqId ?? "";
+    const startStep: AutopilotStep = fromStep ?? "create";
+    if (startStep !== "create" && !reqId) {
+      console.log("No checkpoint found for resume. Run full autopilot first or use --from-step create.");
       return;
     }
-
-    printStep("Step 4/7", `Planning requirement ${created.reqId}`);
-    printWhy("I am generating functional, technical, architecture, and test artifacts.");
-    const planned = await runReqPlan({
-      projectName: activeProject,
-      reqId: created.reqId,
-      autofill: true,
-      seedText: text
-    });
-    if (!planned) {
-      console.log("Autopilot stopped at planning.");
-      return;
+    if (fromStep) {
+      printWhy(`Resuming autopilot from step: ${fromStep}`);
     }
 
-    printStep("Step 5/7", `Preparing implementation plan for ${created.reqId}`);
-    printWhy("This stage defines milestones, tasks, quality thresholds, and decisions.");
-    const started = await runReqStart({
-      projectName: activeProject,
-      reqId: created.reqId,
-      autofill: true,
-      seedText: text
-    });
-    if (!started) {
-      console.log("Autopilot stopped at start phase.");
-      return;
-    }
+    const stepIndex = AUTOPILOT_STEPS.indexOf(startStep);
+    for (let i = stepIndex; i < AUTOPILOT_STEPS.length; i += 1) {
+      const step = AUTOPILOT_STEPS[i];
+      if (step === "create") {
+        printStep("Step 3/7", "Creating requirement draft automatically");
+        printWhy("This creates your baseline scope, acceptance criteria, and NFRs.");
+        const created = await runReqCreate(draft, { autofill: true });
+        if (!created) {
+          console.log("Autopilot stopped at requirement creation.");
+          return;
+        }
+        reqId = created.reqId;
+      }
 
-    printStep("Step 6/7", `Updating test plan for ${created.reqId}`);
-    printWhy("I am ensuring critical paths, edge cases, and regression tests are documented.");
-    const tested = await runTestPlan({
-      projectName: activeProject,
-      reqId: created.reqId,
-      autofill: true,
-      seedText: text
-    });
-    if (!tested) {
-      console.log("Autopilot stopped at test planning.");
-      return;
-    }
+      if (step === "plan") {
+        printStep("Step 4/7", `Planning requirement ${reqId}`);
+        printWhy("I am generating functional, technical, architecture, and test artifacts.");
+        const planned = await runReqPlan({
+          projectName: activeProject,
+          reqId,
+          autofill: true,
+          seedText: text
+        });
+        if (!planned) {
+          console.log("Autopilot stopped at planning.");
+          return;
+        }
+      }
 
-    printStep("Step 7/7", `Finalizing requirement ${created.reqId}`);
-    printWhy("I will move artifacts to done state and generate project-level summary files.");
-    const finished = await runReqFinish({
-      projectName: activeProject,
-      reqId: created.reqId,
-      autofill: true,
-      seedText: text
-    });
-    if (!finished) {
-      console.log("Autopilot stopped at finish phase.");
-      return;
+      if (step === "start") {
+        printStep("Step 5/7", `Preparing implementation plan for ${reqId}`);
+        printWhy("This stage defines milestones, tasks, quality thresholds, and decisions.");
+        const started = await runReqStart({
+          projectName: activeProject,
+          reqId,
+          autofill: true,
+          seedText: text
+        });
+        if (!started) {
+          console.log("Autopilot stopped at start phase.");
+          return;
+        }
+      }
+
+      if (step === "test") {
+        printStep("Step 6/7", `Updating test plan for ${reqId}`);
+        printWhy("I am ensuring critical paths, edge cases, and regression tests are documented.");
+        const tested = await runTestPlan({
+          projectName: activeProject,
+          reqId,
+          autofill: true,
+          seedText: text
+        });
+        if (!tested) {
+          console.log("Autopilot stopped at test planning.");
+          return;
+        }
+      }
+
+      if (step === "finish") {
+        printStep("Step 7/7", `Finalizing requirement ${reqId}`);
+        printWhy("I will move artifacts to done state and generate project-level summary files.");
+        const finished = await runReqFinish({
+          projectName: activeProject,
+          reqId,
+          autofill: true,
+          seedText: text
+        });
+        if (!finished) {
+          console.log("Autopilot stopped at finish phase.");
+          return;
+        }
+        clearCheckpoint(activeProject);
+        console.log(`Autopilot completed successfully for ${reqId}.`);
+        console.log(`Artifacts finalized at: ${finished.doneDir}`);
+        return;
+      }
+
+      saveCheckpoint(activeProject, {
+        project: activeProject,
+        reqId,
+        seedText: text,
+        flow: intent.flow,
+        domain: intent.domain,
+        lastCompleted: step,
+        updatedAt: new Date().toISOString()
+      });
     }
-    console.log(`Autopilot completed successfully for ${created.reqId}.`);
-    console.log(`Artifacts finalized at: ${finished.doneDir}`);
   }
 }
 

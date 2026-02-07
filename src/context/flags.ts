@@ -3,6 +3,7 @@ export type RuntimeFlags = {
   improve: boolean;
   parallel: boolean;
   nonInteractive: boolean;
+  fromStep?: string;
   project?: string;
   output?: string;
 };
@@ -12,6 +13,7 @@ const flags: RuntimeFlags = {
   improve: false,
   parallel: false,
   nonInteractive: false,
+  fromStep: undefined,
   project: undefined,
   output: undefined
 };
@@ -28,6 +30,9 @@ export function setFlags(next: Partial<RuntimeFlags>): void {
   }
   if ("nonInteractive" in next) {
     flags.nonInteractive = Boolean(next.nonInteractive);
+  }
+  if ("fromStep" in next) {
+    flags.fromStep = typeof next.fromStep === "string" ? next.fromStep : undefined;
   }
   if ("project" in next) {
     flags.project = typeof next.project === "string" ? next.project : undefined;

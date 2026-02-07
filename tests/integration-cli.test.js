@@ -189,3 +189,34 @@ test("hello supports non-interactive mode with defaults", () => {
   assert.match(result.stdout, /Autopilot completed successfully/i);
   assert.match(result.stdout, /Using project: autopilot-/i);
 });
+
+test("hello resumes from checkpoint with --from-step", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-resume-"));
+  const projectName = "ResumeProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  const reqId = "REQ-RESUME";
+
+  createSpecBundle(projectRoot, "in-progress", reqId, projectName);
+  writeJson(path.join(projectRoot, ".autopilot-checkpoint.json"), {
+    project: projectName,
+    reqId,
+    seedText: "Resume pipeline",
+    flow: "SOFTWARE_FEATURE",
+    domain: "software",
+    lastCompleted: "start",
+    updatedAt: new Date().toISOString()
+  });
+
+  const result = runCli(
+    workspaceRoot,
+    projectName,
+    ["--non-interactive", "--from-step", "test", "hello", "Resume pipeline"],
+    ""
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Resuming autopilot from step: test/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+  assert.equal(fs.existsSync(path.join(projectRoot, ".autopilot-checkpoint.json")), false);
+  assert.equal(fs.existsSync(path.join(projectRoot, "requirements", "done", reqId)), true);
+});
