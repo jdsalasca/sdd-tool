@@ -119,6 +119,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   const hasDirectIntent = input.trim().length > 0;
   const shouldRunQuestions = runQuestions === true;
   const autoGuidedMode = !shouldRunQuestions && (runtimeFlags.nonInteractive || hasDirectIntent);
+  const dryRun = runtimeFlags.dryRun;
 
   console.log("Hello from sdd-cli.");
   console.log(`Workspace: ${workspace.root}`);
@@ -283,6 +284,15 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     }
 
     const stepIndex = AUTOPILOT_STEPS.indexOf(startStep);
+    if (dryRun) {
+      printWhy("Dry run active: previewing autopilot plan without writing files.");
+      for (let i = stepIndex; i < AUTOPILOT_STEPS.length; i += 1) {
+        const step = AUTOPILOT_STEPS[i];
+        console.log(`Would run step: ${step}`);
+      }
+      console.log(`To execute for real: sdd-cli --project "${activeProject}" hello "${text}"`);
+      return;
+    }
     for (let i = stepIndex; i < AUTOPILOT_STEPS.length; i += 1) {
       const step = AUTOPILOT_STEPS[i];
       if (step === "create") {

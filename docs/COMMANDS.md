@@ -70,6 +70,7 @@ This file defines the command set, intent, and expected behavior.
 - `--parallel`  Generate in parallel (supported: `req plan`)
 - `--questions` Use manual question flow instead of full autopilot
 - `--non-interactive` Run without prompt confirmations (CI/script usage)
+- `--dry-run` Preview hello autopilot steps without writing artifacts
 - `--from-step` Resume autopilot from a specific stage (`create|plan|start|test|finish`)
 
 ## Hello behavior

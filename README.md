@@ -212,6 +212,8 @@ sdd-cli hello "I want a simple booking system for appointments"
 `sdd-cli --project <project-name> --from-step test hello "resume"`
 - Script-safe full default run:
 `sdd-cli --non-interactive hello "<your intent>"`
+- Preview autopilot steps without writing files:
+`sdd-cli --dry-run hello "<your intent>"`
 
 ## Where files are stored (clean repos)
 

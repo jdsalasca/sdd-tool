@@ -30,6 +30,7 @@ program
   .option("--improve", "Trigger self-audit and regenerate")
   .option("--parallel", "Generate in parallel when supported")
   .option("--non-interactive", "Run with defaults and without prompt confirmations")
+  .option("--dry-run", "Preview autopilot steps without writing artifacts")
   .option("--from-step <step>", "Resume or start autopilot from step: create|plan|start|test|finish")
   .option("--project <name>", "Select or name the project")
   .option("--output <path>", "Override workspace output root");
@@ -42,6 +43,7 @@ program.hook("preAction", (thisCommand, actionCommand) => {
     improve: Boolean(opts.improve),
     parallel: Boolean(opts.parallel),
     nonInteractive: Boolean(opts.nonInteractive),
+    dryRun: Boolean(opts.dryRun),
     fromStep: typeof opts.fromStep === "string" ? opts.fromStep : undefined,
     project: typeof opts.project === "string" ? opts.project : undefined,
     output: typeof opts.output === "string" ? opts.output : undefined

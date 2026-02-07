@@ -245,3 +245,23 @@ test("hello prints recovery command when resume checkpoint is missing", () => {
   assert.match(result.stdout, /No checkpoint found for resume/i);
   assert.match(result.stdout, /Next command: sdd-cli --project "MissingCheckpointProject" --from-step create hello "resume the pipeline"/i);
 });
+
+test("hello dry-run previews autopilot without creating project artifacts", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-dry-run-"));
+  const result = runCli(
+    workspaceRoot,
+    "",
+    ["--non-interactive", "--dry-run", "hello", "Build a guided onboarding assistant"],
+    ""
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Dry run active: previewing autopilot plan/i);
+  assert.match(result.stdout, /Would run step: create/i);
+  assert.match(result.stdout, /Would run step: finish/i);
+  assert.doesNotMatch(result.stdout, /Autopilot completed successfully/i);
+
+  const entries = fs.readdirSync(workspaceRoot);
+  assert.equal(entries.includes("workspaces.json"), true);
+  assert.equal(entries.some((entry) => entry.startsWith("autopilot-")), false);
+});
