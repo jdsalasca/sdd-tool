@@ -25,6 +25,8 @@ const TARGET_FILES = [
   "src/commands/pr-finish.ts",
   "src/commands/doctor.ts",
   "src/commands/status.ts",
+  "src/commands/list.ts",
+  "src/commands/route.ts",
   "src/commands/scope-status.ts",
   "src/commands/gen-functional-spec.ts",
   "src/commands/gen-technical-spec.ts",

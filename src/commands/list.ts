@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { getRepoRoot } from "../paths";
-import { loadPromptPacks } from "../router/prompt-packs";
-import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
+import { loadPromptPacks, PromptPack } from "../router/prompt-packs";
+import { ensureWorkspace, getWorkspaceInfo, listProjects, ProjectSummary } from "../workspace/index";
+import { printError } from "../errors";
 
 function listDirectoryNames(dir: string, ext: string): string[] {
   if (!fs.existsSync(dir)) {
@@ -47,7 +48,13 @@ export function runList(): void {
     templates.forEach((template) => console.log(`- ${template}`));
   }
 
-  const packs = loadPromptPacks();
+  let packs: PromptPack[];
+  try {
+    packs = loadPromptPacks();
+  } catch (error) {
+    printError("SDD-1421", `Unable to load prompt packs: ${(error as Error).message}`);
+    return;
+  }
   console.log("Prompt packs:");
   if (packs.length === 0) {
     console.log("- none");
@@ -55,9 +62,15 @@ export function runList(): void {
     packs.forEach((pack) => console.log(`- ${pack.id}`));
   }
 
-  const workspace = getWorkspaceInfo();
-  ensureWorkspace(workspace);
-  const projects = listProjects(workspace);
+  let projects: ProjectSummary[];
+  try {
+    const workspace = getWorkspaceInfo();
+    ensureWorkspace(workspace);
+    projects = listProjects(workspace);
+  } catch (error) {
+    printError("SDD-1422", (error as Error).message);
+    return;
+  }
   console.log("Projects:");
   if (projects.length === 0) {
     console.log("- none");
