@@ -39,7 +39,7 @@ Acceptance criteria:
 ## Milestone M4 - Release Operations and Visibility
 
 - [x] Generate release notes from conventional commits.
-- [ ] Publish GitHub Releases with structured highlights and migration notes.
+- [x] Publish GitHub Releases with structured highlights and migration notes.
 - [ ] Expand changelog automation for npm releases.
 - [x] Track post-release quality metrics (tests, package integrity, docs drift).
 

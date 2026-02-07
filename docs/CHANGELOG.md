@@ -9,6 +9,7 @@
 - Add `sdd-cli doctor --fix` for safe remediation of missing requirement operation logs.
 - Add release quality summary automation via `npm run release:metrics`.
 - Add workspace index locking with stale lock recovery for concurrent write safety.
+- Add GitHub Release workflow automation for tagged versions with generated notes and attached metrics.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.

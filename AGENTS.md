@@ -38,6 +38,6 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 
 ## Current Milestone
 
-- Milestone: `reliability-scale-ops`
-- Branch: `feature/import-issue-bootstrap`
-- Goal: improve reliability with error codes, doctor remediation, and release quality metrics.
+- Milestone: `release-ops-automation`
+- Branch: `feature/release-workflow-automation`
+- Goal: publish GitHub releases with generated notes, migration section, and attached quality metrics.
