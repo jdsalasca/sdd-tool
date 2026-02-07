@@ -20,7 +20,7 @@ make `sdd-cli` easy to adopt, easy to trust, and easy to keep in daily workflows
 
 - [x] Add `sdd-cli quickstart` with built-in examples.
 - [x] Add beginner mode (`--beginner`) with richer guidance.
-- [ ] Add `status --next` recommendation command.
+- [x] Add `status --next` recommendation command.
 - [ ] Publish "first 15 minutes" walkthrough and transcript.
 
 ### Success criteria

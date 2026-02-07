@@ -53,7 +53,7 @@ Acceptance criteria:
 - [x] Add an execution tracker (`AGENTS.md`) for adoption workstream.
 - [x] Add a 90-day adoption roadmap in docs.
 - [x] Add beginner mode (`--beginner`) for richer guided narration.
-- [ ] Add `status --next` recommendation command.
+- [x] Add `status --next` recommendation command.
 
 Acceptance criteria:
 - New users can reach first successful done requirement with minimal friction.

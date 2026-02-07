@@ -19,6 +19,9 @@ This file defines the command set, intent, and expected behavior.
   - Initializes a workspace and config
 - `sdd-cli list`
   - Lists flows, router flows, templates, prompt packs, and projects
+- `sdd-cli status`
+  - Shows per-status requirement counts for the selected project
+  - Use `--next` to get an exact recommended next command
 - `sdd-cli doctor`
   - Validates schemas, prompt packs, and templates
 

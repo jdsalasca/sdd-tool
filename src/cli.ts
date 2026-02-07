@@ -7,6 +7,7 @@ import { runInit } from "./commands/init";
 import { runRoute } from "./commands/route";
 import { runDoctor } from "./commands/doctor";
 import { runQuickstart } from "./commands/quickstart";
+import { runStatus } from "./commands/status";
 import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
 import { closePrompt } from "./ui/prompt";
@@ -84,6 +85,12 @@ program
     const { runList } = await import("./commands/list");
     runList();
   });
+
+program
+  .command("status")
+  .description("Show project requirement counts and next recommended command")
+  .option("--next", "Print exact next command to run")
+  .action((options) => runStatus(Boolean(options.next)));
 
 const req = program.command("req").description("Requirement lifecycle commands");
 req
