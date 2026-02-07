@@ -73,7 +73,7 @@ export function runStatus(showNext?: boolean): void {
     return;
   }
   if (!fs.existsSync(project.root)) {
-    console.log("No projects found.");
+    printError("SDD-1402", `Selected project not found in workspace: ${project.name}`);
     if (showNext) {
       console.log('Next command: sdd-cli quickstart --example saas');
     }
