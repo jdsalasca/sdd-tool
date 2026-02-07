@@ -18,6 +18,7 @@
 - npm package version bumped
 - `bin` entry verified
 - Basic install/run test executed
+- `.github/workflows/publish-readiness.yml` passes on release PR
 - Tag push triggers `.github/workflows/release.yml` successfully
 - `npm run verify:release-tag -- --tag vX.Y.Z` passes
 - `npm run verify:publish` passes (`npm pack --dry-run` includes required files)

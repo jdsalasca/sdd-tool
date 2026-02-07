@@ -19,6 +19,7 @@
 - docs/MAINTENANCE.md
 - docs/TROUBLESHOOTING.md
 - .github/PULL_REQUEST_TEMPLATE.md
+- .github/PULL_REQUEST_TEMPLATE_RELEASE.md
 
 ## Architecture and design
 - docs/ARCHITECTURE.md

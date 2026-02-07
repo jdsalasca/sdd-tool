@@ -268,6 +268,12 @@ Optional:
 `npm run release:notes -- --write --version v0.1.20`
 - Generate post-release quality summary:
 `npm run release:metrics`
+- Promote `Unreleased` changelog entries into a version:
+`npm run release:changelog -- --version v0.1.20`
+- Verify tag/version consistency:
+`npm run verify:release-tag -- --tag v0.1.20`
+- Verify npm publish bundle before publishing:
+`npm run verify:publish`
 
 ## Lifecycle folders
 

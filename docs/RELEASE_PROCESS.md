@@ -17,3 +17,6 @@ This document defines the Gitflow release steps for sdd-cli.
 12) GitHub Actions `NPM Publish` workflow verifies publish readiness and publishes to npm
 13) Merge `main` back into `develop`
 
+## Release PR template
+Use `.github/PULL_REQUEST_TEMPLATE_RELEASE.md` for release PRs to keep versioning, notes, metrics, and publish checks explicit.
+

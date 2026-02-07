@@ -12,6 +12,8 @@
 - Add GitHub Release workflow automation for tagged versions with generated notes and attached metrics.
 - Add changelog promotion automation for npm releases via `npm run release:changelog`.
 - Add npm publish workflow with tag/version guardrails and pre-publish bundle verification.
+- Add publish-readiness CI workflow for PR/push dry-run npm bundle validation.
+- Add release PR template and npm publish troubleshooting guide.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.

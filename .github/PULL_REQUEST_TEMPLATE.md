@@ -3,6 +3,10 @@
 ## Changes
 - 
 
+## Type
+- [ ] Regular PR
+- [ ] Release PR (use `.github/PULL_REQUEST_TEMPLATE_RELEASE.md` checklist)
+
 ## Tests
 - [ ] `npm test`
 - [ ] `scripts/e2e.ps1 -Project <name>` (Windows)
