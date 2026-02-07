@@ -63,3 +63,23 @@ make `sdd-cli` easy to adopt, easy to trust, and easy to keep in daily workflows
 
 - Common failures are easy to diagnose and recover from.
 - Releases become repeatable with standardized notes and validation.
+
+## Phase 4: Scale and community (Post-90 days)
+
+### Objectives
+
+- Sustain adoption with contributor-friendly operations.
+- Improve observability for product decisions without sacrificing simplicity.
+
+### Work items
+
+- [ ] Complete full `SDD-xxxx` error-code coverage for all commands.
+- [ ] Publish a centralized `ERROR_CODES` remediation guide.
+- [ ] Expand scope-aware workflows for large monorepos.
+- [ ] Add release automation test suite and artifact quality checks.
+- [ ] Publish contributor quickstart and triage playbook.
+
+### Success criteria
+
+- Faster issue triage with lower support overhead.
+- Higher contribution throughput and safer release cadence.

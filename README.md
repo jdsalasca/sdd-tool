@@ -246,6 +246,7 @@ For a full onboarding walkthrough, see:
 
 - Adoption execution tracker: `AGENTS.md`
 - 90-day roadmap: `docs/ADOPTION_ROADMAP_90D.md`
+- Value backlog: `docs/VALUE_BACKLOG.md`
 
 ## Where files are stored (clean repos)
 
