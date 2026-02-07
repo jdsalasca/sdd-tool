@@ -309,6 +309,13 @@ test("quickstart runs autopilot with built-in example prompts", () => {
   assert.match(result.stdout, /Autopilot completed successfully/i);
 });
 
+test("quickstart emits SDD error code for invalid example", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-quickstart-invalid-"));
+  const result = runCli(workspaceRoot, "", ["quickstart", "--example", "unknown"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1011\]/i);
+});
+
 test("hello beginner mode prints extra guidance", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-beginner-"));
   const result = runCli(
