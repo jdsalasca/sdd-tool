@@ -185,6 +185,7 @@ Use `--questions` when you want the manual question-by-question flow.
 - `--project <name>` -- set project name
 - `--parallel` -- generate in parallel
 - `--questions` -- use manual question-driven discovery flow
+- `--non-interactive` -- run without confirmations (script/CI friendly)
 - `--alias sdd` -- optional alias to run as `sdd`
 
 ## Beginner quickstart
