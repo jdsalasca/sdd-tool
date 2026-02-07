@@ -99,6 +99,7 @@ Recovery commands:
 - Continue a known project: `sdd-cli --project <name> hello "continue this requirement"`
 - Resume a failed stage directly: `sdd-cli --project <name> --from-step test hello "resume"`
 - Run script/CI-safe defaults: `sdd-cli --non-interactive hello "<intent>"`
+- Preview full autopilot without writes: `sdd-cli --dry-run hello "<intent>"`
 - On autopilot interruption, `hello` prints a ready-to-run recovery command with `--project` and `--from-step`.
 
 ## Global gates
