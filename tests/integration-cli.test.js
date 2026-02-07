@@ -3,7 +3,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { spawnSync } = require("node:child_process");
+const http = require("node:http");
+const { spawnSync, spawn } = require("node:child_process");
 
 function writeJson(filePath, data) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -74,7 +75,7 @@ function createSpecBundle(projectRoot, status, reqId, projectName) {
   return reqDir;
 }
 
-function runCli(workspaceRoot, projectName, args, input) {
+function runCli(workspaceRoot, projectName, args, input, extraEnv = {}) {
   const cliPath = path.join(__dirname, "..", "dist", "cli.js");
   const baseArgs = [cliPath, "--output", workspaceRoot];
   if (projectName && projectName.trim().length > 0) {
@@ -83,7 +84,39 @@ function runCli(workspaceRoot, projectName, args, input) {
   return spawnSync(process.execPath, [...baseArgs, ...args], {
     input,
     encoding: "utf-8",
-    env: { ...process.env, SDD_STDIN: "1" }
+    env: { ...process.env, SDD_STDIN: "1", ...extraEnv }
+  });
+}
+
+function runCliAsync(workspaceRoot, projectName, args, input, extraEnv = {}) {
+  const cliPath = path.join(__dirname, "..", "dist", "cli.js");
+  const baseArgs = [cliPath, "--output", workspaceRoot];
+  if (projectName && projectName.trim().length > 0) {
+    baseArgs.push("--project", projectName);
+  }
+
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [...baseArgs, ...args], {
+      env: { ...process.env, SDD_STDIN: "1", ...extraEnv }
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf-8");
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf-8");
+    });
+
+    if (input && input.length > 0) {
+      child.stdin.write(input);
+    }
+    child.stdin.end();
+
+    child.on("close", (code) => {
+      resolve({ status: code, stdout, stderr });
+    });
   });
 }
 
@@ -309,4 +342,43 @@ test("status --next recommends quickstart when no projects exist", () => {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /No projects found/i);
   assert.match(result.stdout, /Next command: sdd-cli quickstart --example saas/i);
+});
+
+test("import issue bootstraps hello flow from GitHub issue URL", async () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-import-issue-"));
+  const server = http.createServer((req, res) => {
+    if (req.url === "/repos/octo/demo/issues/123") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          title: "Login fails on mobile Safari",
+          body: "Users report login errors after entering valid credentials.",
+          html_url: "https://github.com/octo/demo/issues/123"
+        })
+      );
+      return;
+    }
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ message: "not found" }));
+  });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  const apiBase = `http://127.0.0.1:${port}`;
+
+  const result = await runCliAsync(
+    workspaceRoot,
+    "",
+    ["--non-interactive", "import", "issue", "https://github.com/octo/demo/issues/123"],
+    "",
+    { SDD_GITHUB_API_BASE: apiBase }
+  );
+
+  await new Promise((resolve) => server.close(resolve));
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Importing issue octo\/demo#123/i);
+  assert.match(result.stdout, /Imported: Login fails on mobile Safari/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
 });

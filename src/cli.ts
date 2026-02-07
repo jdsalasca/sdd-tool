@@ -8,6 +8,7 @@ import { runRoute } from "./commands/route";
 import { runDoctor } from "./commands/doctor";
 import { runQuickstart } from "./commands/quickstart";
 import { runStatus } from "./commands/status";
+import { runImportIssue } from "./commands/import-issue";
 import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
 import { closePrompt } from "./ui/prompt";
@@ -313,6 +314,15 @@ ai
   .action(async (prompt: string[]) => {
     const { runAiExec } = await import("./commands/ai-exec");
     await runAiExec(prompt.join(" ").trim());
+  });
+
+const importCmd = program.command("import").description("Import external work items into SDD flow");
+importCmd
+  .command("issue")
+  .description("Import a GitHub issue URL and bootstrap autopilot")
+  .argument("<url>", "GitHub issue URL")
+  .action(async (url: string) => {
+    await runImportIssue(url);
   });
 
 program.parse(process.argv);
