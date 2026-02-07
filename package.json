@@ -28,6 +28,7 @@
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
     "check:docs": "node scripts/check-docs-flags.js",
+    "release:notes": "node scripts/generate-release-notes.js",
     "smoke:autopilot": "node scripts/autopilot-smoke.js",
     "preinstall": "node scripts/preinstall.js",
     "pretest": "npm run build",

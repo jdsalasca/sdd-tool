@@ -10,6 +10,7 @@
 - New commands documented
 - Breaking changes noted
 - Migration notes (if any)
+- `npm run release:notes` generated and reviewed
 
 ## Publish
 - npm package version bumped

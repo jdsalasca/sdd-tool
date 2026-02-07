@@ -38,7 +38,7 @@ Acceptance criteria:
 
 ## Milestone M4 - Release Operations and Visibility
 
-- [ ] Generate release notes from conventional commits.
+- [x] Generate release notes from conventional commits.
 - [ ] Publish GitHub Releases with structured highlights and migration notes.
 - [ ] Expand changelog automation for npm releases.
 - [ ] Track post-release quality metrics (tests, package integrity, docs drift).
@@ -63,9 +63,9 @@ Acceptance criteria:
 ## Milestone M6 - Workflow Integration
 
 - [x] Add GitHub issue import bootstrap (`import issue <url>`).
-- [ ] Add Jira import bootstrap (`import jira <ticket>`).
-- [ ] Add PR review bridge into requirement artifacts.
-- [ ] Add monorepo scope targeting (`--scope`).
+- [x] Add Jira import bootstrap (`import jira <ticket>`).
+- [x] Add PR review bridge into requirement artifacts.
+- [x] Add monorepo scope targeting (`--scope`).
 
 Acceptance criteria:
 - Existing work items can be imported directly into SDD flow.

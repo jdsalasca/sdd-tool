@@ -382,3 +382,89 @@ test("import issue bootstraps hello flow from GitHub issue URL", async () => {
   assert.match(result.stdout, /Imported: Login fails on mobile Safari/i);
   assert.match(result.stdout, /Autopilot completed successfully/i);
 });
+
+test("import jira bootstraps hello flow from Jira ticket", async () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-import-jira-"));
+  const server = http.createServer((req, res) => {
+    if (req.url === "/rest/api/3/issue/PROJ-77") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          key: "PROJ-77",
+          fields: {
+            summary: "Checkout confirmation email missing",
+            description: {
+              type: "doc",
+              version: 1,
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      text: "After payment, users do not receive a confirmation email."
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        })
+      );
+      return;
+    }
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ message: "not found" }));
+  });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  const apiBase = `http://127.0.0.1:${port}/rest/api/3`;
+
+  const result = await runCliAsync(
+    workspaceRoot,
+    "",
+    ["--non-interactive", "import", "jira", "PROJ-77"],
+    "",
+    { SDD_JIRA_API_BASE: apiBase }
+  );
+
+  await new Promise((resolve) => server.close(resolve));
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Importing Jira ticket PROJ-77/i);
+  assert.match(result.stdout, /Imported: Checkout confirmation email missing/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+});
+
+test("pr bridge links PR review artifacts into requirement directory", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-pr-bridge-"));
+  const projectName = "BridgeProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  const reqId = "REQ-BRIDGE";
+  const prId = "PR-123";
+
+  const requirementDir = createSpecBundle(projectRoot, "done", reqId, projectName);
+  const prDir = path.join(projectRoot, "pr-reviews", prId);
+  fs.mkdirSync(prDir, { recursive: true });
+  fs.writeFileSync(path.join(prDir, "pr-review-summary.md"), "# Summary", "utf-8");
+  fs.writeFileSync(path.join(prDir, "pr-review-report.md"), "# Report", "utf-8");
+
+  const result = runCli(workspaceRoot, projectName, ["pr", "bridge"], `${prId}\n${reqId}\n`);
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /linked to requirement/i);
+
+  const linkedSummary = path.join(requirementDir, "pr-review", prId, "pr-review-summary.md");
+  const linkedReport = path.join(requirementDir, "pr-review", prId, "pr-review-report.md");
+  const linksPath = path.join(requirementDir, "pr-links.json");
+  const progressLog = path.join(requirementDir, "progress-log.md");
+  const changelog = path.join(requirementDir, "changelog.md");
+
+  assert.equal(fs.existsSync(linkedSummary), true);
+  assert.equal(fs.existsSync(linkedReport), true);
+  assert.equal(fs.existsSync(linksPath), true);
+  assert.match(fs.readFileSync(progressLog, "utf-8"), /linked PR review PR-123 into REQ-BRIDGE/i);
+  assert.match(fs.readFileSync(changelog, "utf-8"), /linked PR review PR-123 into REQ-BRIDGE/i);
+});

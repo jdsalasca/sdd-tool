@@ -37,9 +37,9 @@ make `sdd-cli` easy to adopt, easy to trust, and easy to keep in daily workflows
 ### Work items
 
 - [x] Import from GitHub Issue URL.
-- [ ] Import from Jira ticket.
-- [ ] Link PR review outputs back into requirement artifacts.
-- [ ] Add monorepo scope support.
+- [x] Import from Jira ticket.
+- [x] Link PR review outputs back into requirement artifacts.
+- [x] Add monorepo scope support.
 
 ### Success criteria
 
@@ -56,7 +56,7 @@ make `sdd-cli` easy to adopt, easy to trust, and easy to keep in daily workflows
 
 - [ ] Add machine-readable error codes (`SDD-xxxx`).
 - [ ] Add `doctor --fix` for common remediations.
-- [ ] Auto-generate release notes from conventional commits.
+- [x] Auto-generate release notes from conventional commits.
 - [ ] Generate release quality summary (tests, docs check, smoke check).
 
 ### Success criteria
