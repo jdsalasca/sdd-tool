@@ -9,6 +9,10 @@ This file defines the command set, intent, and expected behavior.
   - Routes to the correct flow
   - Default mode: runs full guided autopilot (`create -> plan -> start -> test -> finish`)
   - Manual mode: use `--questions` for deep prompt-by-prompt discovery
+- `sdd-cli quickstart`
+  - Runs a zero-friction autopilot demo using built-in examples
+  - Defaults to non-interactive execution for faster first success
+  - Use `--example <name>` to select scenario (`saas|bugfix|api|ecommerce|mobile`)
 
 ## Workspace
 - `sdd-cli init`
