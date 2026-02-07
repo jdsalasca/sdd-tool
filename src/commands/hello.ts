@@ -29,6 +29,10 @@ function printWhy(message: string): void {
   console.log(`  -> ${message}`);
 }
 
+function printRecoveryNext(project: string, step: AutopilotStep, hint: string): void {
+  console.log(`Next command: sdd-cli --project "${project}" --from-step ${step} hello "${hint}"`);
+}
+
 function deriveProjectName(input: string, flow: string): string {
   const seed = input
     .trim()
@@ -271,6 +275,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     const startStep: AutopilotStep = fromStep ?? "create";
     if (startStep !== "create" && !reqId) {
       console.log("No checkpoint found for resume. Run full autopilot first or use --from-step create.");
+      printRecoveryNext(activeProject, "create", text);
       return;
     }
     if (fromStep) {
@@ -286,6 +291,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         const created = await runReqCreate(draft, { autofill: true });
         if (!created) {
           console.log("Autopilot stopped at requirement creation.");
+          printRecoveryNext(activeProject, "create", text);
           return;
         }
         reqId = created.reqId;
@@ -302,6 +308,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         });
         if (!planned) {
           console.log("Autopilot stopped at planning.");
+          printRecoveryNext(activeProject, "plan", text);
           return;
         }
       }
@@ -317,6 +324,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         });
         if (!started) {
           console.log("Autopilot stopped at start phase.");
+          printRecoveryNext(activeProject, "start", text);
           return;
         }
       }
@@ -332,6 +340,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         });
         if (!tested) {
           console.log("Autopilot stopped at test planning.");
+          printRecoveryNext(activeProject, "test", text);
           return;
         }
       }
@@ -347,6 +356,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         });
         if (!finished) {
           console.log("Autopilot stopped at finish phase.");
+          printRecoveryNext(activeProject, "finish", text);
           return;
         }
         clearCheckpoint(activeProject);
