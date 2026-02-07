@@ -4,6 +4,7 @@
 - Add contributor onboarding pack (`docs/CONTRIBUTOR_QUICKSTART.md`) and issue triage taxonomy (`docs/ISSUE_TRIAGE_PLAYBOOK.md`).
 - Add contributor-focused dev shortcuts: `npm run dev:smoke` and `npm run dev:release-check`.
 - Add integration adapters contract and rollout guide in `docs/INTEGRATION_ADAPTERS.md` (Linear/Azure/GitLab).
+- Add `sdd-cli import linear <ticket|url>` with deterministic errors and integration test coverage.
 
 ## 0.1.21
 - Release notes: _pending_

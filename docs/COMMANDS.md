@@ -41,6 +41,8 @@ This file defines the command set, intent, and expected behavior.
   - Good for turning existing backlog items into SDD artifacts quickly
 - `sdd-cli import jira <ticket>`
   - Imports a Jira ticket key or browse URL and bootstraps hello autopilot
+  - `sdd-cli import linear <ticket>`
+  - Imports a Linear ticket key or issue URL and bootstraps hello autopilot
   - Additional adapter roadmap (Linear/Azure/GitLab): `docs/INTEGRATION_ADAPTERS.md`
 
 ## Requirements lifecycle

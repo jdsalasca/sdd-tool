@@ -446,6 +446,69 @@ test("import jira bootstraps hello flow from Jira ticket", async () => {
   assert.match(result.stdout, /Autopilot completed successfully/i);
 });
 
+test("import linear bootstraps hello flow from Linear ticket", async () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-import-linear-"));
+  const server = http.createServer((req, res) => {
+    if (req.url === "/graphql" && req.method === "POST") {
+      let body = "";
+      req.on("data", (chunk) => {
+        body += chunk.toString("utf-8");
+      });
+      req.on("end", () => {
+        const parsed = JSON.parse(body || "{}");
+        if (parsed?.variables?.identifier === "LIN-77") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              data: {
+                issue: {
+                  identifier: "LIN-77",
+                  title: "Checkout button misaligned",
+                  description: "Users report the checkout button overlaps on small screens.",
+                  url: "https://linear.app/acme/issue/LIN-77/checkout-button-misaligned"
+                }
+              }
+            })
+          );
+          return;
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ data: { issue: null } }));
+      });
+      return;
+    }
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ message: "not found" }));
+  });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  const apiBase = `http://127.0.0.1:${port}/graphql`;
+
+  const result = await runCliAsync(
+    workspaceRoot,
+    "",
+    ["--non-interactive", "import", "linear", "LIN-77"],
+    "",
+    { SDD_LINEAR_API_BASE: apiBase }
+  );
+
+  await new Promise((resolve) => server.close(resolve));
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Importing Linear ticket LIN-77/i);
+  assert.match(result.stdout, /Imported: Checkout button misaligned/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+});
+
+test("import linear reports machine-readable error code for invalid ticket", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-import-linear-invalid-"));
+  const result = runCli(workspaceRoot, "", ["import", "linear", "invalid-ticket"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1121\]/i);
+});
+
 test("pr bridge links PR review artifacts into requirement directory", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-pr-bridge-"));
   const projectName = "BridgeProject";

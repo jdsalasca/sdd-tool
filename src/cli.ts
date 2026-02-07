@@ -10,6 +10,7 @@ import { runQuickstart } from "./commands/quickstart";
 import { runStatus } from "./commands/status";
 import { runImportIssue } from "./commands/import-issue";
 import { runImportJira } from "./commands/import-jira";
+import { runImportLinear } from "./commands/import-linear";
 import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
 import { closePrompt } from "./ui/prompt";
@@ -384,6 +385,14 @@ importCmd
   .argument("<ticket>", "Jira ticket key or browse URL")
   .action(async (ticket: string) => {
     await runImportJira(ticket);
+  });
+
+importCmd
+  .command("linear")
+  .description("Import a Linear ticket and bootstrap autopilot")
+  .argument("<ticket>", "Linear ticket key or issue URL")
+  .action(async (ticket: string) => {
+    await runImportLinear(ticket);
   });
 
 program.parse(process.argv);

@@ -52,6 +52,7 @@ interface TrackerAdapter {
 ## Planned adapters
 
 ### Linear
+- Status: Implemented (`sdd-cli import linear <ticket|url>`)
 - Input examples:
   - `LIN-123`
   - `https://linear.app/<team>/issue/LIN-123/...`
@@ -74,9 +75,9 @@ interface TrackerAdapter {
 ## Rollout plan
 
 1. Finalize adapter interface in code (`src/adapters/*`).
-2. Implement one adapter (Linear) as architecture validation.
-3. Add integration tests with local HTTP stubs (same strategy used by GitHub/Jira tests).
-4. Add docs and examples for each adapter.
+2. Implement one adapter (Linear) as architecture validation. (Done)
+3. Add integration tests with local HTTP stubs (same strategy used by GitHub/Jira tests). (Done for Linear)
+4. Add docs and examples for each adapter. (In progress)
 5. Gate release with adapter smoke checks.
 
 ## Non-goals (v1)
