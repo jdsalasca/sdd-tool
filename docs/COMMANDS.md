@@ -6,7 +6,9 @@ This file defines the command set, intent, and expected behavior.
 - `sdd-cli hello`
   - Starts an interactive session
   - Lists active projects
-  - Routes to correct flow
+  - Routes to the correct flow
+  - Default mode: runs full guided autopilot (`create -> plan -> start -> test -> finish`)
+  - Manual mode: use `--questions` for deep prompt-by-prompt discovery
 
 ## Workspace
 - `sdd-cli init`
@@ -66,10 +68,12 @@ This file defines the command set, intent, and expected behavior.
 - `--project`   Select or name the project
 - `--output`    Override workspace output root
 - `--parallel`  Generate in parallel (supported: `req plan`)
+- `--questions` Use manual question flow instead of full autopilot
 
-## Hello flags
-- `--questions` Run prompt questions for detected intent
-- `--auto`      Generate a requirement draft after questions
+## Hello behavior
+- Default: full guided autopilot run with minimal prompts
+- `--questions`: manual question packs and explicit draft confirmation
+- `--auto`: alias to trigger question-driven draft generation path
 
 ## Error handling
 - If validation fails, the command reports errors and stops.
