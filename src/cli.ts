@@ -307,7 +307,10 @@ program
   .description("Validate workspace artifacts and schemas")
   .argument("[project]", "Optional project name to validate")
   .argument("[requirementId]", "Optional requirement ID to validate")
-  .action((project?: string, requirementId?: string) => runDoctor(project, requirementId));
+  .option("--fix", "Apply safe remediations (missing changelog/progress-log)")
+  .action((project: string | undefined, requirementId: string | undefined, options: { fix?: boolean }) =>
+    runDoctor(project, requirementId, Boolean(options.fix))
+  );
 
 const ai = program.command("ai").description("Codex provider commands");
 ai

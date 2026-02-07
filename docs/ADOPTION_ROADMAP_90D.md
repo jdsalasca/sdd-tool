@@ -54,10 +54,10 @@ make `sdd-cli` easy to adopt, easy to trust, and easy to keep in daily workflows
 
 ### Work items
 
-- [ ] Add machine-readable error codes (`SDD-xxxx`).
-- [ ] Add `doctor --fix` for common remediations.
+- [x] Add machine-readable error codes (`SDD-xxxx`).
+- [x] Add `doctor --fix` for common remediations.
 - [x] Auto-generate release notes from conventional commits.
-- [ ] Generate release quality summary (tests, docs check, smoke check).
+- [x] Generate release quality summary (tests, docs check, smoke check).
 
 ### Success criteria
 

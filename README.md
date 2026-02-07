@@ -158,6 +158,7 @@ Use `--questions` when you want the manual question-by-question flow.
 - `sdd-cli list` -- list flows, router flows, templates, prompt packs, and projects
 - `sdd-cli status --next` -- show current project state and exact next command
 - `sdd-cli doctor` -- validate completeness and consistency
+  - `sdd-cli doctor --fix` -- apply safe remediations for missing requirement ops files
 
 ### Router
 - `sdd-cli route` -- classify user intent and route to the right flow
@@ -265,6 +266,8 @@ Optional:
 `npm run release:notes`
 - Write notes to `docs/releases/<version>.md`:
 `npm run release:notes -- --write --version v0.1.20`
+- Generate post-release quality summary:
+`npm run release:metrics`
 
 ## Lifecycle folders
 

@@ -19,7 +19,7 @@ Acceptance criteria:
 - [x] Add step checkpointing to resume autopilot from last successful stage.
 - [x] Add `--from-step` execution support for targeted recovery.
 - [ ] Add workspace index locking for concurrent writes.
-- [ ] Add machine-readable error codes for common failures.
+- [x] Add machine-readable error codes for common failures.
 
 Acceptance criteria:
 - Interrupted runs can resume without restarting from scratch.
@@ -41,7 +41,7 @@ Acceptance criteria:
 - [x] Generate release notes from conventional commits.
 - [ ] Publish GitHub Releases with structured highlights and migration notes.
 - [ ] Expand changelog automation for npm releases.
-- [ ] Track post-release quality metrics (tests, package integrity, docs drift).
+- [x] Track post-release quality metrics (tests, package integrity, docs drift).
 
 Acceptance criteria:
 - Every release has reproducible notes and validated artifacts.

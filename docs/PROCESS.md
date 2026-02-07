@@ -113,6 +113,8 @@ Recovery commands:
 ## Global gates
 - Schema validation on generated artifacts
 - Required specs enforced before `req start`
+- `sdd-cli doctor` validates workspace artifacts and reports failures with `SDD-xxxx` codes
+- `sdd-cli doctor --fix` applies safe remediations for missing requirement operation logs
 
 ## Outputs by stage
 - Discovery: `requirement.md`, `requirement.json`, `summary.md`

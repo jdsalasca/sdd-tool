@@ -31,13 +31,13 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 
 ### Phase 3 (Days 61-90): Reliability and scale
 
-- [ ] Add machine-readable error codes (`SDD-xxxx`) for common failures.
-- [ ] Add `doctor --fix` auto-remediation for common workspace issues.
+- [x] Add machine-readable error codes (`SDD-xxxx`) for common failures.
+- [x] Add `doctor --fix` auto-remediation for common workspace issues.
 - [x] Add release notes generation from conventional commits.
-- [ ] Add post-release metrics summary script.
+- [x] Add post-release metrics summary script.
 
 ## Current Milestone
 
-- Milestone: `integration-import-workitems`
+- Milestone: `reliability-scale-ops`
 - Branch: `feature/import-issue-bootstrap`
-- Goal: bootstrap SDD autopilot from existing GitHub issue and Jira work items.
+- Goal: improve reliability with error codes, doctor remediation, and release quality metrics.

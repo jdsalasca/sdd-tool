@@ -24,6 +24,7 @@ This file defines the command set, intent, and expected behavior.
   - Use `--next` to get an exact recommended next command
 - `sdd-cli doctor`
   - Validates schemas, prompt packs, and templates
+  - Use `--fix` to auto-create missing `changelog.md` and `progress-log.md` in requirement folders
 
 ## Router
 - `sdd-cli route`
@@ -101,5 +102,5 @@ This file defines the command set, intent, and expected behavior.
 - `--auto`: alias to trigger question-driven draft generation path
 
 ## Error handling
-- If validation fails, the command reports errors and stops.
+- If validation fails, the command reports machine-readable codes (`SDD-xxxx`) and exits non-zero.
 
