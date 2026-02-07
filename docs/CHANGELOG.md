@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- None.
+
+## 0.1.22
+- Release notes: `docs/releases/v0.1.22.md`
+- Release metrics: `docs/releases/v0.1.22-metrics.md`
 - Add contributor onboarding pack (`docs/CONTRIBUTOR_QUICKSTART.md`) and issue triage taxonomy (`docs/ISSUE_TRIAGE_PLAYBOOK.md`).
 - Add contributor-focused dev shortcuts: `npm run dev:smoke` and `npm run dev:release-check`.
 - Add integration adapters contract and rollout guide in `docs/INTEGRATION_ADAPTERS.md` (Linear/Azure/GitLab).
