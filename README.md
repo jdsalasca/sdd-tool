@@ -213,6 +213,10 @@ sdd-cli hello "I want a simple booking system for appointments"
 5) Check output in:
 `<workspace>/<project>/requirements/done/<REQ-ID>/`
 
+For a full onboarding walkthrough, see:
+- `docs/FIRST_15_MINUTES.md`
+- `examples/transcripts/FIRST_15_MINUTES.md`
+
 ## Recovery quick commands
 
 - Continue an existing project:

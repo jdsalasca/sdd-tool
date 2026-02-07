@@ -54,6 +54,7 @@ Acceptance criteria:
 - [x] Add a 90-day adoption roadmap in docs.
 - [x] Add beginner mode (`--beginner`) for richer guided narration.
 - [x] Add `status --next` recommendation command.
+- [x] Add first-run onboarding transcript and walkthrough docs.
 
 Acceptance criteria:
 - New users can reach first successful done requirement with minimal friction.

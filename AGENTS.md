@@ -20,7 +20,7 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 - [x] Add `quickstart` command for one-command demo.
 - [x] Add beginner mode (`--beginner`) with extra guided narration.
 - [x] Add `status --next` command to recommend exact next command.
-- [ ] Add first-run onboarding transcript/gif in docs.
+- [x] Add first-run onboarding transcript/gif in docs.
 
 ### Phase 2 (Days 31-60): Workflow integration
 
@@ -38,6 +38,6 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 
 ## Current Milestone
 
-- Milestone: `activation-quickstart`
-- Branch: `feature/adoption-roadmap-quickstart`
-- Goal: ship one-command onboarding + publish roadmap tracking.
+- Milestone: `activation-onboarding-pack`
+- Branch: `feature/onboarding-first-15-minutes`
+- Goal: ship first-run walkthrough and transcript assets for new-user activation.
