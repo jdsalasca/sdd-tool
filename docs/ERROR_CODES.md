@@ -19,6 +19,8 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: provide `https://github.com/<owner>/<repo>/issues/<number>`.
 - `SDD-1111`: Invalid Jira ticket
   - Fix: provide `PROJ-123` or `https://<site>/browse/PROJ-123`.
+- `SDD-1121`: Invalid Linear ticket
+  - Fix: provide `LIN-123` or `https://linear.app/<team>/issue/LIN-123/<slug>`.
 - `SDD-1004`: Resume requested without checkpoint
   - Fix: run from `--from-step create` first, or execute full autopilot once to create checkpoint state.
 - `SDD-1011`: Invalid quickstart example

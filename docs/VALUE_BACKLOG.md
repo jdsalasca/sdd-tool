@@ -88,7 +88,7 @@ Priority is driven by adoption, reliability, and contributor experience.
 - Status: In progress
 - Scope:
   - [x] Define adapter contract for trackers (Linear, Azure Boards, GitLab issues).
-  - [ ] Add one additional importer to validate architecture.
+  - [x] Add one additional importer to validate architecture.
 
 ### 9) Templates quality uplift
 - Status: Planned

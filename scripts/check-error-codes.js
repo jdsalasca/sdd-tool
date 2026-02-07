@@ -5,6 +5,7 @@ const path = require("node:path");
 const TARGET_FILES = [
   "src/commands/import-issue.ts",
   "src/commands/import-jira.ts",
+  "src/commands/import-linear.ts",
   "src/commands/req-create.ts",
   "src/commands/req-plan.ts",
   "src/commands/req-start.ts",
