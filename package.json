@@ -42,6 +42,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
+    "dev:smoke": "npm run build && npm run smoke:autopilot",
+    "dev:release-check": "npm run check:error-codes && npm run check:docs && npm test && npm run verify:publish",
     "check:docs": "node scripts/check-docs-flags.js",
     "check:error-codes": "node scripts/check-error-codes.js",
     "release:notes": "node scripts/generate-release-notes.js",

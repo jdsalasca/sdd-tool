@@ -78,11 +78,11 @@ Priority is driven by adoption, reliability, and contributor experience.
 ## P2 (Community + Ecosystem)
 
 ### 7) Contributor onboarding pack
-- Status: Planned
+- Status: In progress
 - Scope:
-  - Add `docs/CONTRIBUTOR_QUICKSTART.md` with 15-minute setup and first contribution flow.
-  - Add script shortcuts for common dev tasks (`npm run dev:smoke`, `npm run dev:release-check`).
-  - Add issue labels taxonomy and triage playbook.
+  - [x] Add `docs/CONTRIBUTOR_QUICKSTART.md` with 15-minute setup and first contribution flow.
+  - [x] Add script shortcuts for common dev tasks (`npm run dev:smoke`, `npm run dev:release-check`).
+  - [x] Add issue labels taxonomy and triage playbook.
 
 ### 8) Integration adapters roadmap
 - Status: Planned
