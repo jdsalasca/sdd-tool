@@ -2,6 +2,7 @@ export type RuntimeFlags = {
   approve: boolean;
   improve: boolean;
   parallel: boolean;
+  nonInteractive: boolean;
   project?: string;
   output?: string;
 };
@@ -10,6 +11,7 @@ const flags: RuntimeFlags = {
   approve: false,
   improve: false,
   parallel: false,
+  nonInteractive: false,
   project: undefined,
   output: undefined
 };
@@ -23,6 +25,9 @@ export function setFlags(next: Partial<RuntimeFlags>): void {
   }
   if ("parallel" in next) {
     flags.parallel = Boolean(next.parallel);
+  }
+  if ("nonInteractive" in next) {
+    flags.nonInteractive = Boolean(next.nonInteractive);
   }
   if ("project" in next) {
     flags.project = typeof next.project === "string" ? next.project : undefined;

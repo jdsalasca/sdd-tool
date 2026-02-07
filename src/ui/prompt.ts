@@ -6,6 +6,10 @@ let queuedAnswers: string[] | null = null;
 let rl: readline.Interface | null = null;
 
 function shouldUseQueuedAnswers(): boolean {
+  const flags = getFlags();
+  if (flags.nonInteractive || process.env.SDD_NON_INTERACTIVE === "1") {
+    return true;
+  }
   if (process.env.SDD_STDIN === "1") {
     return true;
   }
@@ -52,6 +56,10 @@ export function closePrompt(): void {
 process.on("exit", () => closePrompt());
 
 export function ask(question: string): Promise<string> {
+  const flags = getFlags();
+  if (flags.nonInteractive || process.env.SDD_NON_INTERACTIVE === "1") {
+    return Promise.resolve("");
+  }
   if (shouldUseQueuedAnswers()) {
     const queue = getQueuedAnswers();
     const answer = queue.shift() ?? "";
@@ -75,7 +83,7 @@ export async function askProjectName(prompt = "Project name: "): Promise<string>
 
 export async function confirm(question: string): Promise<boolean> {
   const flags = getFlags();
-  if (flags.approve) {
+  if (flags.approve || flags.nonInteractive || process.env.SDD_NON_INTERACTIVE === "1") {
     return true;
   }
   const response = await ask(question);

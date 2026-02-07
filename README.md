@@ -117,31 +117,32 @@ Package name on npm is `sdd-cli` (CLI commands remain `sdd-cli` and `sdd`).
 
 Project names must use letters, numbers, spaces, `-` or `_`, and cannot include path separators.
 
-The `hello` command is the entry point: it connects to AI, lists active projects, and offers to create a new one or continue. It then runs a guided, happy-path sequence from discovery to completion.
+The `hello` command is the entry point: it connects to AI, lists active projects, and offers to create a new one or continue.  
+Default behavior is now a guided autopilot from discovery to completion with minimal prompts.  
+Use `--questions` when you want the manual question-by-question flow.
 
 ## The happy path (end-to-end flow)
 
 1) **Start**  
    `sdd-cli hello` connects to AI, shows active projects, and asks if you want to start new or continue.
-   It also asks for project name, domain, output location, language profile, and quality level.
 
-2) **Discover**  
-   Guided prompts produce `requirements/backlog/REQ-0001/requirement.md`.
+2) **Autopilot Discovery**  
+   Creates a requirement draft in backlog with validated defaults.
 
-3) **Refine**  
-   `sdd-cli req refine` resolves ambiguity, missing metrics, and risks.
+3) **Autopilot Planning**  
+   Generates functional spec, technical spec, architecture, and test plan drafts.
 
-4) **Plan (WIP)**  
-   `sdd-cli req plan` creates functional spec, tech spec, and architecture drafts.
+4) **Autopilot Start**  
+   Creates implementation plan and quality artifacts; moves requirement to `in-progress`.
 
-5) **Implement**  
-   `sdd-cli req start` generates the implementation plan and activates quality gates.
+5) **Autopilot Verify**  
+   Updates/validates test-plan artifacts.
 
-6) **Verify**  
-   `sdd-cli test plan` defines scenarios and coverage targets.
+6) **Autopilot Finish**  
+   Finalizes requirement, writes project-level README artifacts, and moves requirement to `done`.
 
-7) **Finish**  
-   `sdd-cli req finish` seals the requirement, versioned docs, and decision logs.
+7) **Manual Detail (optional)**  
+   Run `sdd-cli hello --questions` when you prefer detailed prompt packs before drafting.
 
 ## Commands (proposed)
 
@@ -183,7 +184,24 @@ The `hello` command is the entry point: it connects to AI, lists active projects
 - `--output <path>` -- override workspace output
 - `--project <name>` -- set project name
 - `--parallel` -- generate in parallel
+- `--questions` -- use manual question-driven discovery flow
+- `--non-interactive` -- run without confirmations (script/CI friendly)
 - `--alias sdd` -- optional alias to run as `sdd`
+
+## Beginner quickstart
+
+1) Install:
+```
+npm install -g sdd-cli
+```
+2) Run:
+```
+sdd-cli hello "I want a simple booking system for appointments"
+```
+3) Follow minimal prompts (workspace/project confirmation).  
+4) Let autopilot complete the full flow.  
+5) Check output in:
+`<workspace>/<project>/requirements/done/<REQ-ID>/`
 
 ## Where files are stored (clean repos)
 

@@ -76,7 +76,11 @@ function createSpecBundle(projectRoot, status, reqId, projectName) {
 
 function runCli(workspaceRoot, projectName, args, input) {
   const cliPath = path.join(__dirname, "..", "dist", "cli.js");
-  return spawnSync(process.execPath, [cliPath, "--output", workspaceRoot, "--project", projectName, ...args], {
+  const baseArgs = [cliPath, "--output", workspaceRoot];
+  if (projectName && projectName.trim().length > 0) {
+    baseArgs.push("--project", projectName);
+  }
+  return spawnSync(process.execPath, [...baseArgs, ...args], {
     input,
     encoding: "utf-8",
     env: { ...process.env, SDD_STDIN: "1" }
@@ -170,4 +174,18 @@ test("hello default mode runs full autopilot pipeline to done", () => {
   const doneEntries = fs.readdirSync(doneRoot);
   assert.equal(doneEntries.length > 0, true);
   assert.equal(fs.existsSync(path.join(workspaceRoot, projectName, "project-readme.json")), true);
+});
+
+test("hello supports non-interactive mode with defaults", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-non-interactive-"));
+  const result = runCli(
+    workspaceRoot,
+    "",
+    ["--non-interactive", "hello", "Build an inventory tracker for a small store"],
+    ""
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+  assert.match(result.stdout, /Using project: autopilot-/i);
 });
