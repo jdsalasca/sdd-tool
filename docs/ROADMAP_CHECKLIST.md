@@ -5,10 +5,10 @@ turn user intent into reliable, auditable outcomes with minimal friction.
 
 ## Milestone M1 - Product Truth and Onboarding Clarity
 
-- [ ] Align `README.md`, `docs/PROCESS.md`, and `docs/COMMANDS.md` with real default behavior.
-- [ ] Document default `hello` autopilot flow and manual `--questions` flow.
-- [ ] Add a beginner quickstart with one end-to-end example.
-- [ ] Add "what to run next" guidance for recovery after partial failures.
+- [x] Align `README.md`, `docs/PROCESS.md`, and `docs/COMMANDS.md` with real default behavior.
+- [x] Document default `hello` autopilot flow and manual `--questions` flow.
+- [x] Add a beginner quickstart with one end-to-end example.
+- [x] Add "what to run next" guidance for recovery after partial failures.
 
 Acceptance criteria:
 - Docs match current CLI behavior and flags.

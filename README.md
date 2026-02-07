@@ -119,6 +119,7 @@ Project names must use letters, numbers, spaces, `-` or `_`, and cannot include 
 
 The `hello` command is the entry point: it connects to AI, lists active projects, and offers to create a new one or continue.  
 Default behavior is now a guided autopilot from discovery to completion with minimal prompts.  
+When you pass direct intent text (`sdd-cli hello "..."`), hello uses auto-guided defaults and minimizes confirmations.  
 Use `--questions` when you want the manual question-by-question flow.
 
 ## The happy path (end-to-end flow)
@@ -202,6 +203,15 @@ sdd-cli hello "I want a simple booking system for appointments"
 4) Let autopilot complete the full flow.  
 5) Check output in:
 `<workspace>/<project>/requirements/done/<REQ-ID>/`
+
+## Recovery quick commands
+
+- Continue an existing project:
+`sdd-cli --project <project-name> hello "continue"`
+- Resume from a specific stage:
+`sdd-cli --project <project-name> --from-step test hello "resume"`
+- Script-safe full default run:
+`sdd-cli --non-interactive hello "<your intent>"`
 
 ## Where files are stored (clean repos)
 
