@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- None.
+
+## 0.1.21
+- Release notes: _pending_
+- Release metrics: `docs/releases/v0.1.21-metrics.md`
 - Mark Milestone M7 complete with deterministic `SDD-xxxx` error coverage and enforcement across command families.
 - Add deterministic error handling for `hello --questions` prompt-pack load failures (`SDD-1012`).
 
