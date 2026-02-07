@@ -162,6 +162,9 @@ Use `--questions` when you want the manual question-by-question flow.
 ### Router
 - `sdd-cli route` -- classify user intent and route to the right flow
 
+### Imports
+- `sdd-cli import issue <github-issue-url>` -- import issue context and bootstrap autopilot
+
 ### Requirement lifecycle
 - `sdd-cli req create`
 - `sdd-cli req refine`

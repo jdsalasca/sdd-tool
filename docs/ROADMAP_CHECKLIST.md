@@ -59,3 +59,14 @@ Acceptance criteria:
 Acceptance criteria:
 - New users can reach first successful done requirement with minimal friction.
 - Adoption work is tracked visibly with milestones and measurable KPIs.
+
+## Milestone M6 - Workflow Integration
+
+- [x] Add GitHub issue import bootstrap (`import issue <url>`).
+- [ ] Add Jira import bootstrap (`import jira <ticket>`).
+- [ ] Add PR review bridge into requirement artifacts.
+- [ ] Add monorepo scope targeting (`--scope`).
+
+Acceptance criteria:
+- Existing work items can be imported directly into SDD flow.
+- Teams can adopt SDD without replacing current tracker systems.

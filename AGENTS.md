@@ -24,7 +24,7 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 
 ### Phase 2 (Days 31-60): Workflow integration
 
-- [ ] Add issue import command (`import issue <url>`).
+- [x] Add issue import command (`import issue <url>`).
 - [ ] Add Jira ticket import command (`import jira <ticket>`).
 - [ ] Add PR review bridge from existing PR commands to SDD artifacts.
 - [ ] Add monorepo scope targeting (`--scope`).
@@ -38,6 +38,6 @@ This file tracks adoption-focused execution work for `sdd-cli`.
 
 ## Current Milestone
 
-- Milestone: `activation-onboarding-pack`
-- Branch: `feature/onboarding-first-15-minutes`
-- Goal: ship first-run walkthrough and transcript assets for new-user activation.
+- Milestone: `integration-import-issue`
+- Branch: `feature/import-issue-bootstrap`
+- Goal: bootstrap SDD autopilot from existing GitHub issue URLs.

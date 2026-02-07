@@ -13,6 +13,7 @@ Command: `sdd-cli hello`
 - Manual question flow remains available with `--questions`
 - Fast onboarding entry is also available via `sdd-cli quickstart --example <name>`
 - Beginner-guided narration is available with `--beginner`
+- Existing backlog items can enter via `sdd-cli import issue <github-url>`
 
 ## 1) Discovery (create)
 Command: `sdd-cli req create`
