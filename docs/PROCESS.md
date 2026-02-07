@@ -103,6 +103,7 @@ Recovery commands:
 - Run script/CI-safe defaults: `sdd-cli --non-interactive hello "<intent>"`
 - Preview full autopilot without writes: `sdd-cli --dry-run hello "<intent>"`
 - On autopilot interruption, `hello` prints a ready-to-run recovery command with `--project` and `--from-step`.
+- Run `sdd-cli --project <name> status --next` to get the next recommended command from current requirement states.
 
 ## Global gates
 - Schema validation on generated artifacts
