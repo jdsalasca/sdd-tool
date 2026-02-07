@@ -192,6 +192,9 @@ Use `--questions` when you want the manual question-by-question flow.
 - `--parallel` -- generate in parallel
 - `--questions` -- use manual question-driven discovery flow
 - `--non-interactive` -- run without confirmations (script/CI friendly)
+- `--beginner` -- show extra step-by-step explanations during hello autopilot
+- `--dry-run` -- preview autopilot stages without writing artifacts
+- `--from-step` -- resume autopilot from `create|plan|start|test|finish`
 - `--alias sdd` -- optional alias to run as `sdd`
 
 ## Beginner quickstart
