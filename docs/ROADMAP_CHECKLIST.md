@@ -42,6 +42,7 @@ Acceptance criteria:
 - [x] Publish GitHub Releases with structured highlights and migration notes.
 - [x] Expand changelog automation for npm releases.
 - [x] Track post-release quality metrics (tests, package integrity, docs drift).
+- [x] Add npm publish workflow with release-tag validation and pre-publish checks.
 
 Acceptance criteria:
 - Every release has reproducible notes and validated artifacts.

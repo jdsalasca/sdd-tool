@@ -19,5 +19,8 @@
 - `bin` entry verified
 - Basic install/run test executed
 - Tag push triggers `.github/workflows/release.yml` successfully
+- `npm run verify:release-tag -- --tag vX.Y.Z` passes
+- `npm run verify:publish` passes (`npm pack --dry-run` includes required files)
+- `.github/workflows/npm-publish.yml` succeeds with `NPM_TOKEN`
 
 
