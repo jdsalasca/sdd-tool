@@ -16,6 +16,7 @@
 - docs/CHANGELOG.md
 - docs/ERROR_CODES.md
 - docs/VALUE_BACKLOG.md
+- docs/INTEGRATION_ADAPTERS.md
 - docs/releases/
 - docs/CONTRIBUTING.md
 - docs/CONTRIBUTOR_QUICKSTART.md

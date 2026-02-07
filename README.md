@@ -255,6 +255,7 @@ For a full onboarding walkthrough, see:
 - 90-day roadmap: `docs/ADOPTION_ROADMAP_90D.md`
 - Value backlog: `docs/VALUE_BACKLOG.md`
 - Error codes and remediation guide: `docs/ERROR_CODES.md`
+- Integration adapters roadmap and contract: `docs/INTEGRATION_ADAPTERS.md`
 
 ## Where files are stored (clean repos)
 
