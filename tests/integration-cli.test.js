@@ -581,6 +581,22 @@ test("status emits SDD error code when selected project directory does not exist
   assert.match(result.stdout, /\[SDD-1402\]/i);
 });
 
+test("list emits SDD error code when prompt packs cannot be loaded", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-list-missing-packs-"));
+  const fakeRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-repo-missing-packs-"));
+  const result = runCli(workspaceRoot, "", ["list"], "", { SDD_REPO_ROOT: fakeRepoRoot });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1421\]/i);
+});
+
+test("route emits SDD error code when route context cannot be loaded", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-route-missing-context-"));
+  const fakeRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-repo-missing-context-"));
+  const result = runCli(workspaceRoot, "", ["route", "build api"], "", { SDD_REPO_ROOT: fakeRepoRoot });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1424\]/i);
+});
+
 test("hello emits SDD error code for invalid --from-step value", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-invalid-from-step-"));
   const result = runCli(workspaceRoot, "InvalidStepProject", ["--non-interactive", "--from-step", "invalid", "hello", "resume pipeline"], "");

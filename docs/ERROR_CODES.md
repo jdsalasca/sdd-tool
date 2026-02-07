@@ -31,6 +31,10 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: run `sdd-cli status` without `--project`, or choose a valid project name from workspace index.
 - `SDD-1412`: No scopes available in workspace
   - Fix: initialize scoped work with `--scope <name>` on project commands, then rerun `sdd-cli scope list`.
+- `SDD-1421`: Prompt pack index cannot be loaded
+  - Fix: ensure `templates/prompt-pack-index.json` exists and is valid JSON.
+- `SDD-1424`: Route context loading failed
+  - Fix: verify router flow/template assets exist under repository root and retry.
 - `SDD-1249`: Requirement not found for lint run
   - Fix: verify `REQ-*` exists with `sdd-cli req list`, then rerun lint.
 - `SDD-1503`: Codex provider unavailable

@@ -33,6 +33,7 @@
 - Add `SDD-1411` scope-status validation error and monitor `status`/`scope-status` in `check:error-codes` coverage.
 - Add integration tests for new error-code paths (`hello --from-step` invalid, `scope status` missing scope).
 - Add deterministic scope/status edge errors (`SDD-1402`, `SDD-1412`) with integration test coverage.
+- Add deterministic list/route failure handling (`SDD-1421`, `SDD-1424`) and include both commands in error-code enforcement checks.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.
