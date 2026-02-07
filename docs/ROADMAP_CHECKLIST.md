@@ -40,7 +40,7 @@ Acceptance criteria:
 
 - [x] Generate release notes from conventional commits.
 - [x] Publish GitHub Releases with structured highlights and migration notes.
-- [ ] Expand changelog automation for npm releases.
+- [x] Expand changelog automation for npm releases.
 - [x] Track post-release quality metrics (tests, package integrity, docs drift).
 
 Acceptance criteria:

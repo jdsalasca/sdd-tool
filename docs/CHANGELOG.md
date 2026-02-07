@@ -10,6 +10,7 @@
 - Add release quality summary automation via `npm run release:metrics`.
 - Add workspace index locking with stale lock recovery for concurrent write safety.
 - Add GitHub Release workflow automation for tagged versions with generated notes and attached metrics.
+- Add changelog promotion automation for npm releases via `npm run release:changelog`.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.
