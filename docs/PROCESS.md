@@ -7,13 +7,15 @@ Command: `sdd-cli hello`
 - Load workspace index
 - Show active projects and last activity
 - Ask: new project or continue?
-- If new: collect project name, domain, persona, output location
-- Validate project name (letters, numbers, spaces, `-`, `_` only)
+- If no project is provided, suggest or auto-generate one in default flow
 - Run intent router and select flow
+- Default mode now runs a guided autopilot pipeline from create to finish
+- Manual question flow remains available with `--questions`
 
 ## 1) Discovery (create)
 Command: `sdd-cli req create`
-- Ask mandatory discovery questions
+- In autopilot mode, use safe defaults to reduce mandatory prompts
+- In manual mode, ask discovery questions directly
 - Generate `requirement.md` and `requirement.json` in backlog
 - Create `changelog.md` and `progress-log.md`
 - Validate against `requirement.schema.json`
@@ -31,6 +33,7 @@ Command: `sdd-cli req plan`
 - Record diagram references (text-based)
 - Update requirement status to `wip`
 - Validate specs against schemas
+- Supports autopilot defaults when invoked by `hello`
 
 ## 4) Implementation readiness (start)
 Command: `sdd-cli req start`
@@ -38,11 +41,13 @@ Command: `sdd-cli req start`
 - Activate quality contract `quality.yml`
 - Update requirement status to `in-progress`
 - Gate: required specs and quality contract exist
+- Supports autopilot defaults when invoked by `hello`
 
 ## 5) Verification (verify)
 Command: `sdd-cli test plan`
 - Expand test cases and edge scenarios
 - Validate test plan against schema
+- Supports autopilot defaults when invoked by `hello`
 
 ## Knowledge mode (learning sessions)
 Command: `sdd-cli learn start`
@@ -62,6 +67,7 @@ Command: `sdd-cli req finish`
 - Lock ADRs and decision log
 - Mark requirement as done and archive if requested
 - Update requirement status to `done`
+- Supports autopilot defaults when invoked by `hello`
 
 ## PR review process (specialized)
 Command: `sdd-cli pr start`
@@ -85,6 +91,7 @@ Command: `sdd-cli pr report`
 Command: `sdd-cli hello`
 - Read metadata and status
 - Offer next recommended step
+- In default flow, provide step-by-step progress narration with intent, planning, testing, and finalization
 
 ## Global gates
 - Schema validation on generated artifacts
