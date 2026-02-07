@@ -1,6 +1,6 @@
 import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
-import { ask, askProjectName, confirm } from "../ui/prompt";
+import { ask, confirm } from "../ui/prompt";
 import { getPromptPackById, loadPromptPacks } from "../router/prompt-packs";
 import { mapAnswersToRequirement } from "../router/prompt-map";
 import { RequirementDraft, runReqCreate } from "./req-create";
@@ -10,6 +10,30 @@ import { runReqStart } from "./req-start";
 import { runReqFinish } from "./req-finish";
 import { runRoute } from "./route";
 import { runTestPlan } from "./test-plan";
+
+function printStep(step: string, description: string): void {
+  console.log(`${step}: ${description}`);
+}
+
+function printWhy(message: string): void {
+  console.log(`  -> ${message}`);
+}
+
+function deriveProjectName(input: string, flow: string): string {
+  const seed = input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9 _-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter((token) => token.length > 0)
+    .slice(0, 4)
+    .join("-");
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const base = seed.length > 0 ? seed : flow.toLowerCase();
+  return `autopilot-${base}-${date}`;
+}
 
 function buildAutopilotDraft(input: string, flow: string, domain: string): RequirementDraft {
   const cleanInput = input.trim();
@@ -126,16 +150,18 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   }
   const intent = classifyIntent(text);
   console.log(`Detected intent: ${intent.intent} -> ${intent.flow}`);
-  console.log("Step 1/3: Intent detected.");
-  const showRoute = await confirm("View route details now? (y/n) ");
-  if (showRoute) {
+  printStep("Step 1/7", "Intent detected");
+  printWhy("I classified your goal and selected the best starting flow.");
+  const showRoute = runQuestions === true ? await confirm("View route details now? (y/n) ") : false;
+  if (showRoute && runQuestions === true) {
     runRoute(text);
   } else {
     console.log("Next: run `sdd-cli route <your input>` to view details.");
   }
 
   const shouldRunQuestions = runQuestions === true;
-  console.log("Step 2/3: Requirement setup.");
+  printStep("Step 2/7", "Requirement setup");
+  printWhy("I will gather enough context to generate a valid first draft.");
   if (shouldRunQuestions) {
     const packs = loadPromptPacks();
     const packIds = FLOW_PROMPT_PACKS[intent.flow] ?? [];
@@ -162,29 +188,36 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       if (ok) {
         const created = await runReqCreate(mapped, { autofill: true });
         if (created) {
-          console.log(`Step 3/3: Draft created (${created.reqId}).`);
+          printStep("Step 3/7", `Draft created (${created.reqId})`);
           console.log("Next suggested command: sdd-cli req refine");
         }
       }
     }
   } else {
-    const activeProject = getFlags().project || (await askProjectName());
+    let activeProject = getFlags().project;
+    if (!activeProject) {
+      const quickProject = await ask("Project name (optional, press Enter to auto-generate): ");
+      activeProject = quickProject || deriveProjectName(text, intent.flow);
+    }
     if (!activeProject) {
       console.log("Project name is required to run autopilot.");
       return;
     }
+    printWhy(`Using project: ${activeProject}`);
     setFlags({ project: activeProject });
     const draft = buildAutopilotDraft(text, intent.flow, intent.domain);
     draft.project_name = activeProject;
 
-    console.log("Step 3/7: Creating requirement draft automatically...");
+    printStep("Step 3/7", "Creating requirement draft automatically");
+    printWhy("This creates your baseline scope, acceptance criteria, and NFRs.");
     const created = await runReqCreate(draft, { autofill: true });
     if (!created) {
       console.log("Autopilot stopped at requirement creation.");
       return;
     }
 
-    console.log(`Step 4/7: Planning requirement ${created.reqId}...`);
+    printStep("Step 4/7", `Planning requirement ${created.reqId}`);
+    printWhy("I am generating functional, technical, architecture, and test artifacts.");
     const planned = await runReqPlan({
       projectName: activeProject,
       reqId: created.reqId,
@@ -196,7 +229,8 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       return;
     }
 
-    console.log(`Step 5/7: Starting implementation plan for ${created.reqId}...`);
+    printStep("Step 5/7", `Preparing implementation plan for ${created.reqId}`);
+    printWhy("This stage defines milestones, tasks, quality thresholds, and decisions.");
     const started = await runReqStart({
       projectName: activeProject,
       reqId: created.reqId,
@@ -208,7 +242,8 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       return;
     }
 
-    console.log(`Step 6/7: Updating test plan for ${created.reqId}...`);
+    printStep("Step 6/7", `Updating test plan for ${created.reqId}`);
+    printWhy("I am ensuring critical paths, edge cases, and regression tests are documented.");
     const tested = await runTestPlan({
       projectName: activeProject,
       reqId: created.reqId,
@@ -220,7 +255,8 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       return;
     }
 
-    console.log(`Step 7/7: Finalizing requirement ${created.reqId}...`);
+    printStep("Step 7/7", `Finalizing requirement ${created.reqId}`);
+    printWhy("I will move artifacts to done state and generate project-level summary files.");
     const finished = await runReqFinish({
       projectName: activeProject,
       reqId: created.reqId,
