@@ -14,5 +14,6 @@ This document defines the Gitflow release steps for sdd-cli.
 9) Merge release PR to `main`
 10) Tag `vX.Y.Z` and push the tag
 11) GitHub Actions `Release` workflow publishes GitHub Release with structured notes, migration notes, and metrics attachment
-12) Merge `main` back into `develop`
+12) GitHub Actions `NPM Publish` workflow verifies publish readiness and publishes to npm
+13) Merge `main` back into `develop`
 
