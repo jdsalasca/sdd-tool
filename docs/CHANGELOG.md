@@ -8,6 +8,7 @@
 - Add machine-readable doctor diagnostics with `SDD-xxxx` error codes and non-zero exit behavior.
 - Add `sdd-cli doctor --fix` for safe remediation of missing requirement operation logs.
 - Add release quality summary automation via `npm run release:metrics`.
+- Add workspace index locking with stale lock recovery for concurrent write safety.
 
 ## 0.1.6
 - Standardize docs and reports layout under `docs/`.
