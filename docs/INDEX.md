@@ -1,21 +1,19 @@
 # Docs Index
 
 ## Foundations
-- docs/MISSION.md
-- docs/VISION.md
 - docs/GLOSSARY.md
+- docs/strategy/MISSION.md
+- docs/strategy/VISION.md
 
 ## Process and workflow
 - docs/PROCESS.md
 - docs/COMMANDS.md
-- docs/ADOPTION_ROADMAP_90D.md
 - docs/FIRST_15_MINUTES.md
 - docs/INTERACTIONS.md
 - docs/RELEASE_PROCESS.md
 - docs/GITFLOW.md
 - docs/CHANGELOG.md
 - docs/ERROR_CODES.md
-- docs/VALUE_BACKLOG.md
 - docs/INTEGRATION_ADAPTERS.md
 - docs/releases/
 - docs/CONTRIBUTING.md
@@ -25,6 +23,14 @@
 - docs/TROUBLESHOOTING.md
 - .github/PULL_REQUEST_TEMPLATE.md
 - .github/PULL_REQUEST_TEMPLATE_RELEASE.md
+
+## Strategy and market
+- docs/strategy/README.md
+- docs/strategy/MARKET_POSITIONING.md
+- docs/strategy/ADOPTION_ROADMAP_90D.md
+- docs/strategy/VALUE_BACKLOG.md
+- docs/strategy/ROADMAP_CHECKLIST.md
+- docs/strategy/IMPROVEMENT_TODO.md
 
 ## Architecture and design
 - docs/ARCHITECTURE.md

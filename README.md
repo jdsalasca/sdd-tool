@@ -1,674 +1,112 @@
 # sdd-cli
 
-Specification-driven delivery CLI that turns requirements into specs, architecture, tests, and traceable docs.
+AI-orchestrated CLI for software delivery: it turns one product goal into requirements, specs, test plans, generated app code, quality checks, and optional GitHub publish.
 
-## Repository overview
+## What It Does
 
-This repo hosts the CLI implementation, domain flows, templates, schemas, and structured documentation for the SDD workflow.
+- Starts from one command:
+  - `sdd-tool "create a notes app with persistence"`
+- Runs an end-to-end lifecycle:
+  - requirement draft
+  - functional/technical/architecture/test artifacts
+  - generated app in `generated-app/`
+  - quality gates and repair loop
+  - git init/commit
+  - optional GitHub publish
+- Works with provider CLIs (Gemini by default, Codex optional).
 
-## Vision (think pyramids)
+## Why Use It
 
-Build the foundation once, then lift everything else. The tool provides a durable structure: requirements, architecture, technical specs, quality gates, test plans, and decision logs. AI gets "wings" by being guided, constrained, and accountable at every step.
+- Reduces time from idea to usable baseline project.
+- Enforces documentation + quality gates before accepting delivery.
+- Keeps artifacts traceable from planning to implementation.
 
-Documentation entry points:
-- `docs/INDEX.md` (full docs map)
-- `docs/COMMANDS.md` (CLI command reference)
-- `docs/INTERACTIONS.md` (orchestration model and provider contract)
-- `docs/ERROR_CODES.md` (machine-readable remediation map)
-- `docs/TROUBLESHOOTING.md` (install/runtime issues)
-- `docs/RELEASE_PROCESS.md` (versioning and publish flow)
-- `docs/CHANGELOG.md` and `docs/releases/` (release history)
+## Install
 
-Examples and templates:
-- `examples/transcripts/`
-- `examples/artifacts/`
-- `examples/schemas/`
-- `examples/diagrams/`
-- `examples/packs/`
-- `examples/README.md`
-- `templates/README.md`
-- `schemas/README.md`
-- `flows/README.md`
-- `templates/`
-- `schemas/`
-
-Automation:
-- `scripts/e2e.ps1`
-- `scripts/e2e.sh`
-
-### AI gets wings through structure
-- **Question banks** enforce clarity before planning.
-- **Quality contracts** enforce clean code across languages.
-- **Decision logs** make trade-offs explicit.
-- **Proof gates** ensure tests and acceptance criteria are met.
-- **Multi-agent roles** ensure no single blind spot dominates.
-
-## Why SDD matters
-
-An SDD (Software Design Document) translates requirements into architecture and technical design decisions. It exists to reduce ambiguity, drive alignment, and protect quality across the lifecycle.
-
-Key properties:
-- Clear decisions and trade-offs.
-- Traceability from requirement to design and tests.
-- Versioned, auditable progress.
-- Designed for real delivery, not just documentation.
-
-## What this tool generates
-
-- Requirements (functional + non-functional)
-- Functional specs (flows, use cases, rules)
-- Technical specs (stack, interfaces, data, security)
-- Architecture (C4, containers, components, deployment)
-- Best practices and quality gates
-- Test plan and acceptance criteria
-- Summary (objective, key decisions, open questions)
-- Decision log (ADR-style)
-- Progress log
-- Project README aligned to the SDD
-
-## Install and run (cross-platform)
-
-```
+```bash
 npm install -g sdd-cli
 ```
 
-Then:
+Binary aliases:
+- `sdd-cli`
+- `sdd`
+- `sdd-tool`
+
+## Fast Start
+
+```bash
+sdd-tool "create a calculator app"
 ```
-sdd-cli hello
+
+Or explicit:
+
+```bash
+sdd-cli hello "create a calculator app"
 ```
-Or run a zero-friction demo:
-```
-sdd-cli quickstart --example saas
-```
 
-Package name on npm is `sdd-cli` (CLI commands remain `sdd-cli` and `sdd`).
+## Best-Payoff Commands
 
-Project names must use letters, numbers, spaces, `-` or `_`, and cannot include path separators.
+- `sdd-cli hello "<goal>"`: full autopilot flow.
+- `sdd-cli suite "<goal>"`: continuous mode; asks only blocking questions.
+- `sdd-cli status --next`: exact next command suggestion.
+- `sdd-cli config show`: inspect active config.
+- `sdd-cli config set <key> <value>`: set provider/model/workspace defaults.
 
-The `hello` command is the entry point: it loads workspace context, lists active projects, routes intent, and runs the guided autopilot flow.  
-Default behavior is now a guided autopilot from discovery to completion with minimal prompts.  
-When you pass direct intent text (`sdd-cli hello "..."`), hello uses auto-guided defaults and minimizes confirmations.  
-Use `--questions` when you want the manual question-by-question flow.
+## Global Flags
 
-## The happy path (end-to-end flow)
+- `--approve`, `--improve`, `--parallel`
+- `--non-interactive`, `--dry-run`, `--beginner`, `--from-step`
+- `--project`, `--output`, `--scope`, `--metrics-local`
+- `--provider`, `--gemini`, `--model`
 
-1) **Start**  
-   `sdd-cli hello` loads workspace state, shows active projects, and asks if you want to start new or continue.
-
-2) **Autopilot Discovery**  
-   Creates a requirement draft in backlog with validated defaults.
-
-3) **Autopilot Planning**  
-   Generates functional spec, technical spec, architecture, and test plan drafts.
-
-4) **Autopilot Start**  
-   Creates implementation plan and quality artifacts; moves requirement to `in-progress`.
-
-5) **Autopilot Verify**  
-   Updates/validates test-plan artifacts.
-
-6) **Autopilot Finish**  
-   Finalizes requirement, writes project-level README artifacts, and moves requirement to `done`.
-
-7) **App Lifecycle Orchestration**  
-   Generates code scaffold in `generated-app`, runs quality checks (when scripts exist), prepares local deploy artifacts, initializes git, and attempts GitHub publish when `gh` is authenticated.
-
-8) **Manual Detail (optional)**  
-   Run `sdd-cli hello --questions` when you prefer detailed prompt packs before drafting.
-
-## Commands (proposed)
-
-### Core
-- `sdd-cli hello` -- interactive session, project picker, full guided flow
-- `sdd-cli suite "<goal>"` -- continuous orchestration mode; asks only blocking decisions and executes full delivery end-to-end
-- `sdd-cli quickstart` -- one-command demo flow with built-in examples
-- `sdd-cli init` -- create SDD workspace and config
-- `sdd-cli list` -- list flows, router flows, templates, prompt packs, and projects
-- `sdd-cli status --next` -- show current project state and exact next command
-- `sdd-cli scope list` -- list monorepo workspace scopes
-- `sdd-cli scope status <scope>` -- show status summary for one scope
-- `sdd-cli doctor` -- validate completeness and consistency
-  - `sdd-cli doctor --fix` -- apply safe remediations for missing requirement ops files
-- `sdd-cli config show` -- show active config and config file path
-- `sdd-cli config init` -- create default config file
-- `sdd-cli config set <key> <value>` -- update config (`workspace.default_root|ai.preferred_cli|ai.model|mode.default|git.publish_enabled`)
-  - include `git.publish_enabled` (`true|false`) to control GitHub publish attempts
-
-### Router
-- `sdd-cli route` -- classify user intent and route to the right flow
-
-### Imports
-- `sdd-cli import issue <github-issue-url>` -- import issue context and bootstrap autopilot
-- `sdd-cli import jira <ticket-or-browse-url>` -- import Jira context and bootstrap autopilot
-- `sdd-cli import linear <ticket-or-issue-url>` -- import Linear context and bootstrap autopilot
-- `sdd-cli import azure <work-item-or-url>` -- import Azure Boards context and bootstrap autopilot
-
-### Requirement lifecycle
-- `sdd-cli req create`
-- `sdd-cli req refine`
-- `sdd-cli req plan`
-- `sdd-cli req start`
-- `sdd-cli req finish`
-
-### Generators
-- `sdd-cli gen requirements`
-- `sdd-cli gen functional-spec`
-- `sdd-cli gen technical-spec`
-- `sdd-cli gen architecture`
-- `sdd-cli gen best-practices`
-- `sdd-cli gen project-readme`
-
-### Test planning
-- `sdd-cli test plan`
-
-### Learning mode
-- `sdd-cli learn start`
-- `sdd-cli learn refine`
-- `sdd-cli learn deliver`
-
-### PR review
-- `sdd-cli pr start`
-- `sdd-cli pr audit`
-- `sdd-cli pr respond`
-- `sdd-cli pr finish`
-- `sdd-cli pr report`
-- `sdd-cli pr bridge`
-- `sdd-cli pr risk`
-- `sdd-cli pr bridge-check`
-
-### Flags
-- `--approve` -- run without extra confirmations
-- `--improve` -- re-open and enhance existing docs
-- `--output <path>` -- override workspace output
-- `--scope <name>` -- isolate artifacts by monorepo scope namespace
-- `--metrics-local` -- record local opt-in telemetry snapshots in `workspace/metrics`
-- `--provider <name>` -- select AI provider (`gemini|codex|auto`), default `gemini`
-- `--gemini` -- shortcut for `--provider gemini`
-- `--project <name>` -- set project name
-- `--parallel` -- generate in parallel
-- `--questions` -- use manual question-driven discovery flow
-- `--non-interactive` -- run without confirmations (script/CI friendly)
-- `--beginner` -- show extra step-by-step explanations during hello autopilot
-- `--dry-run` -- preview autopilot stages without writing artifacts
-- `--from-step` -- resume autopilot from `create|plan|start|test|finish`
-- `--alias sdd` -- optional alias to run as `sdd`
-
-## Beginner quickstart
-
-1) Install:
-```
-npm install -g sdd-cli
-```
-2) Run:
-```
-sdd-cli hello "I want a simple booking system for appointments"
-```
-3) Follow minimal prompts (workspace/project confirmation).  
-4) Let autopilot complete the full flow.  
-5) Check output in:
-`<workspace>/<project>/requirements/done/<REQ-ID>/`
-
-For a full onboarding walkthrough, see:
-- `docs/FIRST_15_MINUTES.md`
-- `examples/transcripts/FIRST_15_MINUTES.md`
-
-## Recovery quick commands
-
-- Continue an existing project:
-`sdd-cli --project <project-name> hello "continue"`
-- Resume from a specific stage:
-`sdd-cli --project <project-name> --from-step test hello "resume"`
-- Script-safe full default run:
-`sdd-cli --non-interactive hello "<your intent>"`
-- Preview autopilot steps without writing files:
-`sdd-cli --dry-run hello "<your intent>"`
-
-## Execution tracking
-
-- Adoption execution tracker: `AGENTS.md`
-- 90-day roadmap: `docs/ADOPTION_ROADMAP_90D.md`
-- Value backlog: `docs/VALUE_BACKLOG.md`
-- Error codes and remediation guide: `docs/ERROR_CODES.md`
-- Integration adapters roadmap and contract: `docs/INTEGRATION_ADAPTERS.md`
-
-## Where files are stored (clean repos)
-
-By default, the tool writes to a dedicated workspace, not into your repo:
-
-- Default (config-driven workspace):  
-  - Windows/macOS/Linux default: `~/Documents/sdd-tool-projects/<project>`
-  - Example on this machine: `C:\Users\jdsal\Documents\sdd-tool-projects\<project>`
+## Config (Important)
 
 Config file:
 - Windows: `%APPDATA%/sdd-cli/config.yml`
 - macOS/Linux: `~/.config/sdd-cli/config.yml`
 
-Default config values:
-- `workspace.default_root`: `{{home}}/Documents/sdd-tool-projects`
-- `ai.preferred_cli`: `gemini`
-- `ai.model`: `gemini-2.5-flash-lite`
-- `mode.default`: `guided`
-- `git.publish_enabled`: `false`
+Default values:
+- `workspace.default_root: {{home}}/Documents/sdd-tool-projects`
+- `ai.preferred_cli: gemini`
+- `ai.model: gemini-2.5-flash-lite`
+- `mode.default: guided`
+- `git.publish_enabled: false`
 
-Optional:
-- `--output ./docs/sdd` to keep SDD next to the repo
-- `--output ../_sdd/<project>` for a separate shared directory
-- `--scope apps-payments` to isolate workspaces for one monorepo domain
+Recommended first setup:
 
-## Release notes automation
-
-- Generate notes from conventional commits:
-`npm run release:notes`
-- Write notes to `docs/releases/<version>.md`:
-`npm run release:notes -- --write --version v0.1.20`
-- Generate post-release quality summary:
-`npm run release:metrics`
-- Run fast contributor smoke checks:
-`npm run dev:smoke`
-- Run contributor pre-PR release checks:
-`npm run dev:release-check`
-- Promote `Unreleased` changelog entries into a version:
-`npm run release:changelog -- --version v0.1.20`
-- Verify tag/version consistency:
-`npm run verify:release-tag -- --tag v0.1.20`
-- Verify npm publish bundle before publishing:
-`npm run verify:publish`
-
-## Local metrics (opt-in)
-
-- Enable local snapshots:
-`sdd-cli --metrics-local hello "your intent"`
-- View summary from current workspace root:
-`npm run metrics:summary -- <workspace-path>`
-
-## Lifecycle folders
-
-```
-docs/
-  requirements/
-    backlog/
-    wip/
-    in-progress/
-    done/
-    archived/
+```bash
+sdd-cli config init
+sdd-cli config set workspace.default_root "{{home}}/Documents/sdd-tool-projects"
+sdd-cli config set ai.preferred_cli gemini
+sdd-cli config set git.publish_enabled false
 ```
 
-`wip/` is the planning and design stage. `in-progress/` is optional for implementation-specific tracking.
+## Provider Notes
 
-## How we ensure the right questions get asked
+- Gemini default:
+  - `sdd-cli --provider gemini hello "<goal>"`
+  - shortcut: `sdd-cli --gemini hello "<goal>"`
+- Auto-select available provider:
+  - `sdd-cli --provider auto hello "<goal>"`
+- Verify provider wiring:
+  - `sdd-cli ai status`
 
-### Mandatory discovery fields
-- Clear objective (measurable)
-- Users/actors
-- Scope and out-of-scope
-- Acceptance criteria
-- Non-functional requirements (security, performance, availability)
-- Data sensitivity and compliance requirements
+## Output Layout
 
-### Ambiguity detection
-- Vague adjectives require metrics ("fast", "secure", "scalable")
-- Missing scale (traffic, data size, concurrency) is blocked
-- External dependencies must be listed or the flow stops
+Projects are created under your workspace root:
 
-### Persona-aware questions
-- The question bank adapts to the selected flow (law, education, data science, etc.).
-- Domain rules add extra checks (compliance, audit, bias, safety).
+- `<workspace>/<project>/requirements/...`
+- `<workspace>/<project>/generated-app/...`
+- `<workspace>/<project>/decision-log/...`
 
-### Consistency gate
-`sdd-cli doctor` ensures every requirement has matching specs, tests, and ADRs.
+## Release and Docs
 
-## Clean code across any language
+- Changelog: `docs/CHANGELOG.md`
+- Command reference: `docs/COMMANDS.md`
+- Error code map: `docs/ERROR_CODES.md`
+- Release notes: `docs/releases/`
+- Strategy and market docs: `docs/strategy/`
 
-### Quality contract
-`quality.yml` defines global standards and language-specific toolchains.
+## License
 
-General rules:
-- Single responsibility per function/class
-- Explicit error handling and consistent logging
-- Formatting and linting required
-- Tests for critical flows
-- Max complexity threshold
-
-Language profiles (opt-in):
-- JS/TS: ESLint + Prettier + Vitest
-- Python: Ruff/Black + Pytest
-- Go: gofmt + golangci-lint + go test
-- Java: Checkstyle/SpotBugs + JUnit
-
-## Multi-agent coordination
-
-### Roles
-- **Req Analyst** -- clarity and acceptance criteria
-- **Solution Architect** -- design and trade-offs
-- **Tech Lead** -- implementation plan and quality
-- **QA** -- test plan, edge cases, coverage
-- **Docs Scribe** -- changelog, ADRs, progress log
-
-### Agent exit contract
-Each agent must leave:
-- Summary of work
-- Changes made
-- Risks and open questions
-- Next steps
-
-## Codex-ready workflow (skills)
-
-The tool is designed to work cleanly with Codex and other AI agents by providing:
-- A consistent folder structure and artifact names
-- Explicit question banks and ambiguity detection
-- Clear agent roles and handoffs
-- A required progress log and decision log
-
-See `skills/` for the agent protocol and prompt packs.
-
-## AI "wings": the framework
-
-AI should not guess. It should be guided, constrained, and verified.
-
-1) **Clarify** -- ask missing questions
-2) **Commit** -- lock scope and acceptance criteria
-3) **Design** -- architecture and trade-offs
-4) **Prove** -- tests and validations
-5) **Deliver** -- clean code and docs
-6) **Reflect** -- changelog and decision log
-
-## Intent router (multi-domain)
-
-The router identifies the user intent and routes to the correct flow, prompts, and artifacts.
-
-### Example
-User: `sdd-cli hello`  
-User input: "I have a bug: <link>. How to solve?"
-
-Router actions:
-1) Detect intent: **bug fix**
-2) Ask permission to fetch the link and read it
-3) If approved, read and summarize the issue
-4) Offer **5+ solution options** with trade-offs
-5) Ask the user for their view of the bug and more context
-6) Continue into requirements -> functional spec -> technical spec -> architecture
-7) If not happy, user runs `--improve` to trigger self-audit and regenerate
-
-### Router signals (high level)
-- **Bug fix**: "bug", "issue", "error", stack trace, repro steps
-- **Learning**: "learn", "explain", "teach me", "what is"
-- **Design/creative**: "logo", "brand", "layout", "art", "visual"
-- **Research**: "study", "paper", "literature", "survey"
-- **Data science**: "model", "dataset", "prediction"
-- **Business/economics**: "market", "pricing", "forecast"
-- **Legal/civic**: "court", "policy", "compliance"
-- **PR review**: "PR", "pull request", "review comments", "code review"
-
-### Router output
-- Selected flow
-- Required prompts
-- Required artifacts
-- Quality gates
-- Suggested agents
-
-## Router scripts and schemas
-
-- `router/` contains step-by-step conversation scripts by intent.
-- `schemas/` defines JSON schemas for core artifacts and session data.
-
-These files are the source of truth for the CLI behavior.
-
-## Bug-first workflow (deep detail)
-
-When a user reports a bug, the tool must:
-- Gather the issue context (link, repo, environment)
-- Ask for reproduction steps and severity
-- Propose 5+ resolution paths (quick fix, rollback, root-cause, refactor, hotfix)
-- Ask the user to confirm the preferred path
-- Generate requirements and specs for the fix
-- Gate implementation until tests and risk checks are defined
-
-## Cross-domain coverage
-
-The router supports **software and non-software** flows:
-- Software engineering (features, bugs, refactors)
-- Data science (models, pipelines, experiments)
-- Design and art (visual systems, branding, layout)
-- Humanities (history, sociology, education)
-- Business and economics (market, policy, pricing)
-- PR review and code feedback workflows
-
-## Knowledge-first mode (deep research sessions)
-
-The tool is not only for software requirements. It can also run **knowledge journeys** where the user wants to learn a topic deeply (e.g., "I want to know more about Egypt").
-
-### How it works
-1) **Interview** the user to understand depth, audience, purpose, and constraints.
-2) **Build a research plan** (outline, key questions, scope boundaries).
-3) **Run multi-agent synthesis** with specialized roles (historian, critic, summarizer).
-4) **Deliver layered outputs**: executive summary, deep dive, references, and follow-up prompts.
-
-### Commands (proposed)
-- `sdd-cli learn start` -- begin a guided research session
-- `sdd-cli learn refine` -- refine scope or depth
-- `sdd-cli learn deliver` -- produce final output package
-
-### Interview prompts (examples)
-- Why do you want to learn this topic?
-- What level of depth (overview, academic, expert)?
-- What format do you want (summary, syllabus, report, Q&A)?
-- Any focus areas (history, culture, economy, politics)?
-- Time available to read or study?
-
-### Quality framework for answers
-- Bias checks and alternative viewpoints
-- Source reliability scoring
-- Clear assumptions and confidence levels
-- A "what to read next" section
-
-### Outputs (knowledge workspace)
-- `brief.md` -- short explanation
-- `deep-dive.md` -- extended structured answer
-- `reading-list.md` -- curated sources
-- `qa.md` -- questions and answers
-- `progress-log.md` -- session history
-
-This mode uses the same "AI wings" principle: clarify, commit, design, prove, deliver, reflect.
-
-## MVP v1 (exhaustive command and prompt scope)
-
-### MVP goals
-- One command to enter (hello), one command to finish (req finish).
-- Always ask the right questions before planning or implementation.
-- Always create a workspace, never contaminate dependencies.
-
-### MVP commands
-Core:
-- `sdd-cli hello`
-- `sdd-cli init`
-- `sdd-cli list`
-- `sdd-cli doctor`
-
-Requirements:
-- `sdd-cli req create`
-- `sdd-cli req refine`
-- `sdd-cli req plan`
-- `sdd-cli req start`
-- `sdd-cli req finish`
-
-Generators:
-- `sdd-cli gen requirements`
-- `sdd-cli gen functional-spec`
-- `sdd-cli gen technical-spec`
-- `sdd-cli gen architecture`
-- `sdd-cli gen best-practices`
-- `sdd-cli gen project-readme`
-
-### MVP prompts (must-ask list)
-Discovery:
-- Objective (measurable outcome)
-- Users/actors and their needs
-- Scope and out-of-scope
-- Acceptance criteria
-- NFRs: security, performance, availability
-- Data sensitivity and compliance
-- Constraints (budget, deadlines, platforms)
-
-Persona-specific extensions:
-- Legal: privilege, retention, audit, jurisdiction
-- Education: rubric, accessibility, student privacy
-- Data science: bias, drift, metrics, monitoring
-- Software: dependencies, regression risk, rollout
-- Bug fix: repro steps, severity, rollback
-
-Planning:
-- Minimal viable architecture
-- Key integrations and dependencies
-- Data model outline
-- Error handling and logging strategy
-- Observability requirements
-
-Implementation readiness:
-- Test plan (critical paths + edge cases)
-- Quality contract profile
-- Definition of Done checklist
-
-### MVP outputs (required)
-- `requirement.md`
-- `functional-spec.md`
-- `technical-spec.md`
-- `architecture.md`
-- `test-plan.md`
-- `quality.yml`
-- `decision-log/ADR-0001.md`
-- `progress-log.md`
-- `project-readme.md`
-
-## Interactive session (hello) design
-
-### Steps
-1) **Load** local workspace index and runtime flags.
-2) **List active projects** with status (backlog, wip, done).
-3) **Choose**: start new or continue.
-4) **Context**: ask domain and persona to load the right flow.
-5) **Plan**: run discovery prompts and generate backlog artifacts.
-6) **Advance**: offer refine, plan, or start automatically.
-
-### Data model (concept)
-- `workspaces.json` tracks projects and last activity.
-- Each project has `metadata.json` with domain, status, language profile.
-
-## End-to-end framework (single command experience)
-
-The goal is a single entry command that ends in a deliverable package:
-- Documents are structured
-- Decisions are logged
-- Tests are planned
-- Quality gates are in place
-- Users can resume at any point
-
-## Workspace layout (canonical)
-
-Each project is self-contained and resumable:
-```
-<workspace>/
-  metadata.json
-  requirements/
-    backlog/
-    wip/
-    in-progress/
-    done/
-    archived/
-  pr-reviews/
-    PR-123/
-      pr-comment-audit.md
-      pr-review-summary.md
-      pr-review-report.md
-      pr-metrics.md
-      pr-comment-lifecycle.md
-      guides/
-      responses/
-  decision-log/
-  progress-log.md
-  quality.yml
-  test-plan.md
-  project-readme.md
-```
-
-## Artifact traceability
-
-Every requirement has:
-- A unique ID (REQ-XXXX)
-- Linked specs and test plan
-- Decision log references
-- A progress log trail
-
-## Diagram generation (planned)
-
-The tool can generate C4-style diagrams using templates:
-- Context diagram
-- Container diagram
-- Component diagram
-
-These are exported as text (Mermaid/PlantUML) to keep them versionable.
-
-## Provider abstraction (AI)
-
-The CLI is provider-agnostic:
-- Local model
-- Remote model
-- Codex-compatible
-
-The router selects agent roles, while the provider is configurable.
-Current implementation status:
-- `hello` remains local-first autopilot and now includes optional provider-assisted draft/code generation with fallback-safe defaults.
-- Direct provider checks/execution are also available through `sdd-cli ai status` and `sdd-cli ai exec`.
-
-## Privacy and approvals
-
-- Any external link access requires explicit user approval.
-- All prompts and outputs are stored locally unless user opts in to sync.
-
-## Gaps now covered
-
-- Single-entry "hello" flow
-- Multi-domain router and role activation
-- Persona-aware questions
-- Workspace isolation and resumable state
-- Diagram and architecture outputs
-- Cross-language quality gates
-
-## Flows (domain playbooks)
-
-See `flows/` for detailed, domain-specific guides:
-- Lawyer
-- Teacher
-- Admissions admin
-- State admin
-- Taxes admin
-- Student (university)
-- Data scientist
-- Programmer
-- Bug fix
-- Ecommerce
-- Retail store
-- Court system
-- Graphic design
-- Art
-- History
-- Sociology
-- Economics
-
-These are opinionated, real-world flows that demonstrate how the CLI should be used in practice.
-
-## References (public sources)
-
-- IEEE 1016: Software Design Description (SDD)
-- C4 Model: https://c4model.com
-- ADRs: https://adr.github.io
-- RFC 2119 (MUST/SHOULD): https://www.rfc-editor.org/rfc/rfc2119
-- User Stories: https://www.atlassian.com/agile/project-management/user-stories
-- INVEST: https://www.agilealliance.org/glossary/invest/
-- Definition of Done: https://www.atlassian.com/agile/project-management/definition-of-done
-- BDD: https://cucumber.io/docs/bdd/
-- arc42: https://arc42.org
-- OWASP ASVS: https://owasp.org/www-project-application-security-verification-standard/
-- Jobs to be Done: https://www.intercom.com/blog/jtbd/
-- Design Thinking: https://www.interaction-design.org/literature/topics/design-thinking
-- CRISP-DM: https://www.ibm.com/docs/en/spss-modeler/18.2.2?topic=dm-crisp
-
+MIT

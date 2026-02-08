@@ -105,6 +105,7 @@ This file defines the command set, intent, and expected behavior.
 - `--metrics-local` Enable local opt-in telemetry snapshots under `workspace/metrics`
 - `--provider <name>` Select AI provider (`gemini|codex|auto`), default `gemini`
 - `--gemini` Shortcut for `--provider gemini`
+- `--model <name>` Select provider model (for example `gemini-2.5-flash-lite`)
 
 ## Metrics utilities
 - `npm run metrics:summary -- <workspace-root>`

@@ -3,6 +3,13 @@
 ## Unreleased
 - None.
 
+## 0.1.25
+- Release notes: `docs/releases/v0.1.25.md`
+- Restructure strategic product material under `docs/strategy/` for clearer documentation ownership and navigation.
+- Add market positioning playbook (`docs/strategy/MARKET_POSITIONING.md`) with ICP, messaging, differentiation, and GTM focus.
+- Keep npm-facing README concise and outcome-focused while preserving deep material under `docs/`.
+- Enable npm publish workflow trigger on tag push (`v*`) in addition to release/manual dispatch.
+
 ## 0.1.24
 - Release notes: `docs/releases/v0.1.24.md`
 - Strengthen strict orchestrator behavior so generated apps are validated against user intent before acceptance/publish.
