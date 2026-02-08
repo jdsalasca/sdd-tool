@@ -15,6 +15,7 @@ import { recordActivationMetric } from "../telemetry/local-metrics";
 import { printError } from "../errors";
 import { bootstrapProjectCode, enrichDraftWithAI, improveGeneratedApp } from "./ai-autopilot";
 import { runAppLifecycle } from "./app-lifecycle";
+import { runDigitalHumanReview } from "./digital-reviewers";
 import {
   AutopilotCheckpoint,
   AutopilotStep,
@@ -453,6 +454,71 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
+        }
+        const digitalReviewDisabled =
+          lifecycleDisabled || process.env.SDD_DISABLE_AI_AUTOPILOT === "1" || process.env.SDD_DISABLE_DIGITAL_REVIEW === "1";
+        if (!digitalReviewDisabled) {
+          const appDir = path.join(projectRoot, "generated-app");
+          const parsedReviewAttempts = Number.parseInt(process.env.SDD_DIGITAL_REVIEW_MAX_ATTEMPTS ?? "", 10);
+          const maxReviewAttempts = Number.isFinite(parsedReviewAttempts) && parsedReviewAttempts > 0 ? parsedReviewAttempts : 3;
+          let review = runDigitalHumanReview(appDir, {
+            goalText: text,
+            intentSignals: intent.signals,
+            intentDomain: intent.domain,
+            intentFlow: intent.flow
+          });
+          if (!review.passed) {
+            printWhy("Digital human reviewers found delivery issues. Applying targeted refinements.");
+            review.diagnostics.forEach((issue) => printWhy(`Reviewer issue: ${issue}`));
+          }
+          for (let attempt = 1; attempt <= maxReviewAttempts && !review.passed; attempt += 1) {
+            const repair = improveGeneratedApp(appDir, text, provider, review.diagnostics, intent.domain);
+            if (!repair.attempted || !repair.applied) {
+              printWhy(`Digital-review repair attempt ${attempt} skipped: ${repair.reason || "unknown reason"}`);
+              break;
+            }
+            printWhy(`Digital-review repair attempt ${attempt} applied (${repair.fileCount} files).`);
+            lifecycle = runAppLifecycle(projectRoot, activeProject, {
+              goalText: text,
+              intentSignals: intent.signals,
+              intentDomain: intent.domain,
+              intentFlow: intent.flow
+            });
+            lifecycle.summary.forEach((line) => printWhy(`Lifecycle (digital-review retry ${attempt}): ${line}`));
+            if (!lifecycle.qualityPassed) {
+              const qualityRepair = improveGeneratedApp(appDir, text, provider, lifecycle.qualityDiagnostics, intent.domain);
+              if (qualityRepair.attempted && qualityRepair.applied) {
+                printWhy(
+                  `Quality regression repaired after digital review (${qualityRepair.fileCount} files). Re-validating delivery.`
+                );
+                lifecycle = runAppLifecycle(projectRoot, activeProject, {
+                  goalText: text,
+                  intentSignals: intent.signals,
+                  intentDomain: intent.domain,
+                  intentFlow: intent.flow
+                });
+              }
+            }
+            if (!lifecycle.qualityPassed) {
+              printWhy("Delivery regressed below lifecycle quality gates during digital-review iteration.");
+              continue;
+            }
+            review = runDigitalHumanReview(appDir, {
+              goalText: text,
+              intentSignals: intent.signals,
+              intentDomain: intent.domain,
+              intentFlow: intent.flow
+            });
+            if (!review.passed) {
+              review.diagnostics.forEach((issue) => printWhy(`Reviewer issue (retry ${attempt}): ${issue}`));
+            }
+          }
+          if (!review.passed) {
+            printWhy("Digital-review quality bar not met after refinement attempts.");
+            printRecoveryNext(activeProject, "finish", text);
+            return;
+          }
+          printWhy("Digital reviewers approved delivery quality.");
         }
         recordActivationMetric("completed", {
           project: activeProject,

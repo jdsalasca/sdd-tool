@@ -4,6 +4,7 @@
 - Add domain-aware quality gates beyond software for legal, business, humanities, learning, design, and data-science flows.
 - Add stricter AI orchestration constraints so Gemini output must include domain-required artifacts before acceptance.
 - Add domain-aware repair-loop prompts to push targeted corrective iterations instead of generic retries.
+- Add digital human reviewers (PM, QA, UX, security/compliance) with automatic refinement loop before accepting delivery.
 - Add domain quality profiles to generated `quality.json` from `req start`.
 - Extend route prompt-pack mapping with domain quality packs.
 - Add lifecycle tests that enforce legal and data-science artifact quality requirements.
