@@ -12,6 +12,9 @@
 - Add provider execution timeout controls to avoid hanging runs:
   - `SDD_AI_EXEC_TIMEOUT_MS` (default `180000`).
   - `SDD_AI_VERSION_TIMEOUT_MS` (default `15000`).
+- Improve AI response parsing robustness in autopilot:
+  - accept alternative JSON shapes for generated file payloads (`artifacts`, `changes`, nested `result/data` wrappers).
+  - recover file payloads from markdown `FILE: path` fenced blocks when strict JSON extraction fails.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

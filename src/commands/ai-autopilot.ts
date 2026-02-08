@@ -85,6 +85,92 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
   return unwrapResponse(parsed);
 }
 
+function normalizeFileEntries(items: unknown[]): Array<{ path: string; content: string }> {
+  const normalized: Array<{ path: string; content: string }> = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const row = item as Record<string, unknown>;
+    const pathCandidate =
+      (typeof row.path === "string" && row.path) ||
+      (typeof row.file === "string" && row.file) ||
+      (typeof row.filePath === "string" && row.filePath) ||
+      (typeof row.filename === "string" && row.filename) ||
+      (typeof row.name === "string" && row.name);
+    const contentCandidate =
+      (typeof row.content === "string" && row.content) ||
+      (typeof row.code === "string" && row.code) ||
+      (typeof row.text === "string" && row.text) ||
+      (typeof row.body === "string" && row.body) ||
+      (typeof row.patch === "string" && row.patch);
+    if (typeof pathCandidate !== "string" || typeof contentCandidate !== "string") {
+      continue;
+    }
+    const rel = safeRelativePath(pathCandidate);
+    if (!rel) {
+      continue;
+    }
+    normalized.push({ path: rel, content: contentCandidate });
+  }
+  return normalized;
+}
+
+function extractFilesFromParsed(parsed: Record<string, unknown> | null): Array<{ path: string; content: string }> {
+  if (!parsed) {
+    return [];
+  }
+  const keys = ["files", "artifacts", "changes", "patches", "file_updates", "updates"];
+  for (const key of keys) {
+    const value = parsed[key];
+    if (Array.isArray(value)) {
+      const files = normalizeFileEntries(value);
+      if (files.length > 0) {
+        return files;
+      }
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const entries = Object.entries(value as Record<string, unknown>)
+        .filter(([, content]) => typeof content === "string")
+        .map(([filePath, content]) => ({ path: filePath, content: content as string }));
+      const files = normalizeFileEntries(entries);
+      if (files.length > 0) {
+        return files;
+      }
+    }
+  }
+  const wrappers = ["result", "data", "payload", "output", "response"];
+  for (const key of wrappers) {
+    const nested = parsed[key];
+    if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+      const nestedFiles = extractFilesFromParsed(nested as Record<string, unknown>);
+      if (nestedFiles.length > 0) {
+        return nestedFiles;
+      }
+    }
+  }
+  return [];
+}
+
+function parseFilesFromRawText(raw: string): Array<{ path: string; content: string }> {
+  const files: Array<{ path: string; content: string }> = [];
+  const patterns = [
+    /(?:^|\r?\n)(?:FILE|File|PATH|Path)\s*:\s*([^\r\n]+)\r?\n```[^\n]*\r?\n([\s\S]*?)\r?\n```/g,
+    /(?:^|\r?\n)#+\s+([^\r\n]+\.[a-z0-9._-]+)\r?\n```[^\n]*\r?\n([\s\S]*?)\r?\n```/gi
+  ];
+  for (const pattern of patterns) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(raw)) !== null) {
+      const rel = safeRelativePath(match[1].trim());
+      if (!rel) {
+        continue;
+      }
+      files.push({ path: rel, content: match[2] });
+    }
+  }
+  return files;
+}
+
 function asText(value: unknown, fallback: string): string {
   if (typeof value !== "string") {
     return fallback;
@@ -117,6 +203,10 @@ function askProviderForJson(
   if (parsed) {
     return parsed;
   }
+  const textFiles = parseFilesFromRawText(first.output);
+  if (textFiles.length > 0) {
+    return { files: textFiles };
+  }
   const repairPrompt = [
     "Convert the following response into valid JSON only.",
     "Keep the same information.",
@@ -127,7 +217,15 @@ function askProviderForJson(
   if (!second.ok) {
     return null;
   }
-  return extractJsonObject(second.output);
+  const repaired = extractJsonObject(second.output);
+  if (repaired) {
+    return repaired;
+  }
+  const repairedTextFiles = parseFilesFromRawText(second.output);
+  if (repairedTextFiles.length > 0) {
+    return { files: repairedTextFiles };
+  }
+  return null;
 }
 
 function detectBaselineKind(intent: string): "notes" | "user_news" | "generic" {
@@ -1301,22 +1399,7 @@ export function bootstrapProjectCode(
     ].join("\n");
     const parsed = askProviderForJson(resolution.provider.exec, prompt);
     if (parsed) {
-      const rawFiles = Array.isArray(parsed.files) ? parsed.files : [];
-      for (const item of rawFiles) {
-        if (!item || typeof item !== "object") {
-          continue;
-        }
-        const maybePath = (item as { path?: unknown }).path;
-        const maybeContent = (item as { content?: unknown }).content;
-        if (typeof maybePath !== "string" || typeof maybeContent !== "string") {
-          continue;
-        }
-        const rel = safeRelativePath(maybePath);
-        if (!rel) {
-          continue;
-        }
-        files.push({ path: rel, content: maybeContent });
-      }
+      files.push(...extractFilesFromParsed(parsed));
     }
     if (files.length === 0) {
       const fallbackConstraints = extraPromptConstraints(intent, domainHint);
@@ -1332,22 +1415,7 @@ export function bootstrapProjectCode(
       ].join("\n");
       const parsedFallback = askProviderForJson(resolution.provider.exec, fallbackPrompt);
       if (parsedFallback) {
-        const rawFiles = Array.isArray(parsedFallback.files) ? parsedFallback.files : [];
-        for (const item of rawFiles) {
-          if (!item || typeof item !== "object") {
-            continue;
-          }
-          const maybePath = (item as { path?: unknown }).path;
-          const maybeContent = (item as { content?: unknown }).content;
-          if (typeof maybePath !== "string" || typeof maybeContent !== "string") {
-            continue;
-          }
-          const rel = safeRelativePath(maybePath);
-          if (!rel) {
-            continue;
-          }
-          files.push({ path: rel, content: maybeContent });
-        }
+        files.push(...extractFilesFromParsed(parsedFallback));
       }
     }
   }
@@ -1472,7 +1540,7 @@ export function improveGeneratedApp(
   ].join("\n");
 
   let parsed = askProviderForJson(resolution.provider.exec, prompt);
-  if ((!parsed || !Array.isArray(parsed.files)) && compactDiagnostics.length > 0) {
+  if (extractFilesFromParsed(parsed).length === 0 && compactDiagnostics.length > 0) {
     const fileNames = collectProjectFiles(appDir).map((f) => f.path).slice(0, 120);
     const targetedPrompt = [
       "Return ONLY valid JSON. No markdown.",
@@ -1486,7 +1554,7 @@ export function improveGeneratedApp(
     ].join("\n");
     parsed = askProviderForJson(resolution.provider.exec, targetedPrompt);
   }
-  if (!parsed || !Array.isArray(parsed.files)) {
+  if (extractFilesFromParsed(parsed).length === 0) {
     const minimalPrompt = [
       "Return ONLY valid JSON. No markdown.",
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
@@ -1498,26 +1566,11 @@ export function improveGeneratedApp(
     ].join("\n");
     parsed = askProviderForJson(resolution.provider.exec, minimalPrompt);
   }
-  if (!parsed || !Array.isArray(parsed.files)) {
+  if (extractFilesFromParsed(parsed).length === 0) {
     return { attempted: true, applied: false, fileCount: 0, reason: "provider response unusable" };
   }
 
-  const updates: Array<{ path: string; content: string }> = [];
-  for (const item of parsed.files) {
-    if (!item || typeof item !== "object") {
-      continue;
-    }
-    const maybePath = (item as { path?: unknown }).path;
-    const maybeContent = (item as { content?: unknown }).content;
-    if (typeof maybePath !== "string" || typeof maybeContent !== "string") {
-      continue;
-    }
-    const rel = safeRelativePath(maybePath);
-    if (!rel) {
-      continue;
-    }
-    updates.push({ path: rel, content: maybeContent });
-  }
+  const updates = extractFilesFromParsed(parsed);
   if (updates.length === 0) {
     return { attempted: true, applied: false, fileCount: 0, reason: "no valid files in response" };
   }
@@ -1530,3 +1583,9 @@ export function improveGeneratedApp(
 
   return { attempted: true, applied: true, fileCount: updates.length };
 }
+
+export const __internal = {
+  extractJsonObject,
+  parseFilesFromRawText,
+  extractFilesFromParsed
+};
