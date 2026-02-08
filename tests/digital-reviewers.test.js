@@ -4,7 +4,13 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { runDigitalHumanReview, writeDigitalReviewReport } = require("../dist/commands/digital-reviewers.js");
+const {
+  convertFindingsToUserStories,
+  runDigitalHumanReview,
+  storiesToDiagnostics,
+  writeDigitalReviewReport,
+  writeUserStoriesBacklog
+} = require("../dist/commands/digital-reviewers.js");
 
 function write(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -49,6 +55,11 @@ test("digital reviewers approve strong delivery baseline", () => {
   write(path.join(appDir, "user-flow.md"), "# User Flow\n- add note\n- edit note\n");
   write(path.join(appDir, "architecture.md"), "# Architecture\n- layers\n");
   write(path.join(appDir, "execution-guide.md"), "# Execution Guide\n- run local\n");
+  write(path.join(appDir, "accessibility.md"), "# Accessibility\n- keyboard and contrast\n");
+  write(path.join(appDir, "performance-budget.md"), "# Performance\n- p95 under 200ms\n");
+  write(path.join(appDir, "troubleshooting.md"), "# Troubleshooting\n- known issues\n");
+  write(path.join(appDir, "api-contract.md"), "# API Contract\n- endpoints\n");
+  write(path.join(appDir, "release-notes.md"), "# Release Notes\n- initial\n");
   write(path.join(appDir, "LICENSE"), "MIT License");
   write(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});");
   write(path.join(appDir, "tests", "b.test.js"), "test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});");
@@ -97,4 +108,36 @@ test("digital review writes machine-readable report", () => {
   assert.equal(typeof raw.score, "number");
   assert.equal(typeof raw.threshold, "number");
   assert.equal(typeof raw.summary, "string");
+});
+
+test("findings are converted to prioritized user stories and diagnostics", () => {
+  const findings = [
+    { reviewer: "qa_engineer", severity: "high", message: "Automated test depth is low (2)." },
+    { reviewer: "ux_researcher", severity: "medium", message: "User experience flow is unclear." }
+  ];
+  const stories = convertFindingsToUserStories(findings);
+  assert.equal(stories.length, 2);
+  assert.equal(stories[0].priority, "P0");
+  assert.equal(stories[1].priority, "P1");
+  const diagnostics = storiesToDiagnostics(stories);
+  assert.equal(diagnostics.length, 2);
+  assert.match(diagnostics[0], /\[UserStory:US-001\]\[P0\]/i);
+});
+
+test("user stories backlog is written for implementation loop", () => {
+  const appDir = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-digital-stories-"));
+  const stories = [
+    {
+      id: "US-001",
+      priority: "P0",
+      persona: "qa_engineer",
+      story: "As a qa_engineer, I need more tests.",
+      sourceReviewer: "qa_engineer",
+      acceptanceCriteria: ["Given tests, then coverage improves."]
+    }
+  ];
+  const jsonPath = writeUserStoriesBacklog(appDir, stories);
+  assert.equal(typeof jsonPath, "string");
+  assert.equal(fs.existsSync(jsonPath), true);
+  assert.equal(fs.existsSync(path.join(appDir, "deploy", "digital-review-user-stories.md")), true);
 });

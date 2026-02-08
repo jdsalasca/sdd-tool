@@ -3,6 +3,16 @@
 ## Unreleased
 - None.
 
+## 0.1.30
+- Release notes: `docs/releases/v0.1.30.md`
+- Release metrics: _pending_
+- Add expanded multi-role digital reviewer coverage (PM, QA, UX, accessibility, performance, support, integrator, release manager, security).
+- Add automatic conversion of reviewer findings into prioritized user stories (`P0`/`P1`) for implementation loops.
+- Add machine-readable and markdown user-story backlog artifacts in generated projects:
+- `deploy/digital-review-user-stories.json`
+- `deploy/digital-review-user-stories.md`
+- Update `hello` digital-review loop to feed user stories back into Gemini refinement prompts.
+
 ## 0.1.29
 - Release notes: `docs/releases/v0.1.29.md`
 - Release metrics: _pending_

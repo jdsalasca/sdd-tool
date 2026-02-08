@@ -8,6 +8,15 @@ type ReviewerFinding = {
   message: string;
 };
 
+export type UserStory = {
+  id: string;
+  priority: "P0" | "P1";
+  persona: string;
+  story: string;
+  acceptanceCriteria: string[];
+  sourceReviewer: string;
+};
+
 export type DigitalReviewResult = {
   passed: boolean;
   findings: ReviewerFinding[];
@@ -91,6 +100,35 @@ function hasUserFlowDocs(root: string, readme: string): boolean {
     return true;
   }
   return Boolean(findDoc(root, ["user-flow.md", "ux-notes.md", "experience.md"]));
+}
+
+function hasAccessibilityEvidence(root: string, readme: string): boolean {
+  if (/\ba11y\b|\baccessibility\b|\bwcag\b|\bkeyboard\b/.test(readme)) {
+    return true;
+  }
+  return Boolean(findDoc(root, ["accessibility.md", "a11y.md"]));
+}
+
+function hasPerformanceEvidence(root: string, readme: string): boolean {
+  if (/\bperformance\b|\blatency\b|\bthroughput\b|\bp95\b|\bp99\b/.test(readme)) {
+    return true;
+  }
+  return Boolean(findDoc(root, ["performance.md", "performance-budget.md", "scalability.md"]));
+}
+
+function hasSupportEvidence(root: string, readme: string): boolean {
+  if (/\btroubleshoot\b|\bsupport\b|\bfaq\b/.test(readme)) {
+    return true;
+  }
+  return Boolean(findDoc(root, ["troubleshooting.md", "support.md", "faq.md"]));
+}
+
+function hasApiContracts(root: string): boolean {
+  return Boolean(findDoc(root, ["openapi.yaml", "openapi.yml", "api-contract.md", "api.md"]));
+}
+
+function hasReleaseNotes(root: string): boolean {
+  return Boolean(findDoc(root, ["release-notes.md", "changelog.md"]));
 }
 
 function parseThreshold(): number {
@@ -189,6 +227,41 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
       message: "User experience flow is unclear. Add user-flow/UX notes and acceptance of critical journeys."
     });
   }
+  if (!hasAccessibilityEvidence(appDir, readme)) {
+    findings.push({
+      reviewer: "accessibility_tester",
+      severity: "medium",
+      message: "Accessibility evidence missing. Add keyboard/contrast/screen-reader validation notes."
+    });
+  }
+  if (!hasPerformanceEvidence(appDir, readme)) {
+    findings.push({
+      reviewer: "performance_engineer",
+      severity: "medium",
+      message: "Performance expectations are unclear. Add performance budget and baseline measurements."
+    });
+  }
+  if (!hasSupportEvidence(appDir, readme)) {
+    findings.push({
+      reviewer: "support_agent",
+      severity: "medium",
+      message: "Support/troubleshooting guidance is missing for operators and end users."
+    });
+  }
+  if (!hasApiContracts(appDir)) {
+    findings.push({
+      reviewer: "integrator_partner",
+      severity: "medium",
+      message: "API contract/documentation missing. Add OpenAPI or API contract document for integrators."
+    });
+  }
+  if (!hasReleaseNotes(appDir)) {
+    findings.push({
+      reviewer: "release_manager",
+      severity: "medium",
+      message: "Release notes/changelog missing. Add release documentation for change visibility."
+    });
+  }
 
   if (hasSecretLeak(appDir)) {
     findings.push({
@@ -241,6 +314,85 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
     threshold,
     summary
   };
+}
+
+function slugReviewer(reviewer: string): string {
+  return reviewer.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+}
+
+function acceptanceCriteriaFromFinding(finding: ReviewerFinding): string[] {
+  const base = finding.message.replace(/\.$/, "");
+  return [
+    `Given the generated app, when quality review runs, then ${base.toLowerCase()}.`,
+    "Given CI validation, when documentation/tests are checked, then evidence is discoverable and actionable."
+  ];
+}
+
+export function convertFindingsToUserStories(findings: ReviewerFinding[]): UserStory[] {
+  const deduped = new Map<string, ReviewerFinding>();
+  for (const finding of findings) {
+    const key = `${finding.reviewer}::${finding.message}`.toLowerCase();
+    if (!deduped.has(key)) {
+      deduped.set(key, finding);
+    }
+  }
+  let index = 1;
+  return [...deduped.values()].map((finding) => {
+    const id = `US-${String(index).padStart(3, "0")}`;
+    index += 1;
+    const persona = slugReviewer(finding.reviewer);
+    const priority: "P0" | "P1" = finding.severity === "high" ? "P0" : "P1";
+    return {
+      id,
+      priority,
+      persona,
+      sourceReviewer: finding.reviewer,
+      story: `As a ${persona}, I need ${finding.message.toLowerCase()} so that the delivery is production-ready.`,
+      acceptanceCriteria: acceptanceCriteriaFromFinding(finding)
+    };
+  });
+}
+
+export function storiesToDiagnostics(stories: UserStory[]): string[] {
+  return stories.map((story) => `[UserStory:${story.id}][${story.priority}] ${story.story}`);
+}
+
+export function writeUserStoriesBacklog(appDir: string, stories: UserStory[]): string | null {
+  if (!fs.existsSync(appDir)) {
+    return null;
+  }
+  const deployDir = path.join(appDir, "deploy");
+  fs.mkdirSync(deployDir, { recursive: true });
+  const jsonPath = path.join(deployDir, "digital-review-user-stories.json");
+  fs.writeFileSync(
+    jsonPath,
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        count: stories.length,
+        stories
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+  const mdPath = path.join(deployDir, "digital-review-user-stories.md");
+  const lines = [
+    "# Digital Review User Stories",
+    "",
+    ...stories.flatMap((story) => [
+      `## ${story.id} (${story.priority})`,
+      `- Persona: ${story.persona}`,
+      `- Source reviewer: ${story.sourceReviewer}`,
+      `- Story: ${story.story}`,
+      "- Acceptance criteria:",
+      ...story.acceptanceCriteria.map((criterion) => `  - ${criterion}`),
+      ""
+    ])
+  ];
+  fs.writeFileSync(mdPath, `${lines.join("\n")}\n`, "utf-8");
+  return jsonPath;
 }
 
 export function writeDigitalReviewReport(appDir: string, review: DigitalReviewResult): string | null {
