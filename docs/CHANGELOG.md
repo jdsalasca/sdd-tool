@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- None.
+
+## 0.1.28
+- Release notes: `docs/releases/v0.1.28.md`
+- Release metrics: _pending_
 - Add domain-aware quality gates beyond software for legal, business, humanities, learning, design, and data-science flows.
 - Add stricter AI orchestration constraints so Gemini output must include domain-required artifacts before acceptance.
 - Add domain-aware repair-loop prompts to push targeted corrective iterations instead of generic retries.
