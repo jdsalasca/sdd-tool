@@ -3,6 +3,21 @@
 ## Unreleased
 - None.
 
+## 0.1.27
+- Release notes: `docs/releases/v0.1.27.md`
+- Add deeper architecture quality gates for Java+React generations:
+  - DTO layer and `*Dto.java` enforcement.
+  - service/repository interface enforcement.
+  - Java `record` usage enforcement.
+  - global exception handling via `@RestControllerAdvice`.
+  - validation usage enforcement with `jakarta/javax.validation` annotations and `@Valid`.
+  - backend production dependencies enforcement (`lombok`, `spring-boot-starter-validation`, `spring-boot-starter-actuator`).
+  - backend telemetry configuration enforcement (actuator/prometheus settings).
+  - frontend architecture enforcement (`src/api`, `src/hooks/use*`, `src/components`, React StrictMode).
+  - frontend modern dependency and test baseline enforcement.
+- Improve repo metadata naming to prioritize user intent terms for more descriptive GitHub repository names.
+- Improve lifecycle robustness in Windows and process diagnostics handling for failed checks.
+
 ## 0.1.26
 - Release notes: `docs/releases/v0.1.26.md`
 - Add strict Java+React architecture gates for generated apps:

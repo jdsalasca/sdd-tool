@@ -61,6 +61,16 @@ function countJsTsTests(root: string, maxDepth = 8): number {
   return count;
 }
 
+function fileExistsAny(root: string, candidates: string[]): string | null {
+  for (const candidate of candidates) {
+    const full = path.join(root, candidate);
+    if (fs.existsSync(full)) {
+      return full;
+    }
+  }
+  return null;
+}
+
 function findFileRecursive(root: string, predicate: (relative: string) => boolean, maxDepth = 4): string | null {
   const walk = (current: string, depth: number): string | null => {
     if (depth > maxDepth) {
@@ -348,6 +358,15 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
           output: "Outdated frontend dependency detected: react-query. Use @tanstack/react-query."
         };
       }
+      const requiredFrontendDeps = ["react-router-dom", "@tanstack/react-query"];
+      const missingFrontendDeps = requiredFrontendDeps.filter((dep) => typeof deps[dep] !== "string");
+      if (missingFrontendDeps.length > 0) {
+        return {
+          ok: false,
+          command: "advanced-quality-check",
+          output: `Missing modern frontend dependencies: ${missingFrontendDeps.join(", ")}`
+        };
+      }
     }
 
     const backendRoot = path.join(appDir, "backend", "src", "main", "java");
@@ -390,6 +409,61 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
         output: "Missing service/repository interfaces in Java backend architecture"
       };
     }
+    const hasControllerAdvice = backendFiles.some((rel) =>
+      /@RestControllerAdvice\b/.test(fs.readFileSync(path.join(backendRoot, rel), "utf-8"))
+    );
+    if (!hasControllerAdvice) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing global exception handling (expected @RestControllerAdvice)"
+      };
+    }
+    const hasValidationUsage = backendFiles.some((rel) => {
+      const raw = fs.readFileSync(path.join(backendRoot, rel), "utf-8");
+      return /\b@(Valid|NotNull|NotBlank|Size|Email)\b/.test(raw) && /(jakarta|javax)\.validation/.test(raw);
+    });
+    if (!hasValidationUsage) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing bean validation usage (expected @Valid/@NotBlank with jakarta/javax.validation imports)"
+      };
+    }
+    const pomPath = path.join(appDir, "backend", "pom.xml");
+    const pomRaw = fs.existsSync(pomPath) ? fs.readFileSync(pomPath, "utf-8").toLowerCase() : "";
+    const requiredBackendDeps = [
+      "lombok",
+      "spring-boot-starter-validation",
+      "spring-boot-starter-actuator"
+    ];
+    const missingBackendDeps = requiredBackendDeps.filter((dep) => !pomRaw.includes(dep));
+    if (missingBackendDeps.length > 0) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: `Missing backend dependencies for production quality: ${missingBackendDeps.join(", ")}`
+      };
+    }
+    const hasMetricsConfig = (() => {
+      const metricsFile = fileExistsAny(path.join(appDir, "backend"), [
+        "src/main/resources/application.yml",
+        "src/main/resources/application.yaml",
+        "src/main/resources/application.properties"
+      ]);
+      if (!metricsFile) {
+        return false;
+      }
+      const text = normalizeText(fs.readFileSync(metricsFile, "utf-8"));
+      return /management\.endpoints|prometheus|actuator/.test(text);
+    })();
+    if (!hasMetricsConfig) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing backend telemetry config (expected actuator/prometheus management settings)"
+      };
+    }
 
     const frontendRoot = path.join(appDir, "frontend", "src");
     if (!fs.existsSync(frontendRoot)) {
@@ -416,6 +490,41 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
         ok: false,
         command: "advanced-quality-check",
         output: `Expected at least 3 frontend tests for Java+React profile, found ${frontendTestCount}`
+      };
+    }
+    const frontendUsesStrictMode = (() => {
+      const mainCandidate = fileExistsAny(path.join(appDir, "frontend"), ["src/main.tsx", "src/main.jsx", "src/index.tsx", "src/index.jsx"]);
+      if (!mainCandidate) {
+        return false;
+      }
+      const raw = fs.readFileSync(mainCandidate, "utf-8");
+      return /StrictMode/.test(raw);
+    })();
+    if (!frontendUsesStrictMode) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing React StrictMode in frontend bootstrap"
+      };
+    }
+    const executionGuideExists =
+      findFileRecursive(appDir, (rel) => rel === "execution-guide.md" || rel.endsWith("/execution-guide.md"), 8) ??
+      findFileRecursive(appDir, (rel) => rel.includes("runbook") && rel.endsWith(".md"), 8);
+    if (!executionGuideExists) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing execution guide/runbook markdown (expected execution-guide.md or runbook*.md)"
+      };
+    }
+    const architectureDocExists =
+      findFileRecursive(appDir, (rel) => rel === "architecture.md" || rel.endsWith("/architecture.md"), 8) ??
+      findFileRecursive(appDir, (rel) => rel.includes("architecture") && rel.endsWith(".md"), 8);
+    if (!architectureDocExists) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing architecture documentation markdown (expected architecture.md)"
       };
     }
   }
@@ -569,7 +678,7 @@ function deriveRepoMetadata(projectName: string, appDir: string, context?: Lifec
   const goalSeed = context?.goalText ? tokenizeIntent(context.goalText).slice(0, 6).join("-") : "";
   const projectSeed = slugify(rawBase);
   const intentSeed = slugify(goalSeed);
-  const base = projectSeed || intentSeed || "sdd-project";
+  const base = intentSeed || projectSeed || "sdd-project";
   const cleaned = base.replace(/-app$/g, "");
   const repoName = `${cleaned}-app`.slice(0, 63).replace(/-+$/g, "");
 

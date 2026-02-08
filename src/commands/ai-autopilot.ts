@@ -191,8 +191,15 @@ function extraPromptConstraints(intent: string): string[] {
     constraints.push("Use modern React data layer: @tanstack/react-query (not react-query).");
     constraints.push("Backend architecture must include DTO classes, service interfaces, and repository interfaces.");
     constraints.push("Use Java records for immutable request/response or transport models.");
+    constraints.push("Use Lombok in backend entities/DTOs where appropriate (builder/getter/setter/constructor patterns).");
+    constraints.push("Use Jakarta/Javax Bean Validation annotations and @Valid in request boundaries.");
+    constraints.push("Include @RestControllerAdvice for global exception handling.");
+    constraints.push("Add Spring Actuator telemetry and basic Prometheus-friendly metrics configuration.");
     constraints.push("Frontend architecture must include src/api, src/hooks (use*.ts/tsx), and src/components layers.");
+    constraints.push("Frontend bootstrap must use React.StrictMode.");
+    constraints.push("Frontend should include safe input validation and avoid direct unsafe HTML rendering.");
     constraints.push("Include frontend tests and backend tests that run in local CI.");
+    constraints.push("Include architecture.md and execution-guide.md with clear local run instructions.");
   }
   if (intentSuggestsRelationalDataDomain(intent)) {
     constraints.push("Use a scalable relational database default (prefer PostgreSQL).");
