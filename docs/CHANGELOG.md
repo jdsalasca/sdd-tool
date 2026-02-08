@@ -1,7 +1,17 @@
 # Changelog
 
 ## Unreleased
-- None.
+- Harden quality orchestration in `hello`:
+  - default `--iterations` changed to `2`.
+  - enforce minimum quality rounds + approval streak before acceptance.
+  - allow bounded automatic extra rounds when quality remains below threshold.
+- Expand digital reviewer coverage:
+  - domain-specific quality checks for humanities, learning, and design.
+  - stronger Java+React reviewer checks (DTO, records, interfaces, validation, advice, StrictMode).
+  - telemetry evidence requirement for API/backend-like goals.
+- Add provider execution timeout controls to avoid hanging runs:
+  - `SDD_AI_EXEC_TIMEOUT_MS` (default `180000`).
+  - `SDD_AI_VERSION_TIMEOUT_MS` (default `15000`).
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

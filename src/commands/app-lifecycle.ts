@@ -20,6 +20,7 @@ export type LifecycleContext = {
   intentSignals?: string[];
   intentDomain?: string;
   intentFlow?: string;
+  deferPublishUntilReview?: boolean;
 };
 
 type GoalProfile = {
@@ -995,6 +996,11 @@ export type AppLifecycleResult = {
   qualityDiagnostics: string[];
 };
 
+export type PublishOutcome = {
+  published: boolean;
+  summary: string;
+};
+
 export function runAppLifecycle(projectRoot: string, projectName: string, context?: LifecycleContext): AppLifecycleResult {
   const appDir = path.join(projectRoot, "generated-app");
   const summary: string[] = [];
@@ -1089,8 +1095,11 @@ export function runAppLifecycle(projectRoot: string, projectName: string, contex
   summary.push(`${git.ok ? "OK" : "FAIL"}: ${git.command}`);
 
   const config = ensureConfig();
+  const deferPublishUntilReview = context?.deferPublishUntilReview === true;
   const publish = !config.git.publish_enabled
     ? { ok: false, command: "publish", output: "disabled by config git.publish_enabled=false" }
+    : deferPublishUntilReview
+      ? { ok: false, command: "publish", output: "deferred until digital review approval" }
     : !qualityPassed
       ? { ok: false, command: "publish", output: "skipped because quality checks failed" }
     : git.ok
@@ -1115,5 +1124,26 @@ export function runAppLifecycle(projectRoot: string, projectName: string, contex
     githubPublished: publish.ok,
     summary,
     qualityDiagnostics
+  };
+}
+
+export function publishGeneratedApp(projectRoot: string, projectName: string, context?: LifecycleContext): PublishOutcome {
+  const appDir = path.join(projectRoot, "generated-app");
+  if (!fs.existsSync(appDir)) {
+    return { published: false, summary: "generated-app directory missing" };
+  }
+  const config = ensureConfig();
+  if (!config.git.publish_enabled) {
+    return { published: false, summary: "publish disabled by config git.publish_enabled=false" };
+  }
+  const git = ensureGitRepo(appDir);
+  if (!git.ok) {
+    return { published: false, summary: `git preparation failed: ${git.output || git.command}` };
+  }
+  const repoMetadata = deriveRepoMetadata(projectName, appDir, context);
+  const publish = tryPublishGitHub(appDir, repoMetadata);
+  return {
+    published: publish.ok,
+    summary: publish.ok ? publish.command : `${publish.command}: ${publish.output || "publish failed"}`
   };
 }

@@ -106,7 +106,7 @@ This file defines the command set, intent, and expected behavior.
 - `--provider <name>` Select AI provider (`gemini|codex|auto`), default `gemini`
 - `--gemini` Shortcut for `--provider gemini`
 - `--model <name>` Select provider model (for example `gemini-2.5-flash-lite`)
-- `--iterations <n>` Number of delivery improvement iterations (`1..10`) with review->stories->implement loops
+- `--iterations <n>` Number of delivery improvement iterations (`1..10`) with review->stories->implement loops (default `2`)
 
 ## Metrics utilities
 - `npm run metrics:summary -- <workspace-root>`
@@ -126,6 +126,7 @@ This file defines the command set, intent, and expected behavior.
   - Auto-generates project name when missing
   - Generates app scaffold under `generated-app/`
   - Runs lifecycle orchestration (quality checks, deploy artifacts, git init/commit, GitHub publish attempt via `gh` when authenticated)
+  - Enforces minimum quality rounds and approval streak before final acceptance
 - `--questions`: manual question packs and explicit draft confirmation
 - `--beginner`: keeps autopilot behavior but adds beginner-friendly explanations at each step
 - `--auto`: alias to trigger question-driven draft generation path

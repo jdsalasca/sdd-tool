@@ -14,7 +14,7 @@ import { runTestPlan } from "./test-plan";
 import { recordActivationMetric } from "../telemetry/local-metrics";
 import { printError } from "../errors";
 import { bootstrapProjectCode, enrichDraftWithAI, improveGeneratedApp } from "./ai-autopilot";
-import { runAppLifecycle } from "./app-lifecycle";
+import { publishGeneratedApp, runAppLifecycle } from "./app-lifecycle";
 import {
   appendDigitalReviewRound,
   convertFindingsToUserStories,
@@ -52,6 +52,14 @@ function printBeginnerTip(enabled: boolean, tip: string): void {
     return;
   }
   console.log(`  [Beginner] ${tip}`);
+}
+
+function parseClampedIntEnv(name: string, fallback: number, min: number, max: number): number {
+  const raw = Number.parseInt(process.env[name] ?? "", 10);
+  if (!Number.isFinite(raw)) {
+    return fallback;
+  }
+  return Math.max(min, Math.min(max, raw));
 }
 
 function deriveProjectName(input: string, flow: string): string {
@@ -160,9 +168,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     printBeginnerTip(true, "I will explain each step and tell you what happens next.");
   }
   if (autoGuidedMode) {
+    const minQualityRounds = parseClampedIntEnv("SDD_MIN_QUALITY_ROUNDS", 2, 1, 10);
+    const requiredApprovalStreak = parseClampedIntEnv("SDD_REQUIRED_APPROVAL_STREAK", 2, 1, 3);
     printWhy("Auto-guided mode active: using current workspace defaults.");
     printWhy(`AI provider preference: ${provider ?? "gemini"}`);
     printWhy(`Iterations configured: ${iterations}`);
+    printWhy(`Minimum quality rounds: ${minQualityRounds}; approval streak required: ${requiredApprovalStreak}`);
   } else {
     const useWorkspace = await confirm("Use this workspace path? (y/n) ");
     if (!useWorkspace) {
@@ -434,11 +445,16 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         if (codeBootstrap.reason) {
           printWhy(`Code scaffold note: ${codeBootstrap.reason}`);
         }
+        const digitalReviewExpected =
+          process.env.SDD_DISABLE_APP_LIFECYCLE !== "1" &&
+          process.env.SDD_DISABLE_AI_AUTOPILOT !== "1" &&
+          process.env.SDD_DISABLE_DIGITAL_REVIEW !== "1";
         let lifecycle = runAppLifecycle(projectRoot, activeProject, {
           goalText: text,
           intentSignals: intent.signals,
           intentDomain: intent.domain,
-          intentFlow: intent.flow
+          intentFlow: intent.flow,
+          deferPublishUntilReview: digitalReviewExpected
         });
         lifecycle.summary.forEach((line) => printWhy(`Lifecycle: ${line}`));
         const lifecycleDisabled = process.env.SDD_DISABLE_APP_LIFECYCLE === "1";
@@ -456,7 +472,8 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
                 goalText: text,
                 intentSignals: intent.signals,
                 intentDomain: intent.domain,
-                intentFlow: intent.flow
+                intentFlow: intent.flow,
+                deferPublishUntilReview: digitalReviewExpected
               });
               lifecycle.summary.forEach((line) => printWhy(`Lifecycle (retry ${attempt}): ${line}`));
             } else {
@@ -474,8 +491,18 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         if (!digitalReviewDisabled) {
           const appDir = path.join(projectRoot, "generated-app");
           let deliveryApproved = false;
-          for (let round = 1; round <= iterations; round += 1) {
-            printWhy(`Iteration ${round}/${iterations}: running multi-persona digital review.`);
+          let approvalStreak = 0;
+          const minQualityRounds = parseClampedIntEnv("SDD_MIN_QUALITY_ROUNDS", 2, 1, 10);
+          const requiredApprovalStreak = parseClampedIntEnv("SDD_REQUIRED_APPROVAL_STREAK", 2, 1, 3);
+          const maxExtraIterations = parseClampedIntEnv("SDD_MAX_EXTRA_ITERATIONS", 2, 0, 5);
+          const plannedRounds = Math.max(iterations, minQualityRounds);
+          const maxRounds = Math.min(10, plannedRounds + maxExtraIterations);
+          for (let round = 1; round <= maxRounds; round += 1) {
+            if (round > plannedRounds) {
+              printWhy(`Iteration ${round}/${maxRounds}: extending rounds because quality bar is still unmet.`);
+            } else {
+              printWhy(`Iteration ${round}/${plannedRounds}: running multi-persona digital review.`);
+            }
             let review = runDigitalHumanReview(appDir, {
               goalText: text,
               intentSignals: intent.signals,
@@ -494,7 +521,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             }
 
             let storyDiagnostics = storiesToDiagnostics(stories);
-            if (review.passed && round < iterations) {
+            if (review.passed) {
+              approvalStreak += 1;
+            } else {
+              approvalStreak = 0;
+            }
+            const needsMoreConfidence = round < plannedRounds || approvalStreak < requiredApprovalStreak;
+            if (review.passed && needsMoreConfidence) {
               const valueStories = generateValueGrowthStories({
                 goalText: text,
                 domain: intent.domain,
@@ -504,11 +537,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               storyDiagnostics = storiesToDiagnostics(stories);
               writeUserStoriesBacklog(appDir, stories);
               appendDigitalReviewRound(appDir, round, review, stories);
-              printWhy(`Iteration ${round}: base quality approved (${review.summary}). Executing value-growth stories.`);
+              printWhy(
+                `Iteration ${round}: base quality approved (${review.summary}). Approval streak ${approvalStreak}/${requiredApprovalStreak}; executing value-growth stories.`
+              );
             } else if (review.passed) {
               printWhy(`Iteration ${round}: digital reviewers approved (${review.summary}).`);
               deliveryApproved = true;
-              continue;
+              break;
             } else {
               printWhy(`Iteration ${round}: reviewers requested improvements (${review.summary}).`);
               review.diagnostics.forEach((issue) => printWhy(`Reviewer issue: ${issue}`));
@@ -530,7 +565,8 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               goalText: text,
               intentSignals: intent.signals,
               intentDomain: intent.domain,
-              intentFlow: intent.flow
+              intentFlow: intent.flow,
+              deferPublishUntilReview: digitalReviewExpected
             });
             lifecycle.summary.forEach((line) => printWhy(`Lifecycle (iteration ${round}): ${line}`));
             if (!lifecycle.qualityPassed) {
@@ -541,7 +577,8 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
                   goalText: text,
                   intentSignals: intent.signals,
                   intentDomain: intent.domain,
-                  intentFlow: intent.flow
+                  intentFlow: intent.flow,
+                  deferPublishUntilReview: digitalReviewExpected
                 });
               }
             }
@@ -561,9 +598,17 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             writeUserStoriesBacklog(appDir, stories);
             appendDigitalReviewRound(appDir, round, review, stories);
             if (review.passed) {
-              printWhy(`Iteration ${round}: delivery improved and approved (${review.summary}).`);
-              deliveryApproved = true;
+              approvalStreak += 1;
+              if (round >= plannedRounds && approvalStreak >= requiredApprovalStreak) {
+                printWhy(`Iteration ${round}: delivery improved and approved (${review.summary}).`);
+                deliveryApproved = true;
+                break;
+              }
+              printWhy(
+                `Iteration ${round}: delivery improved (${review.summary}). Approval streak ${approvalStreak}/${requiredApprovalStreak}; continuing quality rounds.`
+              );
             } else {
+              approvalStreak = 0;
               printWhy(`Iteration ${round}: additional improvements still required (${review.summary}).`);
             }
           }
@@ -572,6 +617,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
+          const publish = publishGeneratedApp(projectRoot, activeProject, {
+            goalText: text,
+            intentSignals: intent.signals,
+            intentDomain: intent.domain,
+            intentFlow: intent.flow
+          });
+          printWhy(`Publish after review: ${publish.summary}`);
         }
         recordActivationMetric("completed", {
           project: activeProject,

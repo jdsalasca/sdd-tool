@@ -97,6 +97,14 @@ function findDoc(root: string, names: string[]): string | null {
   return null;
 }
 
+function fileExistsByName(root: string, names: string[]): boolean {
+  const files = collectFilesRecursive(root, 10).map((rel) => rel.toLowerCase());
+  return names.some((name) => {
+    const normalized = name.toLowerCase();
+    return files.some((rel) => rel === normalized || rel.endsWith(`/${normalized}`) || rel.includes(normalized));
+  });
+}
+
 function hasRunbookLikeReadme(readme: string): boolean {
   return /\b(run|start|setup|install)\b/.test(readme);
 }
@@ -130,11 +138,54 @@ function hasSupportEvidence(root: string, readme: string): boolean {
 }
 
 function hasApiContracts(root: string): boolean {
-  return Boolean(findDoc(root, ["openapi.yaml", "openapi.yml", "api-contract.md", "api.md"]));
+  return fileExistsByName(root, ["openapi.yaml", "openapi.yml", "swagger.yaml", "swagger.yml", "api-contract.md", "api.md"]);
 }
 
 function hasReleaseNotes(root: string): boolean {
   return Boolean(findDoc(root, ["release-notes.md", "changelog.md"]));
+}
+
+function hasTelemetryEvidence(root: string): boolean {
+  const files = collectFilesRecursive(root, 10).filter((rel) => /\.(md|yml|yaml|properties|json|ts|tsx|js|java)$/i.test(rel));
+  for (const rel of files) {
+    const raw = normalizeText(fs.readFileSync(path.join(root, rel), "utf-8"));
+    if (/\bopentelemetry\b|\bprometheus\b|\bactuator\b|\btracing\b|\bmetrics\b|\bobservability\b/.test(raw)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isJavaReactGoal(context?: LifecycleContext): boolean {
+  const goal = normalizeText(context?.goalText ?? "");
+  return /\bjava\b/.test(goal) && /\breact\b/.test(goal);
+}
+
+function collectRawFiles(root: string, filter: RegExp): Array<{ rel: string; raw: string }> {
+  const files = collectFilesRecursive(root, 10).filter((rel) => filter.test(rel));
+  return files.map((rel) => ({ rel, raw: fs.readFileSync(path.join(root, rel), "utf-8") }));
+}
+
+function hasAtLeastThreeReferenceItems(root: string, names: string[]): boolean {
+  const doc = findDoc(root, names);
+  if (!doc) return false;
+  const raw = fs.readFileSync(path.join(root, doc), "utf-8");
+  const refs = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line) || /^https?:\/\//i.test(line));
+  return refs.length >= 3;
+}
+
+function hasAtLeastThreeExerciseItems(root: string): boolean {
+  const doc = findDoc(root, ["exercises.md", "practice.md", "activities.md"]);
+  if (!doc) return false;
+  const raw = fs.readFileSync(path.join(root, doc), "utf-8");
+  const items = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line));
+  return items.length >= 3;
 }
 
 function hasSmokeVerification(root: string): boolean {
@@ -207,6 +258,7 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
   const readme = fs.existsSync(readmePath) ? normalizeText(fs.readFileSync(readmePath, "utf-8")) : "";
   const totalTests = countTests(appDir);
   const domain = detectDomain(context);
+  const apiLikeGoal = /\bapi\b|\bbackend\b|\brest\b|\bmicroservice\b|\bserver\b/.test(normalizeText(context?.goalText ?? ""));
 
   if (!readme) {
     findings.push({ reviewer: "program_manager", severity: "high", message: "README.md is missing; delivery is not product-ready." });
@@ -276,7 +328,7 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
       message: "Support/troubleshooting guidance is missing for operators and end users."
     });
   }
-  if (!hasApiContracts(appDir)) {
+  if (apiLikeGoal && !hasApiContracts(appDir)) {
     findings.push({
       reviewer: "integrator_partner",
       severity: "medium",
@@ -297,6 +349,54 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
       severity: "high",
       message: "Potential secret leakage detected (api key/secret/password pattern). Remove hardcoded secrets."
     });
+  }
+
+  if (apiLikeGoal && !hasTelemetryEvidence(appDir)) {
+    findings.push({
+      reviewer: "sre_reviewer",
+      severity: "high",
+      message: "Telemetry/observability evidence missing. Add metrics/tracing configuration and runbook notes."
+    });
+  }
+
+  if (isJavaReactGoal(context)) {
+    const javaFiles = collectRawFiles(appDir, /\.java$/i);
+    const frontendFiles = collectRawFiles(appDir, /\.(tsx?|jsx?)$/i);
+    const hasDto = javaFiles.some(({ rel }) => /\/dto\//i.test(`/${rel}`) || /dto\.java$/i.test(rel));
+    const hasRecord = javaFiles.some(({ raw }) => /\brecord\s+[A-Za-z0-9_]+\s*\(/.test(raw));
+    const hasServiceInterface = javaFiles.some(({ rel, raw }) => /\/service\//i.test(`/${rel}`) && /\binterface\b/.test(raw));
+    const hasRepositoryInterface = javaFiles.some(({ rel, raw }) => /\/repository\//i.test(`/${rel}`) && /\binterface\b/.test(raw));
+    const hasLombok = javaFiles.some(({ raw }) => /import\s+lombok\./.test(raw) || /@(Getter|Setter|Builder|Data|AllArgsConstructor|NoArgsConstructor)\b/.test(raw));
+    const hasValidation = javaFiles.some(
+      ({ raw }) => /(jakarta|javax)\.validation/.test(raw) && /@(Valid|NotNull|NotBlank|Size|Email)\b/.test(raw)
+    );
+    const hasControllerAdvice = javaFiles.some(({ raw }) => /@RestControllerAdvice\b/.test(raw));
+    const hasStrictMode = frontendFiles.some(({ raw }) => /StrictMode/.test(raw));
+    if (!hasDto) {
+      findings.push({ reviewer: "software_architect", severity: "high", message: "Java backend missing DTO layer for transport boundaries." });
+    }
+    if (!hasRecord) {
+      findings.push({ reviewer: "software_architect", severity: "medium", message: "Java backend should use records for immutable request/response models." });
+    }
+    if (!hasServiceInterface || !hasRepositoryInterface) {
+      findings.push({
+        reviewer: "software_architect",
+        severity: "high",
+        message: "Java backend must expose service/repository interfaces to keep architecture testable and maintainable."
+      });
+    }
+    if (!hasLombok) {
+      findings.push({ reviewer: "software_architect", severity: "medium", message: "Lombok usage is expected for boilerplate reduction in Java backend models." });
+    }
+    if (!hasValidation) {
+      findings.push({ reviewer: "security_reviewer", severity: "high", message: "Bean Validation is missing at API boundaries (jakarta/javax validation + annotations)." });
+    }
+    if (!hasControllerAdvice) {
+      findings.push({ reviewer: "security_reviewer", severity: "high", message: "Global exception handling is missing (expected @RestControllerAdvice)." });
+    }
+    if (!hasStrictMode) {
+      findings.push({ reviewer: "frontend_reviewer", severity: "medium", message: "Frontend bootstrap should use React.StrictMode for safer lifecycle checks." });
+    }
   }
 
   if (domain === "legal") {
@@ -323,6 +423,43 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
     }
     if (!findDoc(appDir, ["monitoring-plan.md", "drift-monitoring.md"])) {
       findings.push({ reviewer: "ml_reviewer", severity: "high", message: "Data-science delivery requires drift monitoring plan." });
+    }
+  }
+
+  if (domain === "humanities") {
+    if (!findDoc(appDir, ["methodology.md", "research-methodology.md"])) {
+      findings.push({ reviewer: "research_editor", severity: "high", message: "Humanities delivery requires methodology documentation." });
+    }
+    if (!findDoc(appDir, ["sources.md", "references.md", "bibliography.md"])) {
+      findings.push({ reviewer: "research_editor", severity: "high", message: "Humanities delivery requires source/reference documentation." });
+    } else if (!hasAtLeastThreeReferenceItems(appDir, ["sources.md", "references.md", "bibliography.md"])) {
+      findings.push({ reviewer: "research_editor", severity: "medium", message: "Humanities sources should include at least 3 referenced items." });
+    }
+  }
+
+  if (domain === "learning") {
+    if (!findDoc(appDir, ["curriculum.md", "learning-plan.md"])) {
+      findings.push({ reviewer: "learning_coach", severity: "high", message: "Learning delivery requires curriculum or learning-plan documentation." });
+    }
+    if (!findDoc(appDir, ["exercises.md", "practice.md", "activities.md"])) {
+      findings.push({ reviewer: "learning_coach", severity: "high", message: "Learning delivery requires exercises/practice documentation." });
+    } else if (!hasAtLeastThreeExerciseItems(appDir)) {
+      findings.push({ reviewer: "learning_coach", severity: "medium", message: "Learning exercises should include at least 3 concrete practice activities." });
+    }
+    if (!findDoc(appDir, ["references.md", "resources.md"])) {
+      findings.push({ reviewer: "learning_coach", severity: "medium", message: "Learning delivery should include references/resources for continued study." });
+    }
+  }
+
+  if (domain === "design") {
+    if (!findDoc(appDir, ["design-system.md", "design-tokens.md"])) {
+      findings.push({ reviewer: "design_reviewer", severity: "high", message: "Design delivery requires design system/token documentation." });
+    }
+    if (!findDoc(appDir, ["rationale.md", "design-rationale.md"])) {
+      findings.push({ reviewer: "design_reviewer", severity: "medium", message: "Design rationale is missing; key decisions and tradeoffs must be documented." });
+    }
+    if (!findDoc(appDir, ["accessibility.md", "a11y.md"])) {
+      findings.push({ reviewer: "design_reviewer", severity: "high", message: "Design delivery requires accessibility validation documentation." });
     }
   }
 

@@ -255,3 +255,50 @@ test("runAppLifecycle enforces data-science domain artifact quality", () =>
       true
     );
   }));
+
+test("runAppLifecycle defers publish when digital-review defer flag is enabled", () =>
+  withTempConfig((root) => {
+    const configPath = process.env.SDD_CONFIG_PATH;
+    fs.writeFileSync(
+      configPath,
+      [
+        "workspace:",
+        `  default_root: ${root.replace(/\\/g, "/")}`,
+        "ai:",
+        "  preferred_cli: gemini",
+        "  model: gemini-2.5-flash-lite",
+        "mode:",
+        "  default: guided",
+        "git:",
+        "  publish_enabled: true",
+        ""
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const appDir = path.join(root, "generated-app");
+    fs.mkdirSync(path.join(appDir, "tests"), { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "README.md"),
+      ["# Calculator App", "## Features", "- calculator operations", "## Testing", "- npm test", "## Run", "- npm start"].join("\n"),
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- calc_entry\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- local stubs\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- core paths\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");
+    fs.writeFileSync(
+      path.join(appDir, "tests", "core.test.js"),
+      "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});",
+      "utf-8"
+    );
+
+    const result = runAppLifecycle(root, "autopilot-calculator-20260208", {
+      goalText: "create calculator app",
+      deferPublishUntilReview: true
+    });
+
+    assert.equal(result.qualityPassed, true);
+    assert.equal(result.githubPublished, false);
+    assert.equal(result.summary.some((line) => /deferred until digital review approval/i.test(line)), true);
+  }));

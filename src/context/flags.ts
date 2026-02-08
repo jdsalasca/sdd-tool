@@ -29,7 +29,7 @@ const flags: RuntimeFlags = {
   metricsLocal: false,
   provider: process.env.SDD_AI_PROVIDER_DEFAULT ?? "gemini",
   model: process.env.SDD_AI_MODEL_DEFAULT,
-  iterations: 1
+  iterations: 2
 };
 
 export function setFlags(next: Partial<RuntimeFlags>): void {
