@@ -1,7 +1,7 @@
 {
   "name": "sdd-cli",
-  "version": "0.1.23",
-  "description": "CLI for turning ideas and tracker work items (GitHub, Jira, Linear, Azure) into actionable requirements, specs, test plans, and done-ready delivery artifacts with guided autopilot workflows.",
+  "version": "0.1.24",
+  "description": "AI-orchestrated specification-driven delivery CLI that plans, validates, and ships production-ready software projects.",
   "keywords": [
     "cli",
     "specification-driven-development",
@@ -27,7 +27,8 @@
   },
   "bin": {
     "sdd-cli": "dist/cli.js",
-    "sdd": "dist/cli.js"
+    "sdd": "dist/cli.js",
+    "sdd-tool": "dist/cli.js"
   },
   "main": "dist/cli.js",
   "types": "dist/cli.d.ts",

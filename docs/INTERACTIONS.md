@@ -1,6 +1,7 @@
 # Interactions (human + app + AI)
 
 This file defines the human interaction flow and how the app collaborates with Codex or other AI providers.
+Current implementation note: `hello` runs a local-first guided autopilot with provider-assisted draft/code generation when available; provider CLI execution is also available in `sdd-cli ai status` and `sdd-cli ai exec`.
 
 ## Human interaction (hello)
 
@@ -12,6 +13,8 @@ This file defines the human interaction flow and how the app collaborates with C
 6) App generates artifacts and asks for approval or `--improve`.
 
 ## App + AI interaction (Codex-ready)
+
+This section describes the provider contract target and AI-enabled interaction model.
 
 ### Provider-agnostic contract
 - Input: structured prompt + context artifacts

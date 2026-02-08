@@ -1,7 +1,12 @@
 import { RouterIntent } from "../types";
 
 const SIGNALS: Array<{ intent: RouterIntent["intent"]; flow: string; domain: RouterIntent["domain"]; keywords: string[] }> = [
-  { intent: "bug_fix", flow: "BUG_FIX", domain: "bug_fix", keywords: ["bug", "issue", "error", "crash", "stack"] },
+  {
+    intent: "bug_fix",
+    flow: "BUG_FIX",
+    domain: "bug_fix",
+    keywords: ["bug", "issue", "error", "crash", "stack trace", "stacktrace"]
+  },
   { intent: "pr_review", flow: "PR_REVIEW", domain: "pr_review", keywords: ["pr", "pull request", "review"] },
   {
     intent: "learning",
@@ -29,7 +34,25 @@ const SIGNALS: Array<{ intent: RouterIntent["intent"]; flow: string; domain: Rou
     intent: "software",
     flow: "SOFTWARE_FEATURE",
     domain: "software",
-    keywords: ["feature", "api", "backend", "frontend", "implement", "developer", "refactor", "code"]
+    keywords: [
+      "feature",
+      "api",
+      "backend",
+      "frontend",
+      "implement",
+      "developer",
+      "refactor",
+      "code",
+      "crear",
+      "crea",
+      "aplicacion",
+      "aplicación",
+      "app",
+      "web",
+      "desktop",
+      "movil",
+      "móvil"
+    ]
   }
 ];
 
@@ -48,14 +71,21 @@ export const FLOW_PROMPT_PACKS: Record<string, string[]> = {
 
 export function classifyIntent(input: string): RouterIntent {
   const normalized = input.toLowerCase();
+  const containsKeyword = (keyword: string): boolean => {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (escaped.length <= 3 && !escaped.includes(" ")) {
+      return new RegExp(`\\b${escaped}\\b`, "i").test(normalized);
+    }
+    return normalized.includes(keyword);
+  };
   for (const rule of SIGNALS) {
-    if (rule.keywords.some((keyword) => normalized.includes(keyword))) {
+    if (rule.keywords.some((keyword) => containsKeyword(keyword))) {
       return {
         intent: rule.intent,
         confidence: 0.7,
         flow: rule.flow,
         domain: rule.domain,
-        signals: rule.keywords.filter((keyword) => normalized.includes(keyword))
+        signals: rule.keywords.filter((keyword) => containsKeyword(keyword))
       };
     }
   }

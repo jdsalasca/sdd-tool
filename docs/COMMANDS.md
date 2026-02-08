@@ -17,6 +17,12 @@ This file defines the command set, intent, and expected behavior.
 ## Workspace
 - `sdd-cli init`
   - Initializes a workspace and config
+- `sdd-cli config show`
+  - Shows effective config and config file path
+- `sdd-cli config init`
+  - Creates default config file and default workspace root if missing
+- `sdd-cli config set <key> <value>`
+  - Updates config values (`workspace.default_root`, `ai.preferred_cli`, `ai.model`, `mode.default`, `git.publish_enabled`)
 - `sdd-cli list`
   - Lists flows, router flows, templates, prompt packs, and projects
 - `sdd-cli status`
@@ -97,6 +103,8 @@ This file defines the command set, intent, and expected behavior.
 - `--output`    Override workspace output root
 - `--scope`     Namespace workspace/project data for monorepo targeting
 - `--metrics-local` Enable local opt-in telemetry snapshots under `workspace/metrics`
+- `--provider <name>` Select AI provider (`gemini|codex|auto`), default `gemini`
+- `--gemini` Shortcut for `--provider gemini`
 
 ## Metrics utilities
 - `npm run metrics:summary -- <workspace-root>`
@@ -114,6 +122,8 @@ This file defines the command set, intent, and expected behavior.
   - Uses current workspace defaults without confirmation prompts
   - Auto-selects new flow unless `--project <name>` is provided
   - Auto-generates project name when missing
+  - Generates app scaffold under `generated-app/`
+  - Runs lifecycle orchestration (quality checks, deploy artifacts, git init/commit, GitHub publish attempt via `gh` when authenticated)
 - `--questions`: manual question packs and explicit draft confirmation
 - `--beginner`: keeps autopilot behavior but adds beginner-friendly explanations at each step
 - `--auto`: alias to trigger question-driven draft generation path
@@ -122,3 +132,7 @@ This file defines the command set, intent, and expected behavior.
 - If validation fails, the command reports machine-readable codes (`SDD-xxxx`) and exits non-zero.
 - See `docs/ERROR_CODES.md` for ranges and remediation guidance.
 
+ - `sdd-cli suite [input...]`
+  - Starts continuous orchestration mode
+  - Uses autopilot defaults and only asks blocker questions (for example app type or stack) when missing
+  - Supports one-liner usage through direct input routing

@@ -84,7 +84,7 @@ function runCli(workspaceRoot, projectName, args, input, extraEnv = {}) {
   return spawnSync(process.execPath, [...baseArgs, ...args], {
     input,
     encoding: "utf-8",
-    env: { ...process.env, SDD_STDIN: "1", ...extraEnv }
+    env: { ...process.env, SDD_STDIN: "1", SDD_DISABLE_AI_AUTOPILOT: "1", SDD_DISABLE_APP_LIFECYCLE: "1", ...extraEnv }
   });
 }
 
@@ -97,7 +97,7 @@ function runCliAsync(workspaceRoot, projectName, args, input, extraEnv = {}) {
 
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [...baseArgs, ...args], {
-      env: { ...process.env, SDD_STDIN: "1", ...extraEnv }
+      env: { ...process.env, SDD_STDIN: "1", SDD_DISABLE_AI_AUTOPILOT: "1", SDD_DISABLE_APP_LIFECYCLE: "1", ...extraEnv }
     });
     let stdout = "";
     let stderr = "";
@@ -118,6 +118,21 @@ function runCliAsync(workspaceRoot, projectName, args, input, extraEnv = {}) {
       resolve({ status: code, stdout, stderr });
     });
   });
+}
+
+function writeFakeCommand(binDir, name, body) {
+  const winBody = typeof body === "string" ? body : body.win;
+  const shBody = typeof body === "string" ? body : body.sh;
+  fs.mkdirSync(binDir, { recursive: true });
+  if (process.platform === "win32") {
+    const cmdPath = path.join(binDir, `${name}.cmd`);
+    fs.writeFileSync(cmdPath, `@echo off\r\n${winBody}\r\n`, "utf-8");
+    return cmdPath;
+  }
+  const scriptPath = path.join(binDir, name);
+  fs.writeFileSync(scriptPath, `#!/usr/bin/env sh\n${shBody}\n`, "utf-8");
+  fs.chmodSync(scriptPath, 0o755);
+  return scriptPath;
 }
 
 test("req finish rolls back directory move when post-move step fails", () => {
@@ -230,6 +245,14 @@ test("hello auto-guides with direct input and minimal prompts", () => {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /Auto-guided mode active/i);
   assert.match(result.stdout, /Using project: autopilot-/i);
+  assert.match(result.stdout, /Autopilot completed successfully/i);
+});
+
+test("direct commandless input routes to hello autopilot", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-direct-entry-"));
+  const result = runCli(workspaceRoot, "", ["Create a calculator app"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Hello from sdd-cli/i);
   assert.match(result.stdout, /Autopilot completed successfully/i);
 });
 
@@ -755,6 +778,50 @@ test("hello --metrics-local writes local telemetry snapshot", () => {
   assert.equal(fs.existsSync(metricsPath), true);
   const metrics = JSON.parse(fs.readFileSync(metricsPath, "utf-8"));
   assert.equal(metrics.activation.started >= 1, true);
+});
+
+test("hello creates lifecycle artifacts when lifecycle is enabled", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-lifecycle-enabled-"));
+  const result = runCli(
+    workspaceRoot,
+    "",
+    ["--non-interactive", "hello", "Build a calculator app"],
+    "",
+    { SDD_DISABLE_APP_LIFECYCLE: "0", SDD_GEMINI_BIN: "missing-gemini-bin" }
+  );
+  assert.equal(result.status, 0);
+  const projects = fs.readdirSync(workspaceRoot).filter((entry) => entry !== "workspaces.json");
+  assert.equal(projects.length > 0, true);
+  const appDir = path.join(workspaceRoot, projects[0], "generated-app");
+  assert.equal(fs.existsSync(path.join(appDir, "deploy", "deployment.md")), true);
+  assert.equal(fs.existsSync(path.join(appDir, "deploy", "lifecycle-report.md")), true);
+});
+
+test("ai status uses selected gemini provider when available", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-ai-status-gemini-"));
+  const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-fake-bin-"));
+  const geminiBin = writeFakeCommand(fakeBin, "gemini", {
+    win: "if \"%1\"==\"--version\" (echo gemini-cli 1.2.3 & exit /b 0) else (echo unsupported & exit /b 1)",
+    sh: "if [ \"$1\" = \"--version\" ]; then echo gemini-cli 1.2.3; exit 0; fi; echo unsupported; exit 1"
+  });
+  const result = runCli(workspaceRoot, "", ["--provider", "gemini", "ai", "status"], "", { SDD_GEMINI_BIN: geminiBin });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Provider selected: gemini/i);
+  assert.match(result.stdout, /Gemini available: gemini-cli 1.2.3/i);
+});
+
+test("ai exec uses gemini provider and prints output", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-ai-exec-gemini-"));
+  const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-fake-bin-"));
+  const geminiBin = writeFakeCommand(fakeBin, "gemini", {
+    win: "if \"%1\"==\"--version\" (echo gemini-cli 1.2.3 & exit /b 0) else (if \"%1\"==\"--prompt\" (echo GENERATED_FROM_GEMINI & exit /b 0) else (exit /b 1))",
+    sh: "if [ \"$1\" = \"--version\" ]; then echo gemini-cli 1.2.3; exit 0; fi; if [ \"$1\" = \"--prompt\" ]; then echo GENERATED_FROM_GEMINI; exit 0; fi; exit 1"
+  });
+  const result = runCli(workspaceRoot, "", ["--provider", "gemini", "ai", "exec", "build", "calculator"], "", {
+    SDD_GEMINI_BIN: geminiBin
+  });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /GENERATED_FROM_GEMINI/i);
 });
 
 test("pr risk builds severity rollup and unresolved summary", () => {

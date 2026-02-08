@@ -1,4 +1,5 @@
 import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
+import path from "path";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
 import { ask, confirm } from "../ui/prompt";
 import { getPromptPackById, loadPromptPacks, PromptPack } from "../router/prompt-packs";
@@ -12,6 +13,8 @@ import { runRoute } from "./route";
 import { runTestPlan } from "./test-plan";
 import { recordActivationMetric } from "../telemetry/local-metrics";
 import { printError } from "../errors";
+import { bootstrapProjectCode, enrichDraftWithAI, improveGeneratedApp } from "./ai-autopilot";
+import { runAppLifecycle } from "./app-lifecycle";
 import {
   AutopilotCheckpoint,
   AutopilotStep,
@@ -135,6 +138,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   const autoGuidedMode = !shouldRunQuestions && (runtimeFlags.nonInteractive || hasDirectIntent);
   const dryRun = runtimeFlags.dryRun;
   const beginnerMode = runtimeFlags.beginner;
+  const provider = runtimeFlags.provider;
 
   console.log("Hello from sdd-cli.");
   console.log(`Workspace: ${workspace.root}`);
@@ -143,6 +147,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   }
   if (autoGuidedMode) {
     printWhy("Auto-guided mode active: using current workspace defaults.");
+    printWhy(`AI provider preference: ${provider ?? "gemini"}`);
   } else {
     const useWorkspace = await confirm("Use this workspace path? (y/n) ");
     if (!useWorkspace) {
@@ -296,7 +301,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         fromStep = candidate;
       }
     }
-    const draft = buildAutopilotDraft(text, intent.flow, intent.domain);
+    const draft = enrichDraftWithAI(text, intent.flow, intent.domain, buildAutopilotDraft(text, intent.flow, intent.domain), provider);
     draft.project_name = activeProject;
     let reqId = checkpoint?.reqId ?? "";
     const startStep: AutopilotStep = fromStep ?? "create";
@@ -402,6 +407,49 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           return;
         }
         clearCheckpoint(activeProject);
+        const projectRoot = path.resolve(finished.doneDir, "..", "..", "..");
+        const codeBootstrap = bootstrapProjectCode(projectRoot, activeProject, text, provider);
+        if (!codeBootstrap.generated) {
+          printWhy(`Code generation blocked: ${codeBootstrap.reason || "provider did not return valid files"}.`);
+          printWhy("No template fallback was applied. Re-run with clearer prompt or improve provider response contract.");
+          printRecoveryNext(activeProject, "finish", text);
+          return;
+        }
+        printWhy(`Code scaffold ready at: ${codeBootstrap.outputDir} (${codeBootstrap.fileCount} files)`);
+        if (codeBootstrap.reason) {
+          printWhy(`Code scaffold note: ${codeBootstrap.reason}`);
+        }
+        let lifecycle = runAppLifecycle(projectRoot, activeProject, {
+          goalText: text,
+          intentSignals: intent.signals
+        });
+        lifecycle.summary.forEach((line) => printWhy(`Lifecycle: ${line}`));
+        const lifecycleDisabled = process.env.SDD_DISABLE_APP_LIFECYCLE === "1";
+        if (!lifecycleDisabled && !lifecycle.qualityPassed) {
+          const appDir = path.join(projectRoot, "generated-app");
+          const parsedAttempts = Number.parseInt(process.env.SDD_AI_REPAIR_MAX_ATTEMPTS ?? "", 10);
+          const maxRepairAttempts = Number.isFinite(parsedAttempts) && parsedAttempts > 0 ? parsedAttempts : 6;
+          printWhy("Quality gates failed. Attempting AI repair iterations.");
+          lifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Quality issue: ${issue}`));
+          for (let attempt = 1; attempt <= maxRepairAttempts && !lifecycle.qualityPassed; attempt += 1) {
+            const repair = improveGeneratedApp(appDir, text, provider, lifecycle.qualityDiagnostics);
+            if (repair.attempted && repair.applied) {
+              printWhy(`AI repair attempt ${attempt} applied (${repair.fileCount} files). Re-running lifecycle checks.`);
+              lifecycle = runAppLifecycle(projectRoot, activeProject, {
+                goalText: text,
+                intentSignals: intent.signals
+              });
+              lifecycle.summary.forEach((line) => printWhy(`Lifecycle (retry ${attempt}): ${line}`));
+            } else {
+              printWhy(`AI repair attempt ${attempt} skipped: ${repair.reason || "unknown reason"}`);
+            }
+          }
+          if (!lifecycle.qualityPassed) {
+            printWhy("Quality still failing after AI repair attempts. Stopping without template fallback.");
+            printRecoveryNext(activeProject, "finish", text);
+            return;
+          }
+        }
         recordActivationMetric("completed", {
           project: activeProject,
           reqId

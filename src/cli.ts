@@ -8,6 +8,7 @@ import { runRoute } from "./commands/route";
 import { runDoctor } from "./commands/doctor";
 import { runQuickstart } from "./commands/quickstart";
 import { runStatus } from "./commands/status";
+import { runSuite } from "./commands/suite";
 import { runImportIssue } from "./commands/import-issue";
 import { runImportJira } from "./commands/import-jira";
 import { runImportLinear } from "./commands/import-linear";
@@ -16,6 +17,8 @@ import { getRepoRoot } from "./paths";
 import { setFlags } from "./context/flags";
 import { closePrompt } from "./ui/prompt";
 import { recordCommandMetric } from "./telemetry/local-metrics";
+import { defaultProviderPreference } from "./providers";
+import { configPath, ensureConfig, updateConfigValue } from "./config";
 
 const program = new Command();
 
@@ -43,24 +46,38 @@ program
   .option("--project <name>", "Select or name the project")
   .option("--output <path>", "Override workspace output root")
   .option("--scope <name>", "Target a monorepo scope namespace inside the workspace")
-  .option("--metrics-local", "Enable local opt-in telemetry snapshots in workspace/metrics");
+  .option("--metrics-local", "Enable local opt-in telemetry snapshots in workspace/metrics")
+  .option("--provider <name>", "AI provider: gemini|codex|auto", defaultProviderPreference())
+  .option("--model <name>", "AI model id (for providers that support model override)")
+  .option("--gemini", "Shortcut for --provider gemini");
 
 program.hook("preAction", (thisCommand, actionCommand) => {
+  const config = ensureConfig();
   const opts =
     typeof actionCommand.optsWithGlobals === "function" ? actionCommand.optsWithGlobals() : thisCommand.opts();
+  const defaultMode = config.mode.default;
+  const nonInteractive = Boolean(opts.nonInteractive) || defaultMode === "non-interactive";
+  const beginner = Boolean(opts.beginner) || defaultMode === "beginner";
   setFlags({
     approve: Boolean(opts.approve),
     improve: Boolean(opts.improve),
     parallel: Boolean(opts.parallel),
-    nonInteractive: Boolean(opts.nonInteractive),
+    nonInteractive,
     dryRun: Boolean(opts.dryRun),
-    beginner: Boolean(opts.beginner),
+    beginner,
     fromStep: typeof opts.fromStep === "string" ? opts.fromStep : undefined,
     project: typeof opts.project === "string" ? opts.project : undefined,
     output: typeof opts.output === "string" ? opts.output : undefined,
     scope: typeof opts.scope === "string" ? opts.scope : undefined,
-    metricsLocal: Boolean(opts.metricsLocal)
+    metricsLocal: Boolean(opts.metricsLocal),
+    provider: Boolean(opts.gemini)
+      ? "gemini"
+      : typeof opts.provider === "string"
+        ? opts.provider
+        : config.ai.preferred_cli,
+    model: typeof opts.model === "string" ? opts.model : config.ai.model
   });
+  process.env.SDD_GEMINI_MODEL = typeof opts.model === "string" ? opts.model : config.ai.model;
 
   const commandPath =
     typeof actionCommand.name === "function"
@@ -92,6 +109,12 @@ program
   .option("--example <name>", "Example prompt: saas|bugfix|api|ecommerce|mobile")
   .option("--list-examples", "List available example prompts")
   .action((options) => runQuickstart(options.example, options.listExamples));
+
+program
+  .command("suite")
+  .description("Run continuous SDD orchestration mode (asks only blocking decisions)")
+  .argument("[input...]", "Optional initial goal")
+  .action((input: string[]) => runSuite(input.join(" ").trim()));
 
 program
   .command("list")
@@ -354,17 +377,51 @@ program
     runDoctor(project, requirementId, Boolean(options.fix))
   );
 
-const ai = program.command("ai").description("Codex provider commands");
+const configCmd = program.command("config").description("Configuration commands");
+configCmd
+  .command("show")
+  .description("Show effective config and config file path")
+  .action(() => {
+    const config = ensureConfig();
+    console.log(`Config file: ${configPath()}`);
+    console.log(JSON.stringify(config, null, 2));
+  });
+
+configCmd
+  .command("init")
+  .description("Create config file with defaults if missing")
+  .action(() => {
+    const config = ensureConfig();
+    console.log(`Config ready: ${configPath()}`);
+    console.log(`Workspace default root: ${config.workspace.default_root}`);
+  });
+
+configCmd
+  .command("set")
+  .description("Set config value by key")
+  .argument("<key>", "Key: workspace.default_root | ai.preferred_cli | ai.model | mode.default | git.publish_enabled")
+  .argument("<value>", "Value for key")
+  .action((key: string, value: string) => {
+    const updated = updateConfigValue(key, value);
+    if (!updated) {
+      console.log("[SDD-1506] Invalid config key. Use workspace.default_root, ai.preferred_cli, ai.model, mode.default, git.publish_enabled.");
+      return;
+    }
+    console.log(`Config updated: ${configPath()}`);
+    console.log(JSON.stringify(updated, null, 2));
+  });
+
+const ai = program.command("ai").description("AI provider commands");
 ai
   .command("status")
-  .description("Check Codex CLI availability")
+  .description("Check AI provider CLI availability")
   .action(async () => {
     const { runAiStatus } = await import("./commands/ai-status");
     runAiStatus();
   });
 ai
   .command("exec")
-  .description("Run Codex non-interactively")
+  .description("Run configured AI provider non-interactively")
   .argument("[prompt...]", "Prompt to execute")
   .action(async (prompt: string[]) => {
     const { runAiExec } = await import("./commands/ai-exec");
@@ -404,5 +461,54 @@ importCmd
     await runImportAzure(workItem);
   });
 
-program.parse(process.argv);
+const knownTopLevel = new Set([
+  "hello",
+  "init",
+  "quickstart",
+  "suite",
+  "list",
+  "status",
+  "scope",
+  "req",
+  "pr",
+  "test",
+  "gen",
+  "learn",
+  "route",
+  "doctor",
+  "config",
+  "ai",
+  "import"
+]);
+
+function normalizeArgv(argv: string[]): string[] {
+  const passthrough = argv.slice(0, 2);
+  const args = argv.slice(2);
+  if (args.length === 0) {
+    return argv;
+  }
+  const valueFlags = new Set(["--from-step", "--project", "--output", "--scope", "--provider", "--model"]);
+  let positionalIndex = -1;
+  for (let i = 0; i < args.length; i += 1) {
+    const token = args[i];
+    if (!token.startsWith("-")) {
+      positionalIndex = i;
+      break;
+    }
+    if (valueFlags.has(token)) {
+      i += 1;
+    }
+  }
+  if (positionalIndex < 0) {
+    return argv;
+  }
+  const firstPositional = args[positionalIndex];
+  if (knownTopLevel.has(firstPositional)) {
+    return argv;
+  }
+  // Supports one-command UX: sdd-tool "create a calculator"
+  return [...passthrough, ...args.slice(0, positionalIndex), "hello", ...args.slice(positionalIndex)];
+}
+
+program.parse(normalizeArgv(process.argv));
 

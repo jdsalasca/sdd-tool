@@ -49,6 +49,12 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: verify `REQ-*` exists with `sdd-cli req list`, then rerun lint.
 - `SDD-1503`: Codex provider unavailable
   - Fix: install/configure Codex provider and validate with `sdd-cli ai status`.
+- `SDD-1504`: Requested provider unavailable
+  - Fix: install/configure requested provider (`gemini` or `codex`), or use `--provider auto`.
+- `SDD-1505`: Provider execution failed
+  - Fix: verify provider auth/session and retry with `sdd-cli ai exec`.
+- `SDD-1506`: Invalid provider value
+  - Fix: use one of `gemini`, `codex`, `auto`.
 - `SDD-2006`: Artifact schema validation failed
   - Fix: run `sdd-cli doctor --fix` then `req refine` or regenerate affected artifact.
 - `SDD-1614`: Functional spec validation failed

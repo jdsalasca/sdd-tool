@@ -14,3 +14,21 @@ test("classifyIntent detects generic intent", () => {
   assert.equal(result.intent, "generic");
   assert.equal(result.flow, "GENERIC");
 });
+
+test("classifyIntent avoids false PR match on words containing pr", () => {
+  const result = classifyIntent("crea una calculadora de escritorio con pruebas");
+  assert.notEqual(result.intent, "pr_review");
+});
+
+test("classifyIntent avoids false bug_fix on software stack preference", () => {
+  const result = classifyIntent(
+    "crea una app para notas con persistencia. Build target: web. Preferred stack: javascript."
+  );
+  assert.notEqual(result.intent, "bug_fix");
+});
+
+test("classifyIntent detects software intent in spanish app requests", () => {
+  const result = classifyIntent("crea una app para notas con persistencia");
+  assert.equal(result.intent, "software");
+  assert.equal(result.flow, "SOFTWARE_FEATURE");
+});

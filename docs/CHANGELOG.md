@@ -3,6 +3,14 @@
 ## Unreleased
 - None.
 
+## 0.1.24
+- Release notes: `docs/releases/v0.1.24.md`
+- Strengthen strict orchestrator behavior so generated apps are validated against user intent before acceptance/publish.
+- Improve GitHub repo metadata derivation to prioritize project goal/context instead of AI-generated README titles.
+- Add lifecycle quality diagnostics and retry controls to improve provider-driven recovery loops.
+- Add configurable defaults (`ai.model`) and update docs for config-based workspace/provider setup.
+- Refresh npm package description and README navigation to reduce documentation noise.
+
 ## 0.1.23
 - Release notes: `docs/releases/v0.1.23.md`
 - Release metrics: `docs/releases/v0.1.23-metrics.md`

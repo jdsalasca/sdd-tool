@@ -10,6 +10,8 @@ export type RuntimeFlags = {
   output?: string;
   scope?: string;
   metricsLocal?: boolean;
+  provider?: string;
+  model?: string;
 };
 
 const flags: RuntimeFlags = {
@@ -23,7 +25,9 @@ const flags: RuntimeFlags = {
   project: undefined,
   output: undefined,
   scope: undefined,
-  metricsLocal: false
+  metricsLocal: false,
+  provider: process.env.SDD_AI_PROVIDER_DEFAULT ?? "gemini",
+  model: process.env.SDD_AI_MODEL_DEFAULT
 };
 
 export function setFlags(next: Partial<RuntimeFlags>): void {
@@ -59,6 +63,12 @@ export function setFlags(next: Partial<RuntimeFlags>): void {
   }
   if ("metricsLocal" in next) {
     flags.metricsLocal = Boolean(next.metricsLocal);
+  }
+  if ("provider" in next) {
+    flags.provider = typeof next.provider === "string" ? next.provider : flags.provider;
+  }
+  if ("model" in next) {
+    flags.model = typeof next.model === "string" ? next.model : flags.model;
   }
 }
 

@@ -10,52 +10,14 @@ This repo hosts the CLI implementation, domain flows, templates, schemas, and st
 
 Build the foundation once, then lift everything else. The tool provides a durable structure: requirements, architecture, technical specs, quality gates, test plans, and decision logs. AI gets "wings" by being guided, constrained, and accountable at every step.
 
-Mission and vision live in `docs/MISSION.md` and `docs/VISION.md`.
-
-Start with `docs/INDEX.md` for a full documentation map and `docs/STYLE.md` for formatting guidance.
-Contributing guidelines live in `docs/CONTRIBUTING.md`.
-Contributor quickstart lives in `docs/CONTRIBUTOR_QUICKSTART.md`.
-Issue triage taxonomy lives in `docs/ISSUE_TRIAGE_PLAYBOOK.md`.
-Use the PR template in `.github/PULL_REQUEST_TEMPLATE.md`.
-Maintenance guidance lives in `docs/MAINTENANCE.md`.
-Install troubleshooting lives in `docs/TROUBLESHOOTING.md`.
-
-Deep process, commands, interactions, and diagrams live in:
-- `docs/PROCESS.md`
-- `docs/COMMANDS.md`
-- `docs/INTERACTIONS.md`
-- `docs/DIAGRAMS.md`
-- `docs/ARCHITECTURE.md`
-- `docs/SDD_CHECKLIST.md`
-- `docs/GLOSSARY.md`
-- `docs/VALIDATION_CHECKLIST.md`
-- `docs/FLOW_TEMPLATE_MAP.md`
-- `docs/GATE_PROMPT_MATRIX.md`
-- `docs/TEMPLATE_LINT_RULES.md`
-- `docs/FLOW_GATE_MAP.md`
-- `docs/FLOW_COMPLIANCE_CHECKLIST.md`
-- `docs/RELEASE_READINESS_CHECKLIST.md`
-- `docs/AUTOMATION_OUTLINE.md`
-- `docs/GATE_SCHEMA_MAP.md`
-- `docs/GATE_TEMPLATE_MAP.md`
-- `docs/KNOWLEDGE_MODE_CHECKLIST.md`
-- `docs/DOMAIN_COMPLETENESS_CHECKLIST.md`
-- `docs/IMPLEMENTATION_PLAN.md`
-- `docs/CLEAN_ARCHITECTURE_CHECKLIST.md`
-- `docs/REQUIREMENTS_ALIGNMENT.md`
-- `docs/GITFLOW.md`
-- `docs/RELEASE_PROCESS.md`
-
-Reports live in:
-- `docs/reports/E2E_REPORT.md`
-- `docs/reports/FLOW_COVERAGE.md`
-- `docs/reports/GATE_COVERAGE_REPORT.md`
-- `docs/reports/GATE_TEMPLATE_COVERAGE_REPORT.md`
-- `docs/reports/PACK_COVERAGE_REPORT.md`
-- `docs/reports/PROMPT_AUDIT_REPORT.md`
-- `docs/reports/PROMPT_COVERAGE_REPORT.md`
-- `docs/reports/QUALITY_SCORE_RUBRIC.md`
-- `docs/reports/SPEC_COMPLETENESS_REPORT.md`
+Documentation entry points:
+- `docs/INDEX.md` (full docs map)
+- `docs/COMMANDS.md` (CLI command reference)
+- `docs/INTERACTIONS.md` (orchestration model and provider contract)
+- `docs/ERROR_CODES.md` (machine-readable remediation map)
+- `docs/TROUBLESHOOTING.md` (install/runtime issues)
+- `docs/RELEASE_PROCESS.md` (versioning and publish flow)
+- `docs/CHANGELOG.md` and `docs/releases/` (release history)
 
 Examples and templates:
 - `examples/transcripts/`
@@ -123,7 +85,7 @@ Package name on npm is `sdd-cli` (CLI commands remain `sdd-cli` and `sdd`).
 
 Project names must use letters, numbers, spaces, `-` or `_`, and cannot include path separators.
 
-The `hello` command is the entry point: it connects to AI, lists active projects, and offers to create a new one or continue.  
+The `hello` command is the entry point: it loads workspace context, lists active projects, routes intent, and runs the guided autopilot flow.  
 Default behavior is now a guided autopilot from discovery to completion with minimal prompts.  
 When you pass direct intent text (`sdd-cli hello "..."`), hello uses auto-guided defaults and minimizes confirmations.  
 Use `--questions` when you want the manual question-by-question flow.
@@ -131,7 +93,7 @@ Use `--questions` when you want the manual question-by-question flow.
 ## The happy path (end-to-end flow)
 
 1) **Start**  
-   `sdd-cli hello` connects to AI, shows active projects, and asks if you want to start new or continue.
+   `sdd-cli hello` loads workspace state, shows active projects, and asks if you want to start new or continue.
 
 2) **Autopilot Discovery**  
    Creates a requirement draft in backlog with validated defaults.
@@ -148,13 +110,17 @@ Use `--questions` when you want the manual question-by-question flow.
 6) **Autopilot Finish**  
    Finalizes requirement, writes project-level README artifacts, and moves requirement to `done`.
 
-7) **Manual Detail (optional)**  
+7) **App Lifecycle Orchestration**  
+   Generates code scaffold in `generated-app`, runs quality checks (when scripts exist), prepares local deploy artifacts, initializes git, and attempts GitHub publish when `gh` is authenticated.
+
+8) **Manual Detail (optional)**  
    Run `sdd-cli hello --questions` when you prefer detailed prompt packs before drafting.
 
 ## Commands (proposed)
 
 ### Core
 - `sdd-cli hello` -- interactive session, project picker, full guided flow
+- `sdd-cli suite "<goal>"` -- continuous orchestration mode; asks only blocking decisions and executes full delivery end-to-end
 - `sdd-cli quickstart` -- one-command demo flow with built-in examples
 - `sdd-cli init` -- create SDD workspace and config
 - `sdd-cli list` -- list flows, router flows, templates, prompt packs, and projects
@@ -163,6 +129,10 @@ Use `--questions` when you want the manual question-by-question flow.
 - `sdd-cli scope status <scope>` -- show status summary for one scope
 - `sdd-cli doctor` -- validate completeness and consistency
   - `sdd-cli doctor --fix` -- apply safe remediations for missing requirement ops files
+- `sdd-cli config show` -- show active config and config file path
+- `sdd-cli config init` -- create default config file
+- `sdd-cli config set <key> <value>` -- update config (`workspace.default_root|ai.preferred_cli|ai.model|mode.default|git.publish_enabled`)
+  - include `git.publish_enabled` (`true|false`) to control GitHub publish attempts
 
 ### Router
 - `sdd-cli route` -- classify user intent and route to the right flow
@@ -212,6 +182,8 @@ Use `--questions` when you want the manual question-by-question flow.
 - `--output <path>` -- override workspace output
 - `--scope <name>` -- isolate artifacts by monorepo scope namespace
 - `--metrics-local` -- record local opt-in telemetry snapshots in `workspace/metrics`
+- `--provider <name>` -- select AI provider (`gemini|codex|auto`), default `gemini`
+- `--gemini` -- shortcut for `--provider gemini`
 - `--project <name>` -- set project name
 - `--parallel` -- generate in parallel
 - `--questions` -- use manual question-driven discovery flow
@@ -263,9 +235,20 @@ For a full onboarding walkthrough, see:
 
 By default, the tool writes to a dedicated workspace, not into your repo:
 
-- Default (global workspace):  
-  - Windows: `%APPDATA%/sdd-cli/workspaces/<project>`  
-  - macOS/Linux: `~/.config/sdd-cli/workspaces/<project>`
+- Default (config-driven workspace):  
+  - Windows/macOS/Linux default: `~/Documents/sdd-tool-projects/<project>`
+  - Example on this machine: `C:\Users\jdsal\Documents\sdd-tool-projects\<project>`
+
+Config file:
+- Windows: `%APPDATA%/sdd-cli/config.yml`
+- macOS/Linux: `~/.config/sdd-cli/config.yml`
+
+Default config values:
+- `workspace.default_root`: `{{home}}/Documents/sdd-tool-projects`
+- `ai.preferred_cli`: `gemini`
+- `ai.model`: `gemini-2.5-flash-lite`
+- `mode.default`: `guided`
+- `git.publish_enabled`: `false`
 
 Optional:
 - `--output ./docs/sdd` to keep SDD next to the repo
@@ -559,7 +542,7 @@ Implementation readiness:
 ## Interactive session (hello) design
 
 ### Steps
-1) **Connect** to AI and load local workspace index.
+1) **Load** local workspace index and runtime flags.
 2) **List active projects** with status (backlog, wip, done).
 3) **Choose**: start new or continue.
 4) **Context**: ask domain and persona to load the right flow.
@@ -632,6 +615,9 @@ The CLI is provider-agnostic:
 - Codex-compatible
 
 The router selects agent roles, while the provider is configurable.
+Current implementation status:
+- `hello` remains local-first autopilot and now includes optional provider-assisted draft/code generation with fallback-safe defaults.
+- Direct provider checks/execution are also available through `sdd-cli ai status` and `sdd-cli ai exec`.
 
 ## Privacy and approvals
 

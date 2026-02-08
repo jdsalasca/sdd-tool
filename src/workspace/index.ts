@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import os from "os";
 import { getFlags } from "../context/flags";
+import { ensureConfig } from "../config";
 
 export type ProjectSummary = {
   name: string;
@@ -135,11 +135,11 @@ export function getWorkspaceInfoForScope(scope?: string): WorkspaceInfo {
 
 export function getWorkspaceBaseRoot(): string {
   const flags = getFlags();
-  return flags.output
-    ? path.resolve(flags.output)
-    : process.env.APPDATA
-      ? path.join(process.env.APPDATA, "sdd-cli", "workspaces")
-      : path.join(os.homedir(), ".config", "sdd-cli", "workspaces");
+  if (flags.output) {
+    return path.resolve(flags.output);
+  }
+  const config = ensureConfig();
+  return path.resolve(config.workspace.default_root);
 }
 
 export function listScopes(baseRoot?: string): string[] {

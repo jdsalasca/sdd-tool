@@ -1,0 +1,1351 @@
+import fs from "fs";
+import path from "path";
+import { resolveProvider } from "../providers";
+import { RequirementDraft } from "./req-create";
+
+function extractJsonObject(text: string): Record<string, unknown> | null {
+  const parseFirstBalancedObject = (raw: string): Record<string, unknown> | null => {
+    const source = raw.trim();
+    const start = source.indexOf("{");
+    if (start < 0) {
+      return null;
+    }
+    let depth = 0;
+    let inString = false;
+    let escaping = false;
+    for (let i = start; i < source.length; i += 1) {
+      const char = source[i];
+      if (inString) {
+        if (escaping) {
+          escaping = false;
+        } else if (char === "\\") {
+          escaping = true;
+        } else if (char === "\"") {
+          inString = false;
+        }
+        continue;
+      }
+      if (char === "\"") {
+        inString = true;
+        continue;
+      }
+      if (char === "{") {
+        depth += 1;
+      } else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          const candidate = source.slice(start, i + 1);
+          try {
+            const parsed = JSON.parse(candidate) as Record<string, unknown>;
+            return unwrapResponse(parsed);
+          } catch {
+            return null;
+          }
+        }
+      }
+    }
+    return null;
+  };
+  const parseCandidate = (raw: string): Record<string, unknown> | null => {
+    const direct = raw.trim();
+    if (!direct) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(direct);
+      return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    } catch {
+      // keep trying
+    }
+
+    const fenceMatch = /```(?:json)?\s*([\s\S]*?)\s*```/i.exec(raw);
+    if (fenceMatch && fenceMatch[1]) {
+      try {
+        const parsed = JSON.parse(fenceMatch[1].trim());
+        return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+      } catch {
+        // keep trying
+      }
+    }
+    return parseFirstBalancedObject(raw);
+  };
+  const unwrapResponse = (value: Record<string, unknown>): Record<string, unknown> | null => {
+    const nested = value.response;
+    if (typeof nested !== "string") {
+      return value;
+    }
+    const parsedNested = parseCandidate(nested);
+    return parsedNested ?? value;
+  };
+
+  const parsed = parseCandidate(text);
+  if (!parsed) {
+    return null;
+  }
+  return unwrapResponse(parsed);
+}
+
+function asText(value: unknown, fallback: string): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const clean = value.trim();
+  return clean.length > 0 ? clean : fallback;
+}
+
+function safeRelativePath(input: string): string | null {
+  const clean = input.trim().replace(/\\/g, "/");
+  if (!clean || clean.startsWith("/") || /^[A-Za-z]:/.test(clean)) {
+    return null;
+  }
+  const normalized = path.posix.normalize(clean);
+  if (normalized.startsWith("../") || normalized === "..") {
+    return null;
+  }
+  return normalized;
+}
+
+function askProviderForJson(
+  providerExec: (prompt: string) => { ok: boolean; output: string },
+  prompt: string
+): Record<string, unknown> | null {
+  const first = providerExec(prompt);
+  if (!first.ok) {
+    return null;
+  }
+  const parsed = extractJsonObject(first.output);
+  if (parsed) {
+    return parsed;
+  }
+  const repairPrompt = [
+    "Convert the following response into valid JSON only.",
+    "Keep the same information.",
+    "No markdown fences, no explanations.",
+    first.output
+  ].join("\n");
+  const second = providerExec(repairPrompt);
+  if (!second.ok) {
+    return null;
+  }
+  return extractJsonObject(second.output);
+}
+
+function detectBaselineKind(intent: string): "notes" | "user_news" | "generic" {
+  const lower = intent.toLowerCase();
+  if (/\bnotes?\b|\bnotas?\b/.test(lower)) {
+    return "notes";
+  }
+  if (
+    (/usuarios?|users?/.test(lower) && /novedades|news|announcements?/.test(lower)) ||
+    /gestion de usuarios/.test(lower) ||
+    /user management/.test(lower)
+  ) {
+    return "user_news";
+  }
+  return "generic";
+}
+
+function commonPackageJson(projectName: string): string {
+  return `{
+  "name": "${projectName.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test core.test.js"
+  }
+}
+`;
+}
+
+function notesBaselineFiles(projectName: string): Array<{ path: string; content: string }> {
+  const readme = `# ${projectName} - Notes App
+
+A focused notes application with persistence, pinning, search, and inline edit/delete.
+
+## Features
+- Create, edit, pin, and delete notes
+- Persistent storage via localStorage
+- Search notes by text in real time
+- Keyboard and screen-reader friendly controls
+- Core domain logic covered with unit tests
+
+## Run
+1. Open \`index.html\` in your browser.
+2. Use the app normally; notes persist automatically.
+
+## Test
+- Run \`npm test\` for store-level unit tests.
+`;
+  const core = `(function (globalScope) {
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function normalizeText(value) {
+  return String(value || "").trim().replace(/\\s+/g, " ");
+}
+
+function createNotesStore(storage, options) {
+  const key = (options && options.key) || "notes-app-state-v1";
+  const version = 1;
+
+  function emptyState() {
+    return { version, notes: [] };
+  }
+
+  function parseState(raw) {
+    if (!raw) return emptyState();
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return emptyState();
+      const notes = Array.isArray(parsed.notes) ? parsed.notes : [];
+      return { version, notes };
+    } catch {
+      return emptyState();
+    }
+  }
+
+  function loadState() {
+    return parseState(storage.getItem(key));
+  }
+
+  function saveState(state) {
+    storage.setItem(key, JSON.stringify(state));
+    return state;
+  }
+
+  function sorted(notes) {
+    return [...notes].sort((a, b) => {
+      if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+        return a.pinned ? -1 : 1;
+      }
+      return String(b.updatedAt).localeCompare(String(a.updatedAt));
+    });
+  }
+
+  function requireExisting(state, id) {
+    const target = state.notes.find((n) => String(n.id) === String(id));
+    if (!target) throw new Error("Note not found");
+    return target;
+  }
+
+  return {
+    list() {
+      const state = loadState();
+      return sorted(state.notes);
+    },
+    add(text) {
+      const value = normalizeText(text);
+      if (!value) throw new Error("Note text is required");
+      if (value.length > 240) throw new Error("Note text too long (max 240)");
+      const state = loadState();
+      const timestamp = nowIso();
+      const note = {
+        id: String(Date.now()) + "-" + Math.random().toString(16).slice(2, 8),
+        text: value,
+        pinned: false,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      };
+      state.notes.push(note);
+      saveState(state);
+      return note;
+    },
+    update(id, text) {
+      const value = normalizeText(text);
+      if (!value) throw new Error("Note text is required");
+      if (value.length > 240) throw new Error("Note text too long (max 240)");
+      const state = loadState();
+      const note = requireExisting(state, id);
+      note.text = value;
+      note.updatedAt = nowIso();
+      saveState(state);
+      return note;
+    },
+    togglePin(id) {
+      const state = loadState();
+      const note = requireExisting(state, id);
+      note.pinned = !note.pinned;
+      note.updatedAt = nowIso();
+      saveState(state);
+      return note;
+    },
+    remove(id) {
+      const state = loadState();
+      const before = state.notes.length;
+      state.notes = state.notes.filter((n) => String(n.id) !== String(id));
+      if (state.notes.length === before) throw new Error("Note not found");
+      saveState(state);
+      return true;
+    },
+    search(query) {
+      const term = normalizeText(query).toLowerCase();
+      if (!term) return this.list();
+      return this.list().filter((n) => n.text.toLowerCase().includes(term));
+    }
+  };
+}
+const api = { createNotesStore };
+if (typeof module !== "undefined" && module.exports) module.exports = api;
+globalScope.NotesCore = api;
+})(typeof window !== "undefined" ? window : globalThis);
+`;
+  const tests = `const test = require("node:test");
+const assert = require("node:assert/strict");
+const { createNotesStore } = require("./core");
+
+function memoryStorage() {
+  const data = new Map();
+  return {
+    getItem(key) { return data.has(key) ? data.get(key) : null; },
+    setItem(key, value) { data.set(key, String(value)); }
+  };
+}
+
+test("add stores normalized note text", () => {
+  const store = createNotesStore(memoryStorage());
+  const note = store.add("  First    note  ");
+  assert.equal(note.text, "First note");
+  assert.equal(store.list().length, 1);
+});
+
+test("add rejects empty text", () => {
+  const store = createNotesStore(memoryStorage());
+  assert.throws(() => store.add("   "), /required/);
+});
+
+test("add rejects too long text", () => {
+  const store = createNotesStore(memoryStorage());
+  assert.throws(() => store.add("x".repeat(241)), /too long/);
+});
+
+test("update modifies note text", () => {
+  const store = createNotesStore(memoryStorage());
+  const note = store.add("Old");
+  const updated = store.update(note.id, "New");
+  assert.equal(updated.text, "New");
+  assert.equal(store.list()[0].text, "New");
+});
+
+test("togglePin moves note to top", () => {
+  const store = createNotesStore(memoryStorage());
+  const a = store.add("first");
+  const b = store.add("second");
+  store.togglePin(a.id);
+  const list = store.list();
+  assert.equal(list[0].id, a.id);
+  assert.equal(list[1].id, b.id);
+});
+
+test("search filters by term", () => {
+  const store = createNotesStore(memoryStorage());
+  store.add("Buy milk");
+  store.add("Read docs");
+  const found = store.search("milk");
+  assert.equal(found.length, 1);
+  assert.equal(found[0].text, "Buy milk");
+});
+
+test("remove deletes existing note", () => {
+  const store = createNotesStore(memoryStorage());
+  const note = store.add("Temp");
+  assert.equal(store.remove(note.id), true);
+  assert.equal(store.list().length, 0);
+});
+
+test("remove throws when note is missing", () => {
+  const store = createNotesStore(memoryStorage());
+  assert.throws(() => store.remove("missing"), /not found/);
+});
+`;
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notes App</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>Notes</h1>
+        <p class="subtitle">Quick notes with persistence and search.</p>
+      </header>
+
+      <form id="note-form" class="row" aria-label="Create note">
+        <label for="note-input" class="sr-only">New note text</label>
+        <input id="note-input" type="text" maxlength="240" placeholder="Write a note..." required />
+        <button type="submit">Add</button>
+      </form>
+
+      <section class="controls" aria-label="Notes filters">
+        <label for="search-input" class="sr-only">Search notes</label>
+        <input id="search-input" type="search" placeholder="Search notes..." />
+        <button type="button" id="filter-all" data-filter="all" class="active">All</button>
+        <button type="button" id="filter-pinned" data-filter="pinned">Pinned</button>
+      </section>
+
+      <p id="status-text" class="status" aria-live="polite"></p>
+      <ul id="note-list" class="list" aria-label="Notes list"></ul>
+    </main>
+    <script src="core.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
+`;
+  const css = `:root {
+  --bg: #f3f6fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --primary: #0a66c2;
+  --border: #d1d5db;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; background: radial-gradient(circle at top left, #ffffff, var(--bg)); color: var(--text); }
+.app { max-width: 860px; margin: 40px auto; padding: 0 16px; }
+.header h1 { margin: 0 0 4px; font-size: 32px; }
+.subtitle { margin: 0 0 20px; color: var(--muted); }
+.row, .controls { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+input[type="text"], input[type="search"] { flex: 1; min-width: 220px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+button { border: 1px solid transparent; border-radius: 10px; padding: 10px 14px; cursor: pointer; background: #e5e7eb; color: var(--text); }
+button[type="submit"] { background: var(--primary); color: #fff; }
+button.active { border-color: var(--primary); color: var(--primary); background: #e8f1fc; }
+.status { color: var(--muted); margin: 8px 0 12px; min-height: 20px; }
+.list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.note { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; box-shadow: 0 2px 10px rgba(17, 24, 39, 0.05); }
+.note-top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+.note-text { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.note-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.btn-danger { background: #fee2e2; color: #b91c1c; }
+.btn-subtle { background: #eef2ff; color: #3730a3; }
+.pin { color: #92400e; background: #fef3c7; }
+.sr-only { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+@media (max-width: 640px) {
+  .header h1 { font-size: 28px; }
+}
+`;
+  const js = `const store = window.NotesCore.createNotesStore(window.localStorage);
+const form = document.getElementById("note-form");
+const input = document.getElementById("note-input");
+const searchInput = document.getElementById("search-input");
+const list = document.getElementById("note-list");
+const statusText = document.getElementById("status-text");
+const filterAll = document.getElementById("filter-all");
+const filterPinned = document.getElementById("filter-pinned");
+
+const state = {
+  filter: "all",
+  search: ""
+};
+
+function showStatus(message) {
+  statusText.textContent = message;
+}
+
+function currentNotes() {
+  let items = state.search ? store.search(state.search) : store.list();
+  if (state.filter === "pinned") {
+    items = items.filter((item) => item.pinned);
+  }
+  return items;
+}
+
+function render() {
+  const notes = currentNotes();
+  list.innerHTML = "";
+  if (notes.length === 0) {
+    const li = document.createElement("li");
+    li.className = "note";
+    li.textContent = "No notes yet. Add your first one.";
+    list.appendChild(li);
+    showStatus("0 notes");
+    return;
+  }
+
+  notes.forEach((item) => {
+    const li = document.createElement("li");
+    li.className = "note";
+
+    const top = document.createElement("div");
+    top.className = "note-top";
+    const text = document.createElement("p");
+    text.className = "note-text";
+    text.textContent = item.text;
+    if (item.pinned) {
+      const badge = document.createElement("span");
+      badge.className = "pin";
+      badge.textContent = "Pinned";
+      top.appendChild(badge);
+    }
+    top.appendChild(text);
+    li.appendChild(top);
+
+    const actions = document.createElement("div");
+    actions.className = "note-actions";
+
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "btn-subtle";
+    edit.textContent = "Edit";
+    edit.addEventListener("click", () => {
+      const next = window.prompt("Edit note", item.text);
+      if (next === null) return;
+      try {
+        store.update(item.id, next);
+        render();
+      } catch (error) {
+        showStatus(error.message);
+      }
+    });
+
+    const pin = document.createElement("button");
+    pin.type = "button";
+    pin.className = "btn-subtle";
+    pin.textContent = item.pinned ? "Unpin" : "Pin";
+    pin.addEventListener("click", () => {
+      store.togglePin(item.id);
+      render();
+    });
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn-danger";
+    remove.textContent = "Delete";
+    remove.addEventListener("click", () => {
+      if (!window.confirm("Delete this note?")) return;
+      try {
+        store.remove(item.id);
+        render();
+      } catch (error) {
+        showStatus(error.message);
+      }
+    });
+
+    actions.appendChild(edit);
+    actions.appendChild(pin);
+    actions.appendChild(remove);
+    li.appendChild(actions);
+    list.appendChild(li);
+  });
+
+  showStatus(notes.length + " note(s)");
+}
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  try {
+    store.add(input.value);
+    input.value = "";
+    input.focus();
+    render();
+  } catch (error) {
+    showStatus(error.message);
+  }
+});
+
+searchInput.addEventListener("input", () => {
+  state.search = searchInput.value.trim();
+  render();
+});
+
+filterAll.addEventListener("click", () => {
+  state.filter = "all";
+  filterAll.classList.add("active");
+  filterPinned.classList.remove("active");
+  render();
+});
+
+filterPinned.addEventListener("click", () => {
+  state.filter = "pinned";
+  filterPinned.classList.add("active");
+  filterAll.classList.remove("active");
+  render();
+});
+
+render();
+`;
+  return [
+    { path: "package.json", content: commonPackageJson(projectName) },
+    { path: "README.md", content: readme },
+    { path: "core.js", content: core },
+    { path: "core.test.js", content: tests },
+    { path: "index.html", content: html },
+    { path: "styles.css", content: css },
+    { path: "app.js", content: js }
+  ];
+}
+
+function userNewsBaselineFiles(projectName: string): Array<{ path: string; content: string }> {
+  const readme = `# ${projectName} - User Management and News
+
+Web app for managing users and publishing internal news updates.
+
+## Features
+- Create, activate/deactivate, and remove users
+- Publish news updates linked to an author user
+- Filter news by author and status
+- Persistent local storage
+- Unit-tested domain logic
+
+## Run
+1. Open \`index.html\` in your browser.
+2. Manage users in the first section and post updates in the second section.
+
+## Test
+- Run \`npm test\`
+`;
+  const core = `(function (globalScope) {
+function normalize(value) {
+  return String(value || "").trim().replace(/\\s+/g, " ");
+}
+
+function createManagementStore(storage, key) {
+  const storageKey = key || "sdd-user-news-v1";
+  function emptyState() {
+    return { users: [], news: [] };
+  }
+  function load() {
+    const raw = storage.getItem(storageKey);
+    if (!raw) return emptyState();
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        users: Array.isArray(parsed.users) ? parsed.users : [],
+        news: Array.isArray(parsed.news) ? parsed.news : []
+      };
+    } catch {
+      return emptyState();
+    }
+  }
+  function save(state) {
+    storage.setItem(storageKey, JSON.stringify(state));
+    return state;
+  }
+  function requireUser(state, userId) {
+    const user = state.users.find((u) => String(u.id) === String(userId));
+    if (!user) throw new Error("User not found");
+    return user;
+  }
+  return {
+    listUsers() {
+      return load().users.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    },
+    addUser(name, email) {
+      const cleanName = normalize(name);
+      const cleanEmail = normalize(email).toLowerCase();
+      if (!cleanName) throw new Error("User name is required");
+      if (!/^\\S+@\\S+\\.\\S+$/.test(cleanEmail)) throw new Error("Valid email is required");
+      const state = load();
+      if (state.users.some((u) => String(u.email).toLowerCase() === cleanEmail)) {
+        throw new Error("User email must be unique");
+      }
+      const user = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: cleanName, email: cleanEmail, active: true };
+      state.users.push(user);
+      save(state);
+      return user;
+    },
+    setUserActive(userId, active) {
+      const state = load();
+      const user = requireUser(state, userId);
+      user.active = Boolean(active);
+      save(state);
+      return user;
+    },
+    removeUser(userId) {
+      const state = load();
+      const before = state.users.length;
+      state.users = state.users.filter((u) => String(u.id) !== String(userId));
+      if (state.users.length === before) throw new Error("User not found");
+      state.news = state.news.filter((n) => String(n.authorId) !== String(userId));
+      save(state);
+      return true;
+    },
+    listNews(filter) {
+      const state = load();
+      let items = state.news.slice();
+      if (filter && filter.authorId) {
+        items = items.filter((n) => String(n.authorId) === String(filter.authorId));
+      }
+      return items.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    },
+    addNews(title, content, authorId) {
+      const cleanTitle = normalize(title);
+      const cleanContent = normalize(content);
+      if (!cleanTitle) throw new Error("News title is required");
+      if (cleanTitle.length > 120) throw new Error("News title too long");
+      if (!cleanContent) throw new Error("News content is required");
+      const state = load();
+      const author = requireUser(state, authorId);
+      if (!author.active) throw new Error("Author user is inactive");
+      const entry = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        title: cleanTitle,
+        content: cleanContent,
+        authorId: author.id,
+        authorName: author.name,
+        createdAt: new Date().toISOString()
+      };
+      state.news.push(entry);
+      save(state);
+      return entry;
+    }
+  };
+}
+
+const api = { createManagementStore };
+if (typeof module !== "undefined" && module.exports) module.exports = api;
+globalScope.ManagementCore = api;
+})(typeof window !== "undefined" ? window : globalThis);
+`;
+  const tests = `const test = require("node:test");
+const assert = require("node:assert/strict");
+const { createManagementStore } = require("./core");
+
+function memoryStorage() {
+  const map = new Map();
+  return { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, String(v)) };
+}
+
+test("addUser creates active user", () => {
+  const store = createManagementStore(memoryStorage());
+  const user = store.addUser("Alice", "alice@example.com");
+  assert.equal(user.active, true);
+  assert.equal(store.listUsers().length, 1);
+});
+
+test("addUser enforces unique email", () => {
+  const store = createManagementStore(memoryStorage());
+  store.addUser("Alice", "alice@example.com");
+  assert.throws(() => store.addUser("Alice 2", "alice@example.com"), /unique/);
+});
+
+test("setUserActive updates status", () => {
+  const store = createManagementStore(memoryStorage());
+  const user = store.addUser("Bob", "bob@example.com");
+  store.setUserActive(user.id, false);
+  assert.equal(store.listUsers()[0].active, false);
+});
+
+test("addNews requires active author", () => {
+  const store = createManagementStore(memoryStorage());
+  const user = store.addUser("Nina", "nina@example.com");
+  store.setUserActive(user.id, false);
+  assert.throws(() => store.addNews("Update", "Hello", user.id), /inactive/);
+});
+
+test("addNews creates entry for active user", () => {
+  const store = createManagementStore(memoryStorage());
+  const user = store.addUser("Leo", "leo@example.com");
+  const news = store.addNews("Launch", "System ready", user.id);
+  assert.equal(news.authorName, "Leo");
+  assert.equal(store.listNews({}).length, 1);
+});
+
+test("listNews filters by author", () => {
+  const store = createManagementStore(memoryStorage());
+  const a = store.addUser("A", "a@example.com");
+  const b = store.addUser("B", "b@example.com");
+  store.addNews("N1", "x", a.id);
+  store.addNews("N2", "y", b.id);
+  const onlyA = store.listNews({ authorId: a.id });
+  assert.equal(onlyA.length, 1);
+  assert.equal(onlyA[0].authorId, a.id);
+});
+
+test("removeUser removes dependent news", () => {
+  const store = createManagementStore(memoryStorage());
+  const user = store.addUser("C", "c@example.com");
+  store.addNews("N1", "text", user.id);
+  store.removeUser(user.id);
+  assert.equal(store.listUsers().length, 0);
+  assert.equal(store.listNews({}).length, 0);
+});
+`;
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User and News Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <h1>User Management and News</h1>
+      <p id="status" aria-live="polite"></p>
+
+      <section class="card">
+        <h2>Users</h2>
+        <form id="user-form" class="row">
+          <input id="user-name" placeholder="Name" required />
+          <input id="user-email" type="email" placeholder="Email" required />
+          <button type="submit">Add User</button>
+        </form>
+        <ul id="user-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>News</h2>
+        <form id="news-form" class="column">
+          <input id="news-title" placeholder="Title" maxlength="120" required />
+          <textarea id="news-content" placeholder="Content" rows="3" required></textarea>
+          <select id="news-author"></select>
+          <button type="submit">Publish News</button>
+        </form>
+        <ul id="news-list"></ul>
+      </section>
+    </main>
+    <script src="core.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
+`;
+  const css = `body { margin:0; font-family:"Segoe UI", Arial, sans-serif; background:#f4f6fb; color:#1f2937; }
+.app { max-width:960px; margin:28px auto; padding:0 16px 24px; }
+.card { background:#fff; border:1px solid #d8dce6; border-radius:12px; padding:14px; margin-bottom:14px; box-shadow:0 3px 12px rgba(0,0,0,.04); }
+.row { display:flex; gap:8px; flex-wrap:wrap; }
+.column { display:flex; flex-direction:column; gap:8px; }
+input, textarea, select, button { font:inherit; }
+input, textarea, select { width:100%; padding:10px; border:1px solid #c7cdd9; border-radius:8px; }
+button { padding:10px 12px; border:0; border-radius:8px; background:#0a66c2; color:#fff; cursor:pointer; }
+ul { list-style:none; padding:0; margin:10px 0 0; }
+li { border:1px solid #d8dce6; border-radius:8px; padding:10px; margin-bottom:8px; background:#fff; }
+.meta { color:#6b7280; font-size:13px; }
+.actions { display:flex; gap:8px; margin-top:6px; }
+.muted { color:#6b7280; }
+`;
+  const js = `const store = window.ManagementCore.createManagementStore(window.localStorage);
+const statusEl = document.getElementById("status");
+const userForm = document.getElementById("user-form");
+const userName = document.getElementById("user-name");
+const userEmail = document.getElementById("user-email");
+const userList = document.getElementById("user-list");
+const newsForm = document.getElementById("news-form");
+const newsTitle = document.getElementById("news-title");
+const newsContent = document.getElementById("news-content");
+const newsAuthor = document.getElementById("news-author");
+const newsList = document.getElementById("news-list");
+
+function status(message) { statusEl.textContent = message; }
+
+function renderUsers() {
+  const users = store.listUsers();
+  userList.innerHTML = "";
+  newsAuthor.innerHTML = "";
+  if (!users.length) {
+    const li = document.createElement("li");
+    li.className = "muted";
+    li.textContent = "No users yet";
+    userList.appendChild(li);
+    return;
+  }
+  users.forEach((u) => {
+    const li = document.createElement("li");
+    li.innerHTML = "<strong>" + u.name + "</strong> <span class=\\"meta\\">" + u.email + " | " + (u.active ? "active" : "inactive") + "</span>";
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.textContent = u.active ? "Deactivate" : "Activate";
+    toggle.addEventListener("click", () => { store.setUserActive(u.id, !u.active); render(); });
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Remove";
+    remove.addEventListener("click", () => { store.removeUser(u.id); render(); });
+    actions.appendChild(toggle);
+    actions.appendChild(remove);
+    li.appendChild(actions);
+    userList.appendChild(li);
+
+    if (u.active) {
+      const opt = document.createElement("option");
+      opt.value = u.id;
+      opt.textContent = u.name + " (" + u.email + ")";
+      newsAuthor.appendChild(opt);
+    }
+  });
+}
+
+function renderNews() {
+  const items = store.listNews({});
+  newsList.innerHTML = "";
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.className = "muted";
+    li.textContent = "No news published yet";
+    newsList.appendChild(li);
+    return;
+  }
+  items.forEach((n) => {
+    const li = document.createElement("li");
+    li.innerHTML = "<strong>" + n.title + "</strong><div>" + n.content + "</div><div class=\\"meta\\">By " + n.authorName + " at " + n.createdAt + "</div>";
+    newsList.appendChild(li);
+  });
+}
+
+function render() {
+  renderUsers();
+  renderNews();
+  status("Users: " + store.listUsers().length + " | News: " + store.listNews({}).length);
+}
+
+userForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  try {
+    store.addUser(userName.value, userEmail.value);
+    userName.value = "";
+    userEmail.value = "";
+    render();
+  } catch (err) {
+    status(err.message);
+  }
+});
+
+newsForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  try {
+    store.addNews(newsTitle.value, newsContent.value, newsAuthor.value);
+    newsTitle.value = "";
+    newsContent.value = "";
+    render();
+  } catch (err) {
+    status(err.message);
+  }
+});
+
+render();
+`;
+  return [
+    { path: "package.json", content: commonPackageJson(projectName) },
+    { path: "README.md", content: readme },
+    { path: "core.js", content: core },
+    { path: "core.test.js", content: tests },
+    { path: "index.html", content: html },
+    { path: "styles.css", content: css },
+    { path: "app.js", content: js }
+  ];
+}
+
+function genericBaselineFiles(projectName: string): Array<{ path: string; content: string }> {
+  const readme = `# ${projectName} - Starter App
+
+Features:
+- Item capture and listing
+- Local persistence
+- Tested core module
+
+Run:
+- Open \`index.html\` in a browser
+- Run tests with \`npm test\`
+`;
+  const core = `(function (globalScope) {
+function createStore(storage, key) {
+  const read = () => {
+    const raw = storage.getItem(key);
+    if (!raw) return [];
+    try { return JSON.parse(raw); } catch { return []; }
+  };
+  const write = (items) => storage.setItem(key, JSON.stringify(items));
+  return {
+    list() { return read(); },
+    add(text) {
+      const value = String(text || "").trim();
+      if (!value) throw new Error("Text is required");
+      const next = [...read(), { id: Date.now(), text: value }];
+      write(next);
+      return next;
+    }
+  };
+}
+const api = { createStore };
+if (typeof module !== "undefined" && module.exports) module.exports = api;
+globalScope.AppCore = api;
+})(typeof window !== "undefined" ? window : globalThis);
+`;
+  const tests = `const test = require("node:test");
+const assert = require("node:assert/strict");
+const { createStore } = require("./core");
+
+function memoryStorage() {
+  const data = new Map();
+  return { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, String(v)) };
+}
+
+test("store adds items", () => {
+  const store = createStore(memoryStorage(), "items");
+  store.add("First");
+  assert.equal(store.list().length, 1);
+});
+`;
+  const html = `<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Starter App</title><link rel="stylesheet" href="styles.css" /></head>
+  <body>
+    <main class="app">
+      <h1>Starter App</h1>
+      <form id="item-form" class="row"><input id="item-input" type="text" placeholder="Add item" /><button type="submit">Add</button></form>
+      <ul id="item-list"></ul>
+    </main>
+    <script src="core.js"></script><script src="app.js"></script>
+  </body>
+</html>
+`;
+  const css = `body { font-family: Segoe UI, Arial, sans-serif; margin: 0; background: #f4f6fb; } .app { max-width: 720px; margin: 32px auto; padding: 0 16px; } .row { display:flex; gap:8px; } input { flex:1; padding:10px; } button { padding:10px 14px; }`;
+  const js = `const store = window.AppCore.createStore(window.localStorage, "starter-items");
+const form = document.getElementById("item-form");
+const input = document.getElementById("item-input");
+const list = document.getElementById("item-list");
+function render(){ list.innerHTML = ""; store.list().forEach((item) => { const li = document.createElement("li"); li.textContent = item.text; list.appendChild(li); }); }
+form.addEventListener("submit", (event) => { event.preventDefault(); try { store.add(input.value); input.value = ""; render(); } catch {} });
+render();
+`;
+  return [
+    { path: "package.json", content: commonPackageJson(projectName) },
+    { path: "README.md", content: readme },
+    { path: "core.js", content: core },
+    { path: "core.test.js", content: tests },
+    { path: "index.html", content: html },
+    { path: "styles.css", content: css },
+    { path: "app.js", content: js }
+  ];
+}
+
+function fallbackAppFiles(projectName: string, intent: string): Array<{ path: string; content: string }> {
+  return detectBaselineKind(intent) === "notes" ? notesBaselineFiles(projectName) : genericBaselineFiles(projectName);
+}
+
+export function resetToFunctionalBaseline(appDir: string, projectName: string, intent: string): number {
+  const files = fallbackAppFiles(projectName, intent);
+  for (const file of files) {
+    const full = path.join(appDir, file.path);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, file.content, "utf-8");
+  }
+  return files.length;
+}
+
+function ensureQualityBaseline(
+  files: Array<{ path: string; content: string }>,
+  _projectName: string,
+  _intent: string
+): Array<{ path: string; content: string }> {
+  return files;
+}
+
+export function enrichDraftWithAI(
+  input: string,
+  flow: string,
+  domain: string,
+  baseDraft: RequirementDraft,
+  providerRequested?: string
+): RequirementDraft {
+  if (process.env.SDD_DISABLE_AI_AUTOPILOT === "1") {
+    return baseDraft;
+  }
+
+  const resolution = resolveProvider(providerRequested);
+  if (!resolution.ok) {
+    return baseDraft;
+  }
+
+  const prompt = [
+    "You are an SDD requirements assistant.",
+    "Return ONLY valid JSON with keys:",
+    "objective, actors, scope_in, scope_out, acceptance_criteria, nfr_security, nfr_performance, nfr_availability, constraints, risks.",
+    "No markdown. No explanation.",
+    `Intent: ${input}`,
+    `Flow: ${flow}`,
+    `Domain: ${domain}`
+  ].join("\n");
+  const parsed = askProviderForJson(resolution.provider.exec, prompt);
+  if (!parsed) {
+    return baseDraft;
+  }
+
+  return {
+    ...baseDraft,
+    objective: asText(parsed.objective, baseDraft.objective ?? ""),
+    actors: asText(parsed.actors, baseDraft.actors ?? ""),
+    scope_in: asText(parsed.scope_in, baseDraft.scope_in ?? ""),
+    scope_out: asText(parsed.scope_out, baseDraft.scope_out ?? ""),
+    acceptance_criteria: asText(parsed.acceptance_criteria, baseDraft.acceptance_criteria ?? ""),
+    nfr_security: asText(parsed.nfr_security, baseDraft.nfr_security ?? ""),
+    nfr_performance: asText(parsed.nfr_performance, baseDraft.nfr_performance ?? ""),
+    nfr_availability: asText(parsed.nfr_availability, baseDraft.nfr_availability ?? ""),
+    constraints: asText(parsed.constraints, baseDraft.constraints ?? ""),
+    risks: asText(parsed.risks, baseDraft.risks ?? "")
+  };
+}
+
+export type CodeBootstrapResult = {
+  attempted: boolean;
+  provider?: string;
+  generated: boolean;
+  outputDir: string;
+  fileCount: number;
+  reason?: string;
+};
+
+export type ImproveAppResult = {
+  attempted: boolean;
+  applied: boolean;
+  fileCount: number;
+  reason?: string;
+};
+
+function templateFallbackAllowed(): boolean {
+  return process.env.SDD_ALLOW_TEMPLATE_FALLBACK === "1" || process.env.SDD_DISABLE_AI_AUTOPILOT === "1";
+}
+
+export function bootstrapProjectCode(
+  projectRoot: string,
+  projectName: string,
+  intent: string,
+  providerRequested?: string
+): CodeBootstrapResult {
+  const outputDir = path.join(projectRoot, "generated-app");
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  if (process.env.SDD_DISABLE_AI_AUTOPILOT === "1") {
+    if (templateFallbackAllowed()) {
+      const files = fallbackAppFiles(projectName, intent);
+      for (const file of files) {
+        const destination = path.join(outputDir, file.path);
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+        fs.writeFileSync(destination, file.content, "utf-8");
+      }
+      return {
+        attempted: false,
+        generated: true,
+        outputDir,
+        fileCount: files.length,
+        reason: "disabled by env, template fallback generated"
+      };
+    }
+    return { attempted: false, generated: false, outputDir, fileCount: 0, reason: "disabled by env" };
+  }
+
+  const resolution = resolveProvider(providerRequested);
+  let files: Array<{ path: string; content: string }> = [];
+  let fallbackReason: string | undefined;
+
+  if (resolution.ok) {
+    const prompt = [
+      "Generate a production-lean starter app from user intent.",
+      "The project must be executable fully in local development.",
+      "Use DummyLocal adapters for integrations (databases, external APIs, queues) so everything runs locally.",
+      "Add a schema document named schemas.md with entities, fields, relations, and constraints.",
+      "Add regression tests and regression notes/documentation.",
+      "Do not mix unrelated runtime stacks unless the intent explicitly requests a multi-tier architecture.",
+      "Return ONLY valid JSON with this shape:",
+      '{"files":[{"path":"relative/path","content":"file content"}],"run_command":"...","deploy_steps":["..."],"publish_steps":["..."]}',
+      "Use only relative file paths. Keep files concise and runnable.",
+      `Project: ${projectName}`,
+      `Intent: ${intent}`
+    ].join("\n");
+    const parsed = askProviderForJson(resolution.provider.exec, prompt);
+    if (parsed) {
+      const rawFiles = Array.isArray(parsed.files) ? parsed.files : [];
+      for (const item of rawFiles) {
+        if (!item || typeof item !== "object") {
+          continue;
+        }
+        const maybePath = (item as { path?: unknown }).path;
+        const maybeContent = (item as { content?: unknown }).content;
+        if (typeof maybePath !== "string" || typeof maybeContent !== "string") {
+          continue;
+        }
+        const rel = safeRelativePath(maybePath);
+        if (!rel) {
+          continue;
+        }
+        files.push({ path: rel, content: maybeContent });
+      }
+    }
+    if (files.length === 0) {
+      const fallbackPrompt = [
+        "Return ONLY valid JSON. No markdown.",
+        "Schema: {\"files\":[{\"path\":\"relative/path\",\"content\":\"...\"}]}",
+        "Generate only essential starter files to run locally with quality-first defaults.",
+        "Must include: README.md, schemas.md, regression notes, and DummyLocal integration docs.",
+        `Project: ${projectName}`,
+        `Intent: ${intent}`
+      ].join("\n");
+      const parsedFallback = askProviderForJson(resolution.provider.exec, fallbackPrompt);
+      if (parsedFallback) {
+        const rawFiles = Array.isArray(parsedFallback.files) ? parsedFallback.files : [];
+        for (const item of rawFiles) {
+          if (!item || typeof item !== "object") {
+            continue;
+          }
+          const maybePath = (item as { path?: unknown }).path;
+          const maybeContent = (item as { content?: unknown }).content;
+          if (typeof maybePath !== "string" || typeof maybeContent !== "string") {
+            continue;
+          }
+          const rel = safeRelativePath(maybePath);
+          if (!rel) {
+            continue;
+          }
+          files.push({ path: rel, content: maybeContent });
+        }
+      }
+    }
+  }
+
+  if (files.length === 0) {
+    const fallbackAllowed = templateFallbackAllowed();
+    if (fallbackAllowed) {
+      fallbackReason = resolution.ok ? "provider response unusable, template fallback generated" : "provider unavailable, template fallback generated";
+      files = fallbackAppFiles(projectName, intent);
+    } else {
+      return {
+        attempted: resolution.ok,
+        provider: resolution.ok ? resolution.provider.id : undefined,
+        generated: false,
+        outputDir,
+        fileCount: 0,
+        reason: resolution.ok ? "provider response unusable" : "provider unavailable"
+      };
+    }
+  }
+  files = ensureQualityBaseline(files, projectName, intent);
+
+  const unique = new Map<string, string>();
+  for (const file of files) {
+    unique.set(file.path, file.content);
+  }
+  for (const [rel, content] of unique.entries()) {
+    const destination = path.join(outputDir, rel);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, content, "utf-8");
+  }
+
+  return {
+    attempted: resolution.ok,
+    provider: resolution.ok ? resolution.provider.id : undefined,
+    generated: true,
+    outputDir,
+    fileCount: unique.size,
+    reason: fallbackReason
+  };
+}
+
+function compactFilesForPrompt(files: Array<{ path: string; content: string }>): Array<{ path: string; content: string }> {
+  const maxFiles = 12;
+  const maxChars = 700;
+  return files.slice(0, maxFiles).map((file) => ({
+    path: file.path,
+    content: file.content.length > maxChars ? `${file.content.slice(0, maxChars)}\n/* ...truncated... */` : file.content
+  }));
+}
+
+function collectProjectFiles(appDir: string): Array<{ path: string; content: string }> {
+  const output: Array<{ path: string; content: string }> = [];
+  const walk = (dir: string): void => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      const rel = path.relative(appDir, full).replace(/\\/g, "/");
+      if (entry.isDirectory()) {
+        if (rel === "node_modules" || rel.startsWith("node_modules/") || rel === ".git" || rel.startsWith(".git/")) {
+          continue;
+        }
+        walk(full);
+      } else {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (![".js", ".ts", ".json", ".md", ".html", ".css", ".py", ".java", ".xml", ".yml", ".yaml", ".jsx", ".tsx", ".sql", ".properties"].includes(ext)) {
+          continue;
+        }
+        const content = fs.readFileSync(full, "utf-8");
+        output.push({ path: rel, content });
+      }
+    }
+  };
+  walk(appDir);
+  return output;
+}
+
+export function improveGeneratedApp(
+  appDir: string,
+  intent: string,
+  providerRequested?: string,
+  qualityDiagnostics?: string[]
+): ImproveAppResult {
+  if (process.env.SDD_DISABLE_AI_AUTOPILOT === "1") {
+    return { attempted: false, applied: false, fileCount: 0, reason: "disabled by env" };
+  }
+  if (!fs.existsSync(appDir)) {
+    return { attempted: false, applied: false, fileCount: 0, reason: "app directory missing" };
+  }
+  const resolution = resolveProvider(providerRequested);
+  if (!resolution.ok) {
+    return { attempted: false, applied: false, fileCount: 0, reason: "provider unavailable" };
+  }
+
+  const currentFiles = compactFilesForPrompt(collectProjectFiles(appDir));
+  const prompt = [
+    "Improve this generated app to production-lean quality.",
+    "Requirements:",
+    "- Keep app intent and behavior.",
+    "- Ensure tests pass for the selected stack.",
+    "- Ensure code is clear and maintainable.",
+    "- Ensure schemas.md exists and documents data schemas.",
+    "- Ensure DummyLocal integration exists and is documented.",
+    "- Ensure regression tests (or explicit regression test documentation) exists.",
+    "- Fix every listed quality diagnostic failure.",
+    "Return ONLY JSON with shape:",
+    '{"files":[{"path":"relative/path","content":"full file content"}]}',
+    `Intent: ${intent}`,
+    `Quality diagnostics: ${JSON.stringify(qualityDiagnostics ?? [])}`,
+    `Current files JSON: ${JSON.stringify(currentFiles)}`
+  ].join("\n");
+
+  let parsed = askProviderForJson(resolution.provider.exec, prompt);
+  if ((!parsed || !Array.isArray(parsed.files)) && Array.isArray(qualityDiagnostics) && qualityDiagnostics.length > 0) {
+    const fileNames = collectProjectFiles(appDir).map((f) => f.path).slice(0, 120);
+    const targetedPrompt = [
+      "Return ONLY valid JSON. No markdown.",
+      'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
+      "Fix exactly the listed quality diagnostics with minimal file edits.",
+      "If diagnostics mention missing docs/tests, generate them.",
+      `Intent: ${intent}`,
+      `Quality diagnostics: ${JSON.stringify(qualityDiagnostics)}`,
+      `Current file names: ${JSON.stringify(fileNames)}`
+    ].join("\n");
+    parsed = askProviderForJson(resolution.provider.exec, targetedPrompt);
+  }
+  if (!parsed || !Array.isArray(parsed.files)) {
+    return { attempted: true, applied: false, fileCount: 0, reason: "provider response unusable" };
+  }
+
+  const updates: Array<{ path: string; content: string }> = [];
+  for (const item of parsed.files) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const maybePath = (item as { path?: unknown }).path;
+    const maybeContent = (item as { content?: unknown }).content;
+    if (typeof maybePath !== "string" || typeof maybeContent !== "string") {
+      continue;
+    }
+    const rel = safeRelativePath(maybePath);
+    if (!rel) {
+      continue;
+    }
+    updates.push({ path: rel, content: maybeContent });
+  }
+  if (updates.length === 0) {
+    return { attempted: true, applied: false, fileCount: 0, reason: "no valid files in response" };
+  }
+
+  for (const file of updates) {
+    const full = path.join(appDir, file.path);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, file.content, "utf-8");
+  }
+
+  return { attempted: true, applied: true, fileCount: updates.length };
+}
