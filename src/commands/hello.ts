@@ -62,6 +62,44 @@ function parseClampedIntEnv(name: string, fallback: number, min: number, max: nu
   return Math.max(min, Math.min(max, raw));
 }
 
+function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
+  const hints = new Set<string>();
+  for (const line of diagnostics) {
+    const normalized = line.toLowerCase();
+    if (normalized.includes("org.springframework.format:spring-format")) {
+      hints.add("Fix backend pom.xml: remove invalid dependency org.springframework.format:spring-format.");
+    }
+    if (normalized.includes("eslint couldn't find a configuration file") || normalized.includes("no-config-found")) {
+      hints.add("Fix frontend linting: add eslint config (eslint.config.js or .eslintrc) or align lint script with available config.");
+    }
+    if (normalized.includes("rollup failed to resolve import \"axios\"") || normalized.includes("could not resolve import \"axios\"")) {
+      hints.add("Fix frontend dependencies: add axios to package.json dependencies or replace axios import with installed client.");
+    }
+    if (normalized.includes("could not resolve entry module \"index.html\"")) {
+      hints.add("Fix frontend vite bootstrap: ensure frontend/index.html exists and points to src/main.tsx.");
+    }
+    if (normalized.includes("expected at least 8 tests")) {
+      hints.add("Add automated tests to reach minimum quality bar (at least 8 tests across critical flows).");
+    }
+    if (normalized.includes("missing sql schema file")) {
+      hints.add("Add schema.sql with tables, keys, indexes, and constraints for relational domain.");
+    }
+    if (normalized.includes("missing java dto layer")) {
+      hints.add("Add Java DTO package and DTO classes for request/response boundaries.");
+    }
+    if (normalized.includes("missing bean validation")) {
+      hints.add("Add Bean Validation annotations and jakarta/javax.validation imports with @Valid at controller boundaries.");
+    }
+    if (normalized.includes("missing global exception handling")) {
+      hints.add("Add @RestControllerAdvice global exception handler in backend.");
+    }
+    if (normalized.includes("missing backend telemetry config")) {
+      hints.add("Add Spring Actuator/Prometheus telemetry config in application.yml/properties.");
+    }
+  }
+  return [...hints];
+}
+
 function deriveProjectName(input: string, flow: string): string {
   const seed = input
     .trim()
@@ -465,7 +503,14 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           printWhy("Quality gates failed. Attempting AI repair iterations.");
           lifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Quality issue: ${issue}`));
           for (let attempt = 1; attempt <= maxRepairAttempts && !lifecycle.qualityPassed; attempt += 1) {
-            const repair = improveGeneratedApp(appDir, text, provider, lifecycle.qualityDiagnostics, intent.domain);
+            const condensed = summarizeQualityDiagnostics(lifecycle.qualityDiagnostics);
+            const repair = improveGeneratedApp(
+              appDir,
+              text,
+              provider,
+              [...lifecycle.qualityDiagnostics, ...condensed, "Prioritize fixing build/test/lint/runtime blockers first."],
+              intent.domain
+            );
             if (repair.attempted && repair.applied) {
               printWhy(`AI repair attempt ${attempt} applied (${repair.fileCount} files). Re-running lifecycle checks.`);
               lifecycle = runAppLifecycle(projectRoot, activeProject, {
@@ -553,7 +598,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               appDir,
               text,
               provider,
-              [...review.diagnostics, ...storyDiagnostics, "Implement all prioritized user stories before next review."],
+              [
+                ...review.diagnostics,
+                ...storyDiagnostics,
+                ...summarizeQualityDiagnostics(review.diagnostics),
+                "Implement all prioritized user stories before next review."
+              ],
               intent.domain
             );
             if (!repair.attempted || !repair.applied) {
@@ -571,7 +621,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             lifecycle.summary.forEach((line) => printWhy(`Lifecycle (iteration ${round}): ${line}`));
             if (!lifecycle.qualityPassed) {
               printWhy("Quality gates failed after story implementation. Applying one quality-repair pass.");
-              const qualityRepair = improveGeneratedApp(appDir, text, provider, lifecycle.qualityDiagnostics, intent.domain);
+              const qualityRepair = improveGeneratedApp(
+                appDir,
+                text,
+                provider,
+                [...lifecycle.qualityDiagnostics, ...summarizeQualityDiagnostics(lifecycle.qualityDiagnostics)],
+                intent.domain
+              );
               if (qualityRepair.attempted && qualityRepair.applied) {
                 lifecycle = runAppLifecycle(projectRoot, activeProject, {
                   goalText: text,

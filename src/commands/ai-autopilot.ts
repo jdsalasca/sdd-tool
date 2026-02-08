@@ -192,10 +192,15 @@ function safeRelativePath(input: string): string | null {
 }
 
 function askProviderForJson(
-  providerExec: (prompt: string) => { ok: boolean; output: string },
-  prompt: string
+  providerExec: (prompt: string) => { ok: boolean; output: string; error?: string },
+  prompt: string,
+  debug?: { attempts: string[]; errors: string[] }
 ): Record<string, unknown> | null {
   const first = providerExec(prompt);
+  if (debug) {
+    debug.attempts.push(first.output?.slice(0, 1000) ?? "");
+    if (first.error) debug.errors.push(first.error);
+  }
   if (!first.ok) {
     return null;
   }
@@ -214,6 +219,10 @@ function askProviderForJson(
     first.output
   ].join("\n");
   const second = providerExec(repairPrompt);
+  if (debug) {
+    debug.attempts.push(second.output?.slice(0, 1000) ?? "");
+    if (second.error) debug.errors.push(second.error);
+  }
   if (!second.ok) {
     return null;
   }
@@ -1377,6 +1386,7 @@ export function bootstrapProjectCode(
   const resolution = resolveProvider(providerRequested);
   let files: Array<{ path: string; content: string }> = [];
   let fallbackReason: string | undefined;
+  const providerDebug = { attempts: [] as string[], errors: [] as string[] };
 
   if (resolution.ok) {
     const domain = detectAutopilotDomain(intent, domainHint);
@@ -1397,7 +1407,7 @@ export function bootstrapProjectCode(
       `Project: ${projectName}`,
       `Intent: ${intent}`
     ].join("\n");
-    const parsed = askProviderForJson(resolution.provider.exec, prompt);
+    const parsed = askProviderForJson(resolution.provider.exec, prompt, providerDebug);
     if (parsed) {
       files.push(...extractFilesFromParsed(parsed));
     }
@@ -1413,9 +1423,40 @@ export function bootstrapProjectCode(
         `Project: ${projectName}`,
         `Intent: ${intent}`
       ].join("\n");
-      const parsedFallback = askProviderForJson(resolution.provider.exec, fallbackPrompt);
+      const parsedFallback = askProviderForJson(resolution.provider.exec, fallbackPrompt, providerDebug);
       if (parsedFallback) {
         files.push(...extractFilesFromParsed(parsedFallback));
+      }
+    }
+    if (files.length === 0 && intentRequiresJavaReactFullstack(intent)) {
+      const compactPrompt = [
+        "Return ONLY valid JSON. No markdown.",
+        'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
+        "Generate a MINIMAL Java+React starter with at most 16 files total.",
+        "Required paths:",
+        "- backend/pom.xml",
+        "- backend/src/main/java/com/example/Application.java",
+        "- backend/src/main/java/com/example/controller/SalesController.java",
+        "- backend/src/main/java/com/example/dto/SaleDto.java",
+        "- backend/src/main/java/com/example/service/SalesService.java",
+        "- backend/src/main/java/com/example/repository/SalesRepository.java",
+        "- backend/src/main/java/com/example/advice/GlobalExceptionHandler.java",
+        "- backend/src/main/resources/application.yml",
+        "- frontend/package.json",
+        "- frontend/src/main.tsx",
+        "- frontend/src/App.tsx",
+        "- frontend/src/api/client.ts",
+        "- frontend/src/hooks/useSales.ts",
+        "- frontend/src/components/SalesDashboard.tsx",
+        "- README.md",
+        "- schemas.md",
+        "Also include: dummy-local.md, regression.md, schema.sql, LICENSE, and a smoke script in package.json.",
+        `Project: ${projectName}`,
+        `Intent: ${intent}`
+      ].join("\n");
+      const parsedCompact = askProviderForJson(resolution.provider.exec, compactPrompt, providerDebug);
+      if (parsedCompact) {
+        files.push(...extractFilesFromParsed(parsedCompact));
       }
     }
   }
@@ -1426,13 +1467,28 @@ export function bootstrapProjectCode(
       fallbackReason = resolution.ok ? "provider response unusable, template fallback generated" : "provider unavailable, template fallback generated";
       files = fallbackAppFiles(projectName, intent);
     } else {
+      const debugPath = path.join(outputDir, "provider-debug.md");
+      const lines = [
+        "# Provider Debug",
+        "",
+        `Provider available: ${resolution.ok ? "yes" : "no"}`,
+        `Requested provider: ${providerRequested ?? "auto"}`,
+        `Reason: ${resolution.ok ? "provider response unusable" : "provider unavailable"}`,
+        "",
+        "## Errors",
+        ...(providerDebug.errors.length > 0 ? providerDebug.errors.map((line) => `- ${line}`) : ["- none"]),
+        "",
+        "## Output excerpts",
+        ...(providerDebug.attempts.length > 0 ? providerDebug.attempts.map((out, idx) => `### Attempt ${idx + 1}\n\`\`\`\n${out}\n\`\`\`\n`) : ["- none"])
+      ];
+      fs.writeFileSync(debugPath, `${lines.join("\n")}\n`, "utf-8");
       return {
         attempted: resolution.ok,
         provider: resolution.ok ? resolution.provider.id : undefined,
         generated: false,
         outputDir,
         fileCount: 0,
-        reason: resolution.ok ? "provider response unusable" : "provider unavailable"
+        reason: resolution.ok ? "provider response unusable (see generated-app/provider-debug.md)" : "provider unavailable"
       };
     }
   }
