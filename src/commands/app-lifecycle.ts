@@ -18,12 +18,16 @@ type RepoMetadata = {
 export type LifecycleContext = {
   goalText?: string;
   intentSignals?: string[];
+  intentDomain?: string;
+  intentFlow?: string;
 };
 
 type GoalProfile = {
   javaReactFullstack: boolean;
   relationalDataApp: boolean;
 };
+
+type DomainQualityProfile = "software" | "legal" | "business" | "humanities" | "learning" | "design" | "data_science" | "generic";
 
 function collectFilesRecursive(root: string, maxDepth = 8): string[] {
   const results: string[] = [];
@@ -233,6 +237,155 @@ function parseGoalProfile(context?: LifecycleContext): GoalProfile {
     javaReactFullstack: hasJava && hasReact,
     relationalDataApp
   };
+}
+
+function parseDomainProfile(context?: LifecycleContext): DomainQualityProfile {
+  const hinted = normalizeText(context?.intentDomain ?? "");
+  if (
+    hinted === "software" ||
+    hinted === "legal" ||
+    hinted === "business" ||
+    hinted === "humanities" ||
+    hinted === "learning" ||
+    hinted === "design" ||
+    hinted === "data_science" ||
+    hinted === "generic"
+  ) {
+    return hinted as DomainQualityProfile;
+  }
+
+  const goal = normalizeText(context?.goalText ?? "");
+  if (!goal) {
+    return "generic";
+  }
+  if (/\bcourt\b|\blaw\b|\bpolicy\b|\bcompliance\b|\blawyer\b|\bregulation\b|\bcontract\b|\bjuridic/.test(goal)) {
+    return "legal";
+  }
+  if (/\bpricing\b|\bmarket\b|\bforecast\b|\beconomics\b|\baccounting\b|\bfinanzas\b|\bcontador\b/.test(goal)) {
+    return "business";
+  }
+  if (/\bhistory\b|\bsociology\b|\banthropology\b|\bphilosophy\b|\bliterature\b|\bhumanities\b/.test(goal)) {
+    return "humanities";
+  }
+  if (/\blearn\b|\bteach\b|\blesson\b|\bcourse\b|\bstudent\b|\bmentor\b|\bwriter\b|\bescritor\b/.test(goal)) {
+    return "learning";
+  }
+  if (/\blogo\b|\bbrand\b|\blayout\b|\bvisual\b|\bdesign\b/.test(goal)) {
+    return "design";
+  }
+  if (/\bmodel\b|\bdataset\b|\bprediction\b|\bmachine learning\b|\bml\b|\bai\b/.test(goal)) {
+    return "data_science";
+  }
+  if (/\bapi\b|\bbackend\b|\bfrontend\b|\bapp\b|\bweb\b|\bdesktop\b|\bmobile\b|\breact\b|\bjava\b/.test(goal)) {
+    return "software";
+  }
+  return "generic";
+}
+
+function countListLikeItems(raw: string): number {
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line)).length;
+}
+
+function checkDomainArtifacts(appDir: string, context?: LifecycleContext): { ok: boolean; reason?: string } {
+  const profile = parseDomainProfile(context);
+  if (profile === "software" || profile === "generic") {
+    return { ok: true };
+  }
+
+  const findDoc = (patterns: RegExp[]): string | null =>
+    findFileRecursive(
+      appDir,
+      (rel) => rel.endsWith(".md") && patterns.some((pattern) => pattern.test(rel)),
+      10
+    );
+  const readDoc = (rel: string | null): string => {
+    if (!rel) return "";
+    try {
+      return normalizeText(fs.readFileSync(path.join(appDir, rel), "utf-8"));
+    } catch {
+      return "";
+    }
+  };
+
+  if (profile === "legal") {
+    const compliance = findDoc([/compliance/, /regulation/, /policy/]);
+    const risk = findDoc([/risk/, /risk-register/]);
+    const evidence = findDoc([/citation/, /reference/, /sources/, /precedent/]);
+    if (!compliance || !risk || !evidence) {
+      return { ok: false, reason: "Missing legal artifacts (need compliance, risk-register, and references/citations docs)." };
+    }
+    const complianceText = readDoc(compliance);
+    if (!/\bjurisdiction\b|\bregion\b|\bcountry\b|\blaw\b|\bregulation\b/.test(complianceText)) {
+      return { ok: false, reason: "Legal compliance doc must define jurisdiction and applicable law/regulation scope." };
+    }
+    return { ok: true };
+  }
+
+  if (profile === "business") {
+    const assumptions = findDoc([/assumption/, /supuesto/]);
+    const sensitivity = findDoc([/sensitivity/, /scenario/, /escenario/]);
+    const economics = findDoc([/unit-economics/, /economics/, /forecast/, /financial/, /cashflow/, /p&l/]);
+    if (!assumptions || !sensitivity || !economics) {
+      return { ok: false, reason: "Missing business artifacts (need assumptions, sensitivity/scenarios, and economics/forecast docs)." };
+    }
+    const economicsText = readDoc(economics);
+    if (!/\b\d/.test(economicsText)) {
+      return { ok: false, reason: "Business economics/forecast doc should include at least one numeric metric or target." };
+    }
+    return { ok: true };
+  }
+
+  if (profile === "humanities") {
+    const methodology = findDoc([/methodology/, /approach/, /metodologia/]);
+    const sources = findDoc([/sources/, /reference/, /bibliography/, /citations/]);
+    if (!methodology || !sources) {
+      return { ok: false, reason: "Missing humanities artifacts (need methodology and sources/bibliography docs)." };
+    }
+    const sourcesText = readDoc(sources);
+    if (countListLikeItems(sourcesText) < 3) {
+      return { ok: false, reason: "Humanities source quality too low (expected at least 3 listed sources)." };
+    }
+    return { ok: true };
+  }
+
+  if (profile === "learning") {
+    const curriculum = findDoc([/curriculum/, /outline/, /syllabus/, /plan/]);
+    const exercises = findDoc([/exercise/, /assessment/, /practice/, /rubric/]);
+    const references = findDoc([/sources/, /references/, /reading/, /bibliography/]);
+    if (!curriculum || !exercises || !references) {
+      return { ok: false, reason: "Missing learning artifacts (need curriculum/outline, exercises/assessment, and references)." };
+    }
+    return { ok: true };
+  }
+
+  if (profile === "design") {
+    const designSystem = findDoc([/design-system/, /style-guide/, /brand/, /ui-kit/]);
+    const accessibility = findDoc([/accessibility/, /a11y/, /wcag/]);
+    const rationale = findDoc([/rationale/, /decision/, /tradeoff/]);
+    if (!designSystem || !accessibility || !rationale) {
+      return { ok: false, reason: "Missing design artifacts (need design-system/style-guide, accessibility, and rationale docs)." };
+    }
+    return { ok: true };
+  }
+
+  if (profile === "data_science") {
+    const dataDict = findDoc([/dataset/, /schema/, /data-dictionary/]);
+    const evaluation = findDoc([/evaluation/, /metrics/, /benchmark/]);
+    const monitoring = findDoc([/monitoring/, /drift/, /alert/]);
+    const reproducibility = findDoc([/reproducibility/, /experiment/, /runbook/]);
+    if (!dataDict || !evaluation || !monitoring || !reproducibility) {
+      return {
+        ok: false,
+        reason: "Missing data science artifacts (need dataset schema, evaluation metrics, monitoring/drift plan, and reproducibility docs)."
+      };
+    }
+    return { ok: true };
+  }
+
+  return { ok: true };
 }
 
 function basicQualityCheck(appDir: string): StepResult {
@@ -549,6 +702,15 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
       ok: false,
       command: "advanced-quality-check",
       output: "Missing regression testing evidence (regression doc or tests)"
+    };
+  }
+
+  const domainArtifacts = checkDomainArtifacts(appDir, context);
+  if (!domainArtifacts.ok) {
+    return {
+      ok: false,
+      command: "advanced-quality-check",
+      output: domainArtifacts.reason || "Domain artifact quality check failed"
     };
   }
 

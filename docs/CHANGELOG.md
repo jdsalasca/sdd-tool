@@ -1,7 +1,12 @@
 # Changelog
 
 ## Unreleased
-- None.
+- Add domain-aware quality gates beyond software for legal, business, humanities, learning, design, and data-science flows.
+- Add stricter AI orchestration constraints so Gemini output must include domain-required artifacts before acceptance.
+- Add domain-aware repair-loop prompts to push targeted corrective iterations instead of generic retries.
+- Add domain quality profiles to generated `quality.json` from `req start`.
+- Extend route prompt-pack mapping with domain quality packs.
+- Add lifecycle tests that enforce legal and data-science artifact quality requirements.
 
 ## 0.1.27
 - Release notes: `docs/releases/v0.1.27.md`

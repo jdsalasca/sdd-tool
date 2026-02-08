@@ -59,13 +59,13 @@ const SIGNALS: Array<{ intent: RouterIntent["intent"]; flow: string; domain: Rou
 export const FLOW_PROMPT_PACKS: Record<string, string[]> = {
   BUG_FIX: ["discovery.core", "bug_fix.core"],
   PR_REVIEW: ["pr_review.core", "review.severity"],
-  SOFTWARE_FEATURE: ["discovery.core", "release.rollout"],
-  DATA_SCIENCE: ["discovery.core", "data.monitoring"],
-  DESIGN: ["discovery.core", "design.accessibility"],
-  HUMANITIES: ["discovery.core", "humanities.sources"],
-  BUSINESS: ["discovery.core", "business.sensitivity"],
-  LEGAL: ["discovery.core", "legal.compliance"],
-  LEARN: ["discovery.core", "learn.format"],
+  SOFTWARE_FEATURE: ["discovery.core", "release.rollout", "software.quality"],
+  DATA_SCIENCE: ["discovery.core", "data.monitoring", "data.quality"],
+  DESIGN: ["discovery.core", "design.accessibility", "design.quality"],
+  HUMANITIES: ["discovery.core", "humanities.sources", "humanities.quality"],
+  BUSINESS: ["discovery.core", "business.sensitivity", "business.quality"],
+  LEGAL: ["discovery.core", "legal.compliance", "legal.quality"],
+  LEARN: ["discovery.core", "learn.format", "learning.quality"],
   GENERIC: ["discovery.core"]
 };
 

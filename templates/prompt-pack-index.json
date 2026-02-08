@@ -122,6 +122,83 @@
       "gates": [
         "learning_format_defined"
       ]
+    },
+    {
+      "id": "software.quality",
+      "questions": [
+        "What architecture quality controls are mandatory (DTOs, interfaces, telemetry, security checks)?",
+        "What CI quality thresholds are mandatory (tests, lint, build, coverage)?"
+      ],
+      "gates": [
+        "software_quality_controls_defined",
+        "ci_thresholds_defined"
+      ]
+    },
+    {
+      "id": "legal.quality",
+      "questions": [
+        "Which jurisdiction(s) and legal frameworks apply?",
+        "Which mandatory legal artifacts are required (compliance matrix, risk register, citations)?"
+      ],
+      "gates": [
+        "jurisdiction_defined",
+        "legal_artifacts_defined"
+      ]
+    },
+    {
+      "id": "business.quality",
+      "questions": [
+        "Which assumptions must be explicitly tracked?",
+        "Which unit economics and sensitivity thresholds must be satisfied?"
+      ],
+      "gates": [
+        "assumptions_defined",
+        "financial_thresholds_defined"
+      ]
+    },
+    {
+      "id": "humanities.quality",
+      "questions": [
+        "Which methodology and source-quality standards are required?",
+        "How will source limitations and bias be documented?"
+      ],
+      "gates": [
+        "methodology_defined",
+        "source_quality_and_limits_defined"
+      ]
+    },
+    {
+      "id": "learning.quality",
+      "questions": [
+        "What curriculum structure and progression model are required?",
+        "What assessment and rubric standards must be met?"
+      ],
+      "gates": [
+        "curriculum_defined",
+        "assessment_defined"
+      ]
+    },
+    {
+      "id": "design.quality",
+      "questions": [
+        "Which design-system and accessibility standards are required?",
+        "How should design rationale and tradeoffs be captured?"
+      ],
+      "gates": [
+        "design_system_defined",
+        "design_rationale_defined"
+      ]
+    },
+    {
+      "id": "data.quality",
+      "questions": [
+        "What dataset schema and data-quality rules are required?",
+        "What model evaluation, drift monitoring, and reproducibility standards apply?"
+      ],
+      "gates": [
+        "data_schema_defined",
+        "ml_quality_controls_defined"
+      ]
     }
   ]
 }

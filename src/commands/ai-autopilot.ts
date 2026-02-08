@@ -182,8 +182,89 @@ function intentSuggestsRelationalDataDomain(intent: string): boolean {
   ].some((token) => lower.includes(token));
 }
 
-function extraPromptConstraints(intent: string): string[] {
+type AutopilotDomain = "software" | "legal" | "business" | "humanities" | "learning" | "design" | "data_science" | "generic";
+
+function detectAutopilotDomain(intent: string, domainHint?: string): AutopilotDomain {
+  const hinted = normalizeIntentText(domainHint ?? "");
+  if (
+    hinted === "software" ||
+    hinted === "legal" ||
+    hinted === "business" ||
+    hinted === "humanities" ||
+    hinted === "learning" ||
+    hinted === "design" ||
+    hinted === "data_science" ||
+    hinted === "generic"
+  ) {
+    return hinted as AutopilotDomain;
+  }
+  const lower = normalizeIntentText(intent);
+  if (/\bcourt\b|\blaw\b|\bpolicy\b|\bcompliance\b|\blawyer\b|\bregulation\b|\bcontract\b/.test(lower)) return "legal";
+  if (/\bpricing\b|\bmarket\b|\bforecast\b|\beconomics\b|\baccounting\b|\bfinanzas\b|\bcontador\b/.test(lower)) return "business";
+  if (/\bhistory\b|\bsociology\b|\banthropology\b|\bphilosophy\b|\bliterature\b|\bhumanities\b/.test(lower)) return "humanities";
+  if (/\blearn\b|\bteach\b|\blesson\b|\bcourse\b|\bstudent\b|\bmentor\b|\bwriter\b|\bescritor\b/.test(lower)) return "learning";
+  if (/\blogo\b|\bbrand\b|\blayout\b|\bvisual\b|\bdesign\b/.test(lower)) return "design";
+  if (/\bmodel\b|\bdataset\b|\bprediction\b|\bmachine learning\b|\bml\b/.test(lower)) return "data_science";
+  if (
+    /\bfeature\b|\bapi\b|\bbackend\b|\bfrontend\b|\bimplement\b|\bdeveloper\b|\bcode\b|\bapp\b|\bweb\b|\bdesktop\b|\bmovil\b|\bmobile\b/.test(
+      lower
+    )
+  ) {
+    return "software";
+  }
+  return "generic";
+}
+
+function domainPromptConstraints(domain: AutopilotDomain): string[] {
+  if (domain === "legal") {
+    return [
+      "Create legal-quality docs: compliance-matrix.md, risk-register.md, and legal-citations.md.",
+      "Compliance docs must define jurisdiction, applicable regulations, controls, and evidence mapping.",
+      "Risk register must include severity, likelihood, mitigation owner, and due date."
+    ];
+  }
+  if (domain === "business") {
+    return [
+      "Create business-quality docs: assumptions.md, sensitivity-analysis.md, and unit-economics.md.",
+      "Unit economics must include numeric metrics (CAC, LTV, margin, break-even or equivalent).",
+      "Sensitivity analysis must include best/base/worst scenarios and trigger thresholds."
+    ];
+  }
+  if (domain === "humanities") {
+    return [
+      "Create humanities-quality docs: methodology.md and sources.md.",
+      "sources.md must include at least 3 primary or high-quality secondary references.",
+      "Methodology must describe scope, analytical lens, limitations, and citation criteria."
+    ];
+  }
+  if (domain === "learning") {
+    return [
+      "Create learning-quality docs: curriculum.md, exercises.md, and references.md.",
+      "Exercises must include expected outcomes and evaluation criteria.",
+      "Curriculum must include modules, objectives, prerequisites, and progression."
+    ];
+  }
+  if (domain === "design") {
+    return [
+      "Create design-quality docs: design-system.md, accessibility.md, and rationale.md.",
+      "accessibility.md must include WCAG-oriented checks and contrast/keyboard validation.",
+      "rationale.md must capture major design decisions and tradeoffs."
+    ];
+  }
+  if (domain === "data_science") {
+    return [
+      "Create data-science quality docs: dataset-schema.md, evaluation-metrics.md, monitoring-plan.md, reproducibility.md.",
+      "evaluation-metrics.md must define baseline, target metrics, and acceptance thresholds.",
+      "monitoring-plan.md must define drift detection and alerting rules."
+    ];
+  }
+  return [];
+}
+
+function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   const constraints: string[] = [];
+  const domain = detectAutopilotDomain(intent, domainHint);
+  constraints.push(...domainPromptConstraints(domain));
   if (intentRequiresJavaReactFullstack(intent)) {
     constraints.push("Use split structure: backend/ (Java Spring Boot) and frontend/ (React + Vite).");
     constraints.push("Backend must expose REST APIs for users, books, loans, and inventory.");
@@ -1167,7 +1248,8 @@ export function bootstrapProjectCode(
   projectRoot: string,
   projectName: string,
   intent: string,
-  providerRequested?: string
+  providerRequested?: string,
+  domainHint?: string
 ): CodeBootstrapResult {
   const outputDir = path.join(projectRoot, "generated-app");
   fs.mkdirSync(outputDir, { recursive: true });
@@ -1196,13 +1278,16 @@ export function bootstrapProjectCode(
   let fallbackReason: string | undefined;
 
   if (resolution.ok) {
-    const constraints = extraPromptConstraints(intent);
+    const domain = detectAutopilotDomain(intent, domainHint);
+    const constraints = extraPromptConstraints(intent, domainHint);
     const prompt = [
       "Generate a production-lean starter app from user intent.",
       "The project must be executable fully in local development.",
+      `Domain profile: ${domain}.`,
       "Use DummyLocal adapters for integrations (databases, external APIs, queues) so everything runs locally.",
       "Add a schema document named schemas.md with entities, fields, relations, and constraints.",
       "Add regression tests and regression notes/documentation.",
+      "Quality gate is strict: if required artifacts are missing, your output will be rejected and repaired.",
       ...constraints,
       "Do not mix unrelated runtime stacks unless the intent explicitly requests a multi-tier architecture.",
       "Return ONLY valid JSON with this shape:",
@@ -1231,12 +1316,13 @@ export function bootstrapProjectCode(
       }
     }
     if (files.length === 0) {
-      const fallbackConstraints = extraPromptConstraints(intent);
+      const fallbackConstraints = extraPromptConstraints(intent, domainHint);
       const fallbackPrompt = [
         "Return ONLY valid JSON. No markdown.",
         "Schema: {\"files\":[{\"path\":\"relative/path\",\"content\":\"...\"}]}",
         "Generate only essential starter files to run locally with quality-first defaults.",
         "Must include: README.md, schemas.md, regression notes, and DummyLocal integration docs.",
+        `Domain profile: ${domain}.`,
         ...fallbackConstraints,
         `Project: ${projectName}`,
         `Intent: ${intent}`
@@ -1340,7 +1426,8 @@ export function improveGeneratedApp(
   appDir: string,
   intent: string,
   providerRequested?: string,
-  qualityDiagnostics?: string[]
+  qualityDiagnostics?: string[],
+  domainHint?: string
 ): ImproveAppResult {
   if (process.env.SDD_DISABLE_AI_AUTOPILOT === "1") {
     return { attempted: false, applied: false, fileCount: 0, reason: "disabled by env" };
@@ -1359,9 +1446,11 @@ export function improveGeneratedApp(
     .filter((line) => line.length > 0)
     .slice(0, 8)
     .map((line) => (line.length > 280 ? `${line.slice(0, 280)}...[truncated]` : line));
-  const constraints = extraPromptConstraints(intent);
+  const domain = detectAutopilotDomain(intent, domainHint);
+  const constraints = extraPromptConstraints(intent, domainHint);
   const prompt = [
     "Improve this generated app to production-lean quality.",
+    `Domain profile: ${domain}.`,
     "Requirements:",
     "- Keep app intent and behavior.",
     "- Ensure tests pass for the selected stack.",
@@ -1387,6 +1476,7 @@ export function improveGeneratedApp(
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
       "Fix exactly the listed quality diagnostics with minimal file edits.",
       "If diagnostics mention missing docs/tests, generate them.",
+      `Domain profile: ${domain}.`,
       `Intent: ${intent}`,
       `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
       `Current file names: ${JSON.stringify(fileNames)}`
@@ -1399,6 +1489,7 @@ export function improveGeneratedApp(
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
       "Apply minimal patch set: 1 to 5 files only.",
       "Prioritize fixing the first quality diagnostic immediately.",
+      `Domain profile: ${domain}.`,
       `Intent: ${intent}`,
       `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`
     ].join("\n");

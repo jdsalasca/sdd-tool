@@ -408,7 +408,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         clearCheckpoint(activeProject);
         const projectRoot = path.resolve(finished.doneDir, "..", "..", "..");
-        const codeBootstrap = bootstrapProjectCode(projectRoot, activeProject, text, provider);
+        const codeBootstrap = bootstrapProjectCode(projectRoot, activeProject, text, provider, intent.domain);
         if (!codeBootstrap.generated) {
           printWhy(`Code generation blocked: ${codeBootstrap.reason || "provider did not return valid files"}.`);
           printWhy("No template fallback was applied. Re-run with clearer prompt or improve provider response contract.");
@@ -421,7 +421,9 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         let lifecycle = runAppLifecycle(projectRoot, activeProject, {
           goalText: text,
-          intentSignals: intent.signals
+          intentSignals: intent.signals,
+          intentDomain: intent.domain,
+          intentFlow: intent.flow
         });
         lifecycle.summary.forEach((line) => printWhy(`Lifecycle: ${line}`));
         const lifecycleDisabled = process.env.SDD_DISABLE_APP_LIFECYCLE === "1";
@@ -432,12 +434,14 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           printWhy("Quality gates failed. Attempting AI repair iterations.");
           lifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Quality issue: ${issue}`));
           for (let attempt = 1; attempt <= maxRepairAttempts && !lifecycle.qualityPassed; attempt += 1) {
-            const repair = improveGeneratedApp(appDir, text, provider, lifecycle.qualityDiagnostics);
+            const repair = improveGeneratedApp(appDir, text, provider, lifecycle.qualityDiagnostics, intent.domain);
             if (repair.attempted && repair.applied) {
               printWhy(`AI repair attempt ${attempt} applied (${repair.fileCount} files). Re-running lifecycle checks.`);
               lifecycle = runAppLifecycle(projectRoot, activeProject, {
                 goalText: text,
-                intentSignals: intent.signals
+                intentSignals: intent.signals,
+                intentDomain: intent.domain,
+                intentFlow: intent.flow
               });
               lifecycle.summary.forEach((line) => printWhy(`Lifecycle (retry ${attempt}): ${line}`));
             } else {

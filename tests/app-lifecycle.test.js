@@ -192,3 +192,61 @@ test("runAppLifecycle enforces Java+React architecture layers", () =>
       true
     );
   }));
+
+test("runAppLifecycle enforces legal domain artifact quality", () =>
+  withTempConfig((root) => {
+    const appDir = path.join(root, "generated-app");
+    fs.mkdirSync(path.join(appDir, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "README.md"),
+      ["# Legal Intake", "## Features", "- legal intake workflow", "## Testing", "- run npm test", "## Run", "- npm start"].join("\n"),
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- case\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- stubs\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- checks\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");
+    fs.writeFileSync(
+      path.join(appDir, "src", "core.test.js"),
+      "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});",
+      "utf-8"
+    );
+
+    const result = runAppLifecycle(root, "autopilot-legal-intake-20260208", {
+      goalText: "build legal contract risk assistant",
+      intentDomain: "legal"
+    });
+
+    assert.equal(result.qualityPassed, false);
+    assert.equal(result.qualityDiagnostics.some((line) => /Missing legal artifacts/i.test(line)), true);
+  }));
+
+test("runAppLifecycle enforces data-science domain artifact quality", () =>
+  withTempConfig((root) => {
+    const appDir = path.join(root, "generated-app");
+    fs.mkdirSync(path.join(appDir, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "README.md"),
+      ["# Demand Forecast", "## Features", "- train and evaluate model", "## Testing", "- run npm test", "## Run", "- npm start"].join("\n"),
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- demand_record\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- local data stubs\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- checks\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "dataset-schema.md"), "# Dataset Schema\n- record\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "evaluation-metrics.md"), "# Evaluation Metrics\n- MAE\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");
+    fs.writeFileSync(
+      path.join(appDir, "src", "core.test.js"),
+      "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});",
+      "utf-8"
+    );
+
+    const result = runAppLifecycle(root, "autopilot-demand-forecast-20260208", {
+      goalText: "train demand prediction model with monitoring",
+      intentDomain: "data_science"
+    });
+
+    assert.equal(result.qualityPassed, false);
+    assert.equal(result.qualityDiagnostics.some((line) => /Missing data science artifacts/i.test(line)), true);
+  }));

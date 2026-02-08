@@ -20,6 +20,44 @@ export type ReqStartResult = {
   targetDir: string;
 };
 
+function domainQualityProfiles(domain: string): Record<string, string[]> {
+  const normalized = (domain || "software").trim().toLowerCase();
+  const common = ["single-responsibility", "tests-for-critical-flows", "clear-documentation", "explicit-tradeoffs"];
+  if (normalized === "legal") {
+    return {
+      legal: [...common, "compliance-matrix-required", "risk-register-required", "jurisdiction-defined", "citations-required"]
+    };
+  }
+  if (normalized === "business") {
+    return {
+      business: [...common, "assumptions-log-required", "sensitivity-analysis-required", "numeric-kpi-thresholds-required"]
+    };
+  }
+  if (normalized === "humanities") {
+    return {
+      humanities: [...common, "methodology-required", "source-quality-minimum", "limitations-documented"]
+    };
+  }
+  if (normalized === "learning") {
+    return {
+      learning: [...common, "curriculum-required", "assessment-rubric-required", "references-required"]
+    };
+  }
+  if (normalized === "design") {
+    return {
+      design: [...common, "design-system-required", "accessibility-checks-required", "rationale-required"]
+    };
+  }
+  if (normalized === "data_science") {
+    return {
+      data_science: [...common, "dataset-schema-required", "evaluation-metrics-required", "monitoring-and-drift-plan-required", "reproducibility-required"]
+    };
+  }
+  return {
+    software: [...common, "api-contracts-defined", "telemetry-baseline", "regression-suite-required"]
+  };
+}
+
 function findRequirementDir(projectRoot: string, reqId: string): string | null {
   const backlog = path.join(projectRoot, "requirements", "backlog", reqId);
   const wip = path.join(projectRoot, "requirements", "wip", reqId);
@@ -122,10 +160,23 @@ export async function runReqStart(options?: ReqStartOptions): Promise<ReqStartRe
     fs.writeFileSync(qualityPath, qualityTemplate, "utf-8");
   }
 
+  const metadataPath = path.join(project.root, "metadata.json");
+  let domain = "software";
+  if (fs.existsSync(metadataPath)) {
+    try {
+      const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as { domain?: string };
+      if (typeof metadata.domain === "string" && metadata.domain.trim()) {
+        domain = metadata.domain.trim();
+      }
+    } catch {
+      // keep default
+    }
+  }
+
   const qualityJson = {
     rules: ["single-responsibility", "tests-for-critical-flows"],
     thresholds: { coverage: "80%", complexity: "10" },
-    profiles: {}
+    profiles: domainQualityProfiles(domain)
   };
   const validation = validateJson("quality.schema.json", qualityJson);
   if (!validation.valid) {
