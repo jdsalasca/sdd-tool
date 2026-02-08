@@ -16,6 +16,7 @@ import { printError } from "../errors";
 import { bootstrapProjectCode, enrichDraftWithAI, improveGeneratedApp } from "./ai-autopilot";
 import { runAppLifecycle } from "./app-lifecycle";
 import {
+  appendDigitalReviewRound,
   convertFindingsToUserStories,
   runDigitalHumanReview,
   storiesToDiagnostics,
@@ -146,6 +147,11 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   const dryRun = runtimeFlags.dryRun;
   const beginnerMode = runtimeFlags.beginner;
   const provider = runtimeFlags.provider;
+  const iterations = runtimeFlags.iterations;
+  if (!Number.isInteger(iterations) || iterations < 1 || iterations > 10) {
+    printError("SDD-1005", "Invalid --iterations value. Use an integer between 1 and 10.");
+    return;
+  }
 
   console.log("Hello from sdd-cli.");
   console.log(`Workspace: ${workspace.root}`);
@@ -155,6 +161,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   if (autoGuidedMode) {
     printWhy("Auto-guided mode active: using current workspace defaults.");
     printWhy(`AI provider preference: ${provider ?? "gemini"}`);
+    printWhy(`Iterations configured: ${iterations}`);
   } else {
     const useWorkspace = await confirm("Use this workspace path? (y/n) ");
     if (!useWorkspace) {
@@ -465,54 +472,58 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           lifecycleDisabled || process.env.SDD_DISABLE_AI_AUTOPILOT === "1" || process.env.SDD_DISABLE_DIGITAL_REVIEW === "1";
         if (!digitalReviewDisabled) {
           const appDir = path.join(projectRoot, "generated-app");
-          const parsedReviewAttempts = Number.parseInt(process.env.SDD_DIGITAL_REVIEW_MAX_ATTEMPTS ?? "", 10);
-          const maxReviewAttempts = Number.isFinite(parsedReviewAttempts) && parsedReviewAttempts > 0 ? parsedReviewAttempts : 3;
-          let review = runDigitalHumanReview(appDir, {
-            goalText: text,
-            intentSignals: intent.signals,
-            intentDomain: intent.domain,
-            intentFlow: intent.flow
-          });
-          let stories = convertFindingsToUserStories(review.findings);
-          const initialReviewReport = writeDigitalReviewReport(appDir, review);
-          const initialStoriesPath = writeUserStoriesBacklog(appDir, stories);
-          if (initialReviewReport) {
-            printWhy(`Digital-review report: ${initialReviewReport}`);
-          }
-          if (initialStoriesPath) {
-            printWhy(`Digital-review user stories: ${initialStoriesPath} (${stories.length} stories)`);
-          }
-          if (!review.passed) {
-            printWhy(`Digital human reviewers found delivery issues (${review.summary}). Applying targeted refinements.`);
+          let deliveryApproved = false;
+          for (let round = 1; round <= iterations; round += 1) {
+            printWhy(`Iteration ${round}/${iterations}: running multi-persona digital review.`);
+            let review = runDigitalHumanReview(appDir, {
+              goalText: text,
+              intentSignals: intent.signals,
+              intentDomain: intent.domain,
+              intentFlow: intent.flow
+            });
+            let stories = convertFindingsToUserStories(review.findings);
+            const reviewPath = writeDigitalReviewReport(appDir, review);
+            const storiesPath = writeUserStoriesBacklog(appDir, stories);
+            appendDigitalReviewRound(appDir, round, review, stories);
+            if (reviewPath) {
+              printWhy(`Digital-review report: ${reviewPath}`);
+            }
+            if (storiesPath) {
+              printWhy(`Digital-review user stories: ${storiesPath} (${stories.length} stories)`);
+            }
+
+            if (review.passed) {
+              printWhy(`Iteration ${round}: digital reviewers approved (${review.summary}).`);
+              deliveryApproved = true;
+              continue;
+            }
+
+            printWhy(`Iteration ${round}: reviewers requested improvements (${review.summary}).`);
             review.diagnostics.forEach((issue) => printWhy(`Reviewer issue: ${issue}`));
-          }
-          for (let attempt = 1; attempt <= maxReviewAttempts && !review.passed; attempt += 1) {
             const storyDiagnostics = storiesToDiagnostics(stories);
             const repair = improveGeneratedApp(
               appDir,
               text,
               provider,
-              [...review.diagnostics, ...storyDiagnostics, "Implement all user stories from digital review backlog."],
+              [...review.diagnostics, ...storyDiagnostics, "Implement all prioritized user stories before next review."],
               intent.domain
             );
             if (!repair.attempted || !repair.applied) {
-              printWhy(`Digital-review repair attempt ${attempt} skipped: ${repair.reason || "unknown reason"}`);
+              printWhy(`Iteration ${round}: repair skipped (${repair.reason || "unknown reason"}).`);
               break;
             }
-            printWhy(`Digital-review repair attempt ${attempt} applied (${repair.fileCount} files).`);
+            printWhy(`Iteration ${round}: repair applied (${repair.fileCount} files). Re-validating lifecycle.`);
             lifecycle = runAppLifecycle(projectRoot, activeProject, {
               goalText: text,
               intentSignals: intent.signals,
               intentDomain: intent.domain,
               intentFlow: intent.flow
             });
-            lifecycle.summary.forEach((line) => printWhy(`Lifecycle (digital-review retry ${attempt}): ${line}`));
+            lifecycle.summary.forEach((line) => printWhy(`Lifecycle (iteration ${round}): ${line}`));
             if (!lifecycle.qualityPassed) {
+              printWhy("Quality gates failed after story implementation. Applying one quality-repair pass.");
               const qualityRepair = improveGeneratedApp(appDir, text, provider, lifecycle.qualityDiagnostics, intent.domain);
               if (qualityRepair.attempted && qualityRepair.applied) {
-                printWhy(
-                  `Quality regression repaired after digital review (${qualityRepair.fileCount} files). Re-validating delivery.`
-                );
                 lifecycle = runAppLifecycle(projectRoot, activeProject, {
                   goalText: text,
                   intentSignals: intent.signals,
@@ -522,9 +533,10 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               }
             }
             if (!lifecycle.qualityPassed) {
-              printWhy("Delivery regressed below lifecycle quality gates during digital-review iteration.");
+              printWhy(`Iteration ${round}: lifecycle quality still failing.`);
               continue;
             }
+
             review = runDigitalHumanReview(appDir, {
               goalText: text,
               intentSignals: intent.signals,
@@ -534,16 +546,19 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             stories = convertFindingsToUserStories(review.findings);
             writeDigitalReviewReport(appDir, review);
             writeUserStoriesBacklog(appDir, stories);
-            if (!review.passed) {
-              review.diagnostics.forEach((issue) => printWhy(`Reviewer issue (retry ${attempt}): ${issue}`));
+            appendDigitalReviewRound(appDir, round, review, stories);
+            if (review.passed) {
+              printWhy(`Iteration ${round}: delivery improved and approved (${review.summary}).`);
+              deliveryApproved = true;
+            } else {
+              printWhy(`Iteration ${round}: additional improvements still required (${review.summary}).`);
             }
           }
-          if (!review.passed) {
-            printWhy("Digital-review quality bar not met after refinement attempts.");
+          if (!deliveryApproved) {
+            printWhy("Digital-review quality bar not met after configured iterations.");
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
-          printWhy(`Digital reviewers approved delivery quality (${review.summary}).`);
         }
         recordActivationMetric("completed", {
           project: activeProject,

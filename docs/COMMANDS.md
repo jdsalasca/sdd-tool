@@ -106,6 +106,7 @@ This file defines the command set, intent, and expected behavior.
 - `--provider <name>` Select AI provider (`gemini|codex|auto`), default `gemini`
 - `--gemini` Shortcut for `--provider gemini`
 - `--model <name>` Select provider model (for example `gemini-2.5-flash-lite`)
+- `--iterations <n>` Number of delivery improvement iterations (`1..10`) with review->stories->implement loops
 
 ## Metrics utilities
 - `npm run metrics:summary -- <workspace-root>`

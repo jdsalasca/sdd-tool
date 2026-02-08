@@ -55,7 +55,7 @@ sdd-cli hello "create a calculator app"
 ## Global Flags
 
 - `--approve`, `--improve`, `--parallel`
-- `--non-interactive`, `--dry-run`, `--beginner`, `--from-step`
+- `--non-interactive`, `--dry-run`, `--beginner`, `--from-step`, `--iterations`
 - `--project`, `--output`, `--scope`, `--metrics-local`
 - `--provider`, `--gemini`, `--model`
 

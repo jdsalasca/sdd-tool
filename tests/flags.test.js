@@ -9,7 +9,8 @@ test("setFlags preserves previous values on partial updates", () => {
     improve: true,
     parallel: true,
     project: "Alpha",
-    output: "C:/tmp/sdd"
+    output: "C:/tmp/sdd",
+    iterations: 3
   });
 
   setFlags({ output: "C:/tmp/next" });
@@ -19,6 +20,7 @@ test("setFlags preserves previous values on partial updates", () => {
   assert.equal(current.parallel, true);
   assert.equal(current.project, "Alpha");
   assert.equal(current.output, "C:/tmp/next");
+  assert.equal(current.iterations, 3);
 
   setFlags({ project: "Beta" });
   current = getFlags();
@@ -27,4 +29,5 @@ test("setFlags preserves previous values on partial updates", () => {
   assert.equal(current.parallel, true);
   assert.equal(current.project, "Beta");
   assert.equal(current.output, "C:/tmp/next");
+  assert.equal(current.iterations, 3);
 });

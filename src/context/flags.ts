@@ -12,6 +12,7 @@ export type RuntimeFlags = {
   metricsLocal?: boolean;
   provider?: string;
   model?: string;
+  iterations: number;
 };
 
 const flags: RuntimeFlags = {
@@ -27,7 +28,8 @@ const flags: RuntimeFlags = {
   scope: undefined,
   metricsLocal: false,
   provider: process.env.SDD_AI_PROVIDER_DEFAULT ?? "gemini",
-  model: process.env.SDD_AI_MODEL_DEFAULT
+  model: process.env.SDD_AI_MODEL_DEFAULT,
+  iterations: 1
 };
 
 export function setFlags(next: Partial<RuntimeFlags>): void {
@@ -69,6 +71,10 @@ export function setFlags(next: Partial<RuntimeFlags>): void {
   }
   if ("model" in next) {
     flags.model = typeof next.model === "string" ? next.model : flags.model;
+  }
+  if ("iterations" in next) {
+    const raw = Number(next.iterations);
+    flags.iterations = Number.isFinite(raw) ? Math.trunc(raw) : flags.iterations;
   }
 }
 

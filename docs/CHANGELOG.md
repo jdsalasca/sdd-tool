@@ -3,6 +3,14 @@
 ## Unreleased
 - None.
 
+## 0.1.31
+- Release notes: `docs/releases/v0.1.31.md`
+- Release metrics: _pending_
+- Add global `--iterations <1..10>` flag to control repeated review->story->implementation rounds in `hello`.
+- Add strict `SDD-1005` validation for invalid iterations input.
+- Expand digital review loop to run multiple rounds, each with quality revalidation and publish path.
+- Persist per-round review history to `deploy/digital-review-rounds.json`.
+
 ## 0.1.30
 - Release notes: `docs/releases/v0.1.30.md`
 - Release metrics: _pending_

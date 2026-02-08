@@ -49,6 +49,7 @@ program
   .option("--metrics-local", "Enable local opt-in telemetry snapshots in workspace/metrics")
   .option("--provider <name>", "AI provider: gemini|codex|auto", defaultProviderPreference())
   .option("--model <name>", "AI model id (for providers that support model override)")
+  .option("--iterations <n>", "Autopilot improvement iterations (1-10)", "1")
   .option("--gemini", "Shortcut for --provider gemini");
 
 program.hook("preAction", (thisCommand, actionCommand) => {
@@ -76,6 +77,8 @@ program.hook("preAction", (thisCommand, actionCommand) => {
         ? opts.provider
         : config.ai.preferred_cli,
     model: typeof opts.model === "string" ? opts.model : config.ai.model
+    ,
+    iterations: Number.parseInt(typeof opts.iterations === "string" ? opts.iterations : "1", 10)
   });
   process.env.SDD_GEMINI_MODEL = typeof opts.model === "string" ? opts.model : config.ai.model;
 
@@ -487,7 +490,7 @@ function normalizeArgv(argv: string[]): string[] {
   if (args.length === 0) {
     return argv;
   }
-  const valueFlags = new Set(["--from-step", "--project", "--output", "--scope", "--provider", "--model"]);
+  const valueFlags = new Set(["--from-step", "--project", "--output", "--scope", "--provider", "--model", "--iterations"]);
   let positionalIndex = -1;
   for (let i = 0; i < args.length; i += 1) {
     const token = args[i];

@@ -395,6 +395,36 @@ export function writeUserStoriesBacklog(appDir: string, stories: UserStory[]): s
   return jsonPath;
 }
 
+export function appendDigitalReviewRound(
+  appDir: string,
+  round: number,
+  review: DigitalReviewResult,
+  stories: UserStory[]
+): string | null {
+  if (!fs.existsSync(appDir)) {
+    return null;
+  }
+  const deployDir = path.join(appDir, "deploy");
+  fs.mkdirSync(deployDir, { recursive: true });
+  const reportPath = path.join(deployDir, "digital-review-rounds.json");
+  const existing = fs.existsSync(reportPath)
+    ? (JSON.parse(fs.readFileSync(reportPath, "utf-8")) as { rounds?: unknown[] })
+    : { rounds: [] };
+  const rounds = Array.isArray(existing.rounds) ? existing.rounds : [];
+  rounds.push({
+    round,
+    generatedAt: new Date().toISOString(),
+    summary: review.summary,
+    passed: review.passed,
+    score: review.score,
+    threshold: review.threshold,
+    findings: review.findings,
+    stories
+  });
+  fs.writeFileSync(reportPath, JSON.stringify({ rounds }, null, 2), "utf-8");
+  return reportPath;
+}
+
 export function writeDigitalReviewReport(appDir: string, review: DigitalReviewResult): string | null {
   if (!fs.existsSync(appDir)) {
     return null;

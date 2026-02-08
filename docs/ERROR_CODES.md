@@ -27,6 +27,8 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: verify `SDD_AZURE_API_BASE`/`SDD_AZURE_PAT` and ensure the work item exists and is accessible.
 - `SDD-1004`: Resume requested without checkpoint
   - Fix: run from `--from-step create` first, or execute full autopilot once to create checkpoint state.
+- `SDD-1005`: Invalid iterations value
+  - Fix: use `--iterations` with an integer between `1` and `10`.
 - `SDD-1011`: Invalid quickstart example
   - Fix: run `sdd-cli quickstart --list-examples` and pass one of the supported keys.
 - `SDD-1012`: Hello questions mode could not load prompt packs
