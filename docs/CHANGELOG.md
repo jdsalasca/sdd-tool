@@ -3,6 +3,19 @@
 ## Unreleased
 - None.
 
+## 0.1.32
+- Release notes: `docs/releases/v0.1.32.md`
+- Release metrics: _pending_
+- Tighten lifecycle quality gates with runtime expectations:
+  - minimum 8 automated tests at lifecycle gate level.
+  - required smoke script for API-like apps (`smoke` / `test:smoke` / `e2e`).
+  - required curl/local endpoint verification evidence for API-like apps.
+- Strengthen digital reviewers:
+  - minimum 10 tests expectation for reviewer acceptance.
+  - smoke verification required as a high-severity QA check.
+- Add value-growth iteration behavior:
+  - when base quality passes early, remaining `--iterations` rounds still push value stories and re-validate.
+
 ## 0.1.31
 - Release notes: `docs/releases/v0.1.31.md`
 - Release metrics: _pending_

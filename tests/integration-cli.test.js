@@ -758,6 +758,13 @@ test("hello emits SDD error code for invalid --iterations value", () => {
   assert.match(result.stdout, /\[SDD-1005\]/i);
 });
 
+test("hello accepts --iterations within range", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-iterations-ok-"));
+  const result = runCli(workspaceRoot, "", ["--non-interactive", "--iterations", "2", "hello", "build app"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Iterations configured: 2/i);
+});
+
 test("hello --questions emits SDD error code when prompt packs cannot be loaded", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-questions-missing-packs-"));
   const fakeRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-repo-missing-packs-"));

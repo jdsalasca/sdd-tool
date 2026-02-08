@@ -18,6 +18,7 @@ import { runAppLifecycle } from "./app-lifecycle";
 import {
   appendDigitalReviewRound,
   convertFindingsToUserStories,
+  generateValueGrowthStories,
   runDigitalHumanReview,
   storiesToDiagnostics,
   writeDigitalReviewReport,
@@ -492,15 +493,27 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               printWhy(`Digital-review user stories: ${storiesPath} (${stories.length} stories)`);
             }
 
-            if (review.passed) {
+            let storyDiagnostics = storiesToDiagnostics(stories);
+            if (review.passed && round < iterations) {
+              const valueStories = generateValueGrowthStories({
+                goalText: text,
+                domain: intent.domain,
+                round
+              });
+              stories = [...stories, ...valueStories];
+              storyDiagnostics = storiesToDiagnostics(stories);
+              writeUserStoriesBacklog(appDir, stories);
+              appendDigitalReviewRound(appDir, round, review, stories);
+              printWhy(`Iteration ${round}: base quality approved (${review.summary}). Executing value-growth stories.`);
+            } else if (review.passed) {
               printWhy(`Iteration ${round}: digital reviewers approved (${review.summary}).`);
               deliveryApproved = true;
               continue;
+            } else {
+              printWhy(`Iteration ${round}: reviewers requested improvements (${review.summary}).`);
+              review.diagnostics.forEach((issue) => printWhy(`Reviewer issue: ${issue}`));
             }
 
-            printWhy(`Iteration ${round}: reviewers requested improvements (${review.summary}).`);
-            review.diagnostics.forEach((issue) => printWhy(`Reviewer issue: ${issue}`));
-            const storyDiagnostics = storiesToDiagnostics(stories);
             const repair = improveGeneratedApp(
               appDir,
               text,

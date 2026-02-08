@@ -26,6 +26,12 @@ export type DigitalReviewResult = {
   summary: string;
 };
 
+export type ValueStoryInput = {
+  goalText?: string;
+  domain?: string;
+  round: number;
+};
+
 function normalizeText(input: string): string {
   return input
     .toLowerCase()
@@ -131,6 +137,21 @@ function hasReleaseNotes(root: string): boolean {
   return Boolean(findDoc(root, ["release-notes.md", "changelog.md"]));
 }
 
+function hasSmokeVerification(root: string): boolean {
+  const pkgPath = path.join(root, "package.json");
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as { scripts?: Record<string, string> };
+      if (pkg.scripts?.smoke || pkg.scripts?.["test:smoke"] || pkg.scripts?.e2e) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return Boolean(findDoc(root, ["smoke.md", "smoke-tests.md", "smoke.http", "smoke-curl.sh", "smoke.ps1"]));
+}
+
 function parseThreshold(): number {
   const raw = Number.parseInt(process.env.SDD_DIGITAL_REVIEW_MIN_SCORE ?? "", 10);
   if (!Number.isFinite(raw)) {
@@ -198,11 +219,18 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
     }
   }
 
-  if (totalTests < 8) {
+  if (totalTests < 10) {
     findings.push({
       reviewer: "qa_engineer",
       severity: "high",
-      message: `Automated test depth is low (${totalTests}). Minimum expected is 8 tests for acceptance.`
+      message: `Automated test depth is low (${totalTests}). Minimum expected is 10 tests for acceptance.`
+    });
+  }
+  if (!hasSmokeVerification(appDir)) {
+    findings.push({
+      reviewer: "qa_engineer",
+      severity: "high",
+      message: "Smoke verification is missing. Add executable smoke script and local validation evidence."
     });
   }
   if (!hasArchitectureAndExecutionDocs(appDir)) {
@@ -355,6 +383,54 @@ export function convertFindingsToUserStories(findings: ReviewerFinding[]): UserS
 
 export function storiesToDiagnostics(stories: UserStory[]): string[] {
   return stories.map((story) => `[UserStory:${story.id}][${story.priority}] ${story.story}`);
+}
+
+export function generateValueGrowthStories(input: ValueStoryInput): UserStory[] {
+  const domain = normalizeText(input.domain ?? "software");
+  const base: UserStory[] = [
+    {
+      id: `VG-${input.round}-01`,
+      priority: "P1",
+      persona: "product_owner",
+      sourceReviewer: "value_growth",
+      story: "As a product_owner, I need one high-value feature enhancement that improves daily user outcomes.",
+      acceptanceCriteria: [
+        "Feature is discoverable in UI/API.",
+        "README and release notes document the new value and usage."
+      ]
+    },
+    {
+      id: `VG-${input.round}-02`,
+      priority: "P1",
+      persona: "quality_lead",
+      sourceReviewer: "value_growth",
+      story: "As a quality_lead, I need regression and smoke coverage updated for the latest feature changes.",
+      acceptanceCriteria: [
+        "Smoke checks pass in local environment.",
+        "Regression tests cover new and impacted flows."
+      ]
+    }
+  ];
+  if (domain === "legal") {
+    base.push({
+      id: `VG-${input.round}-03`,
+      priority: "P1",
+      persona: "compliance_owner",
+      sourceReviewer: "value_growth",
+      story: "As a compliance_owner, I need compliance matrix updates for any new capability added this round.",
+      acceptanceCriteria: ["Compliance mapping is updated and traceable to controls."]
+    });
+  } else if (domain === "business") {
+    base.push({
+      id: `VG-${input.round}-03`,
+      priority: "P1",
+      persona: "business_owner",
+      sourceReviewer: "value_growth",
+      story: "As a business_owner, I need measurable KPI impact documented for this iteration.",
+      acceptanceCriteria: ["Release notes include KPI baseline/target for new capability."]
+    });
+  }
+  return base;
 }
 
 export function writeUserStoriesBacklog(appDir: string, stories: UserStory[]): string | null {

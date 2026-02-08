@@ -265,6 +265,9 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   const constraints: string[] = [];
   const domain = detectAutopilotDomain(intent, domainHint);
   constraints.push(...domainPromptConstraints(domain));
+  constraints.push("Include local runtime verification with a smoke script (npm run smoke or test:smoke or e2e).");
+  constraints.push("If API/backend exists, include curl-based local endpoint checks in smoke docs/scripts.");
+  constraints.push("Target minimum automated test depth of 8 tests across critical flows.");
   if (intentRequiresJavaReactFullstack(intent)) {
     constraints.push("Use split structure: backend/ (Java Spring Boot) and frontend/ (React + Vite).");
     constraints.push("Backend must expose REST APIs for users, books, loans, and inventory.");

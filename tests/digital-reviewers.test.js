@@ -60,9 +60,16 @@ test("digital reviewers approve strong delivery baseline", () => {
   write(path.join(appDir, "troubleshooting.md"), "# Troubleshooting\n- known issues\n");
   write(path.join(appDir, "api-contract.md"), "# API Contract\n- endpoints\n");
   write(path.join(appDir, "release-notes.md"), "# Release Notes\n- initial\n");
+  write(
+    path.join(appDir, "package.json"),
+    JSON.stringify({ name: "notes", version: "1.0.0", scripts: { smoke: "echo smoke" } }, null, 2)
+  );
   write(path.join(appDir, "LICENSE"), "MIT License");
   write(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});");
-  write(path.join(appDir, "tests", "b.test.js"), "test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});");
+  write(
+    path.join(appDir, "tests", "b.test.js"),
+    "test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});test('i',()=>{});test('j',()=>{});"
+  );
 
   const result = runDigitalHumanReview(appDir, {
     goalText: "create a notes app",
@@ -98,8 +105,9 @@ test("digital review writes machine-readable report", () => {
   write(path.join(appDir, "architecture.md"), "# Architecture\n- layers\n");
   write(path.join(appDir, "execution-guide.md"), "# Execution Guide\n- run\n");
   write(path.join(appDir, "LICENSE"), "MIT License");
-  write(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});");
-  write(path.join(appDir, "tests", "b.test.js"), "test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});");
+  write(path.join(appDir, "package.json"), JSON.stringify({ scripts: { smoke: "echo smoke" } }, null, 2));
+  write(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});");
+  write(path.join(appDir, "tests", "b.test.js"), "test('f',()=>{});test('g',()=>{});test('h',()=>{});test('i',()=>{});test('j',()=>{});");
   const review = runDigitalHumanReview(appDir, { goalText: "create app" });
   const reportPath = writeDigitalReviewReport(appDir, review);
   assert.equal(typeof reportPath, "string");

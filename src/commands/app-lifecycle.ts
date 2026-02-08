@@ -25,6 +25,7 @@ export type LifecycleContext = {
 type GoalProfile = {
   javaReactFullstack: boolean;
   relationalDataApp: boolean;
+  apiLikeApp: boolean;
 };
 
 type DomainQualityProfile = "software" | "legal" | "business" | "humanities" | "learning" | "design" | "data_science" | "generic";
@@ -209,6 +210,7 @@ function parseGoalProfile(context?: LifecycleContext): GoalProfile {
   const goal = normalizeText(context?.goalText ?? "");
   const hasJava = /\bjava\b/.test(goal);
   const hasReact = /\breact\b/.test(goal);
+  const apiLikeApp = /\bapi\b|\bbackend\b|\brest\b|\bserver\b|\bmicroservice\b|\bfastapi\b|\bexpress\b|\bspring\b/.test(goal);
   const relationalHints = [
     "library",
     "biblioteca",
@@ -235,8 +237,31 @@ function parseGoalProfile(context?: LifecycleContext): GoalProfile {
   const relationalDataApp = relationalHints.some((hint) => goal.includes(hint));
   return {
     javaReactFullstack: hasJava && hasReact,
-    relationalDataApp
+    relationalDataApp,
+    apiLikeApp
   };
+}
+
+function hasSmokeScript(cwd: string): string | null {
+  const pkg = readPackageJson(cwd);
+  if (!pkg?.scripts) {
+    return null;
+  }
+  if (pkg.scripts["smoke"]) return "smoke";
+  if (pkg.scripts["test:smoke"]) return "test:smoke";
+  if (pkg.scripts["e2e"]) return "e2e";
+  return null;
+}
+
+function hasCurlEvidence(root: string): boolean {
+  const files = collectFilesRecursive(root, 8).filter((rel) => /\.(md|sh|ps1|txt|http|yml|yaml|json)$/i.test(rel));
+  for (const rel of files) {
+    const raw = normalizeText(fs.readFileSync(path.join(root, rel), "utf-8"));
+    if (/\bcurl\b/.test(raw) || /http:\/\/localhost|https:\/\/localhost/.test(raw)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function parseDomainProfile(context?: LifecycleContext): DomainQualityProfile {
@@ -429,11 +454,11 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
   }
   const testCount = countTestsRecursive(appDir);
 
-  if (testCount < 5) {
+  if (testCount < 8) {
     return {
       ok: false,
       command: "advanced-quality-check",
-      output: `Expected at least 5 tests, found ${testCount}`
+      output: `Expected at least 8 tests, found ${testCount}`
     };
   }
   const readme = fs.readFileSync(readmePath, "utf-8").toLowerCase();
@@ -489,6 +514,13 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
         output: "Database technology not explicit in README/schemas (expected PostgreSQL/MySQL/MariaDB/SQLite)"
       };
     }
+  }
+  if (profile.apiLikeApp && !hasCurlEvidence(appDir)) {
+    return {
+      ok: false,
+      command: "advanced-quality-check",
+      output: "API-like app requires curl/local endpoint verification evidence in docs/scripts."
+    };
   }
 
   if (profile.javaReactFullstack) {
@@ -1022,6 +1054,20 @@ export function runAppLifecycle(projectRoot: string, projectName: string, contex
     if (feTest) qualitySteps.push(feTest);
     const feBuild = runIfScript(frontendDir, "build");
     if (feBuild) qualitySteps.push(feBuild);
+    const feSmokeScript = hasSmokeScript(frontendDir);
+    if (feSmokeScript) {
+      qualitySteps.push(run("npm", ["run", feSmokeScript], frontendDir));
+    }
+  }
+  const rootSmokeScript = hasSmokeScript(appDir);
+  if (rootSmokeScript) {
+    qualitySteps.push(run("npm", ["run", rootSmokeScript], appDir));
+  } else if (parseGoalProfile(context).apiLikeApp) {
+    qualitySteps.push({
+      ok: false,
+      command: "smoke-check",
+      output: "Missing smoke script for API-like app (expected npm script: smoke|test:smoke|e2e)."
+    });
   }
 
   qualitySteps.push(advancedQualityCheck(appDir, context));
