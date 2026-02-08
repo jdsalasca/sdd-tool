@@ -20,6 +20,47 @@ export type LifecycleContext = {
   intentSignals?: string[];
 };
 
+type GoalProfile = {
+  javaReactFullstack: boolean;
+  relationalDataApp: boolean;
+};
+
+function collectFilesRecursive(root: string, maxDepth = 8): string[] {
+  const results: string[] = [];
+  const walk = (current: string, depth: number): void => {
+    if (depth > maxDepth) {
+      return;
+    }
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(current, entry.name);
+      const rel = path.relative(root, full).replace(/\\/g, "/");
+      if (entry.isDirectory()) {
+        if ([".git", "node_modules", "dist", "build", "target", "__pycache__", ".venv", "venv"].includes(entry.name.toLowerCase())) {
+          continue;
+        }
+        walk(full, depth + 1);
+      } else {
+        results.push(rel);
+      }
+    }
+  };
+  walk(root, 0);
+  return results;
+}
+
+function countJsTsTests(root: string, maxDepth = 8): number {
+  const files = collectFilesRecursive(root, maxDepth)
+    .filter((rel) => /\.(jsx?|tsx?)$/i.test(rel))
+    .filter((rel) => /\.test\.|\.spec\.|__tests__\//i.test(rel));
+  let count = 0;
+  for (const rel of files) {
+    const raw = fs.readFileSync(path.join(root, rel), "utf-8");
+    count += (raw.match(/\b(test|it)\s*\(/g) || []).length;
+  }
+  return count;
+}
+
 function findFileRecursive(root: string, predicate: (relative: string) => boolean, maxDepth = 4): string | null {
   const walk = (current: string, depth: number): string | null => {
     if (depth > maxDepth) {
@@ -83,14 +124,20 @@ function countTestsRecursive(root: string, maxDepth = 8): number {
 
 function run(command: string, args: string[], cwd: string): StepResult {
   let resolved = command;
-  if (process.platform === "win32" && command === "npm") {
-    resolved = "npm.cmd";
+  if (process.platform === "win32") {
+    if (command === "npm") {
+      resolved = "npm.cmd";
+    } else if (command === "mvn") {
+      resolved = "mvn.cmd";
+    }
   }
   const useShell = process.platform === "win32" && resolved.toLowerCase().endsWith(".cmd");
   const result = useShell
     ? spawnSync([resolved, ...args].join(" "), { cwd, encoding: "utf-8", shell: true })
     : spawnSync(resolved, args, { cwd, encoding: "utf-8", shell: false });
-  const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
+  const rawOutput = `${result.stdout || ""}${result.stderr || ""}`.trim();
+  const merged = rawOutput || (result.error ? String(result.error.message || result.error) : "");
+  const output = merged.length > 3500 ? `${merged.slice(0, 3500)}\n...[truncated]` : merged;
   return {
     ok: result.status === 0,
     command: [resolved, ...args].join(" "),
@@ -119,21 +166,63 @@ function runIfScript(cwd: string, script: string): StepResult | null {
   }
 }
 
-function packageNeedsInstall(cwd: string): boolean {
+function readPackageJson(cwd: string): { scripts?: Record<string, string>; dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null {
   const pkgPath = path.join(cwd, "package.json");
   if (!fs.existsSync(pkgPath)) {
-    return false;
+    return null;
   }
   try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
+    return JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
+      scripts?: Record<string, string>;
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };
-    const depCount = Object.keys(pkg.dependencies ?? {}).length + Object.keys(pkg.devDependencies ?? {}).length;
-    return depCount > 0;
   } catch {
+    return null;
+  }
+}
+
+function packageNeedsInstall(cwd: string): boolean {
+  const pkg = readPackageJson(cwd);
+  if (!pkg) {
     return false;
   }
+  const depCount = Object.keys(pkg.dependencies ?? {}).length + Object.keys(pkg.devDependencies ?? {}).length;
+  return depCount > 0;
+}
+
+function parseGoalProfile(context?: LifecycleContext): GoalProfile {
+  const goal = normalizeText(context?.goalText ?? "");
+  const hasJava = /\bjava\b/.test(goal);
+  const hasReact = /\breact\b/.test(goal);
+  const relationalHints = [
+    "library",
+    "biblioteca",
+    "inventario",
+    "inventory",
+    "prestamo",
+    "prestamos",
+    "loan",
+    "loans",
+    "usuario",
+    "usuarios",
+    "user",
+    "users",
+    "book",
+    "books",
+    "cita",
+    "citas",
+    "appointment",
+    "appointments",
+    "hospital",
+    "gestion",
+    "management"
+  ];
+  const relationalDataApp = relationalHints.some((hint) => goal.includes(hint));
+  return {
+    javaReactFullstack: hasJava && hasReact,
+    relationalDataApp
+  };
 }
 
 function basicQualityCheck(appDir: string): StepResult {
@@ -211,6 +300,124 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
       command: "advanced-quality-check",
       output: "Missing schemas.md (or equivalent schema markdown document)"
     };
+  }
+  const profile = parseGoalProfile(context);
+  if (profile.relationalDataApp) {
+    const sqlSchema =
+    findFileRecursive(appDir, (rel) => rel === "schema.sql" || rel.endsWith("/schema.sql")) ??
+      findFileRecursive(
+        appDir,
+        (rel) => rel.endsWith(".sql") && (rel.includes("schema") || rel.includes("init") || rel.includes("migration")),
+        10
+      );
+    if (!sqlSchema) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing SQL schema file (expected schema.sql or migration .sql) for relational data app"
+      };
+    }
+    const schemaText = normalizeText(fs.readFileSync(path.join(appDir, schemaDoc), "utf-8"));
+    const readmeText = readme;
+    if (!/(postgres|postgresql|mysql|mariadb|sqlite)/.test(`${schemaText}\n${readmeText}`)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Database technology not explicit in README/schemas (expected PostgreSQL/MySQL/MariaDB/SQLite)"
+      };
+    }
+  }
+
+  if (profile.javaReactFullstack) {
+    const hasBackendPom = fs.existsSync(path.join(appDir, "backend", "pom.xml"));
+    const hasFrontendPkg = fs.existsSync(path.join(appDir, "frontend", "package.json"));
+    if (!hasBackendPom || !hasFrontendPkg) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Expected Java+React fullstack structure: backend/pom.xml and frontend/package.json"
+      };
+    }
+    const frontendPkg = readPackageJson(path.join(appDir, "frontend"));
+    if (frontendPkg) {
+      const deps = { ...(frontendPkg.dependencies ?? {}), ...(frontendPkg.devDependencies ?? {}) };
+      if (typeof deps["react-query"] === "string") {
+        return {
+          ok: false,
+          command: "advanced-quality-check",
+          output: "Outdated frontend dependency detected: react-query. Use @tanstack/react-query."
+        };
+      }
+    }
+
+    const backendRoot = path.join(appDir, "backend", "src", "main", "java");
+    if (!fs.existsSync(backendRoot)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing backend/src/main/java for Java backend implementation"
+      };
+    }
+    const backendFiles = collectFilesRecursive(backendRoot, 12).filter((rel) => rel.toLowerCase().endsWith(".java"));
+    const hasDto = backendFiles.some((rel) => /\/dto\//i.test(`/${rel}`) || /dto\.java$/i.test(rel));
+    if (!hasDto) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing Java DTO layer (expected dto package and *Dto.java files)"
+      };
+    }
+    const hasRecord = backendFiles.some((rel) => /\brecord\b/.test(fs.readFileSync(path.join(backendRoot, rel), "utf-8")));
+    if (!hasRecord) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing Java record usage (expected at least one record for immutable transport/domain models)"
+      };
+    }
+    const serviceFiles = backendFiles.filter((rel) => /\/service\//i.test(`/${rel}`));
+    const repositoryFiles = backendFiles.filter((rel) => /\/repository\//i.test(`/${rel}`));
+    const hasServiceInterface = serviceFiles.some((rel) =>
+      /\binterface\b/.test(fs.readFileSync(path.join(backendRoot, rel), "utf-8"))
+    );
+    const hasRepositoryInterface = repositoryFiles.some((rel) =>
+      /\binterface\b/.test(fs.readFileSync(path.join(backendRoot, rel), "utf-8"))
+    );
+    if (!hasServiceInterface || !hasRepositoryInterface) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing service/repository interfaces in Java backend architecture"
+      };
+    }
+
+    const frontendRoot = path.join(appDir, "frontend", "src");
+    if (!fs.existsSync(frontendRoot)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing frontend/src for React frontend implementation"
+      };
+    }
+    const frontendFiles = collectFilesRecursive(frontendRoot, 10);
+    const hasApiLayer = frontendFiles.some((rel) => /^api\//i.test(rel) || /\/api\//i.test(`/${rel}`));
+    const hasHooksLayer = frontendFiles.some((rel) => /^hooks\/use[A-Z].*\.(t|j)sx?$/i.test(rel) || /\/hooks\/use[A-Z]/.test(rel));
+    const hasComponentsLayer = frontendFiles.some((rel) => /^components\//i.test(rel) || /\/components\//i.test(`/${rel}`));
+    if (!hasApiLayer || !hasHooksLayer || !hasComponentsLayer) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing frontend layers (expected src/api, src/hooks/use*.ts(x), and src/components)"
+      };
+    }
+    const frontendTestCount = countJsTsTests(path.join(appDir, "frontend"), 10);
+    if (frontendTestCount < 3) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: `Expected at least 3 frontend tests for Java+React profile, found ${frontendTestCount}`
+      };
+    }
   }
 
   const dummyLocalDoc =
@@ -519,6 +726,33 @@ export function runAppLifecycle(projectRoot: string, projectName: string, contex
   if (test) qualitySteps.push(test);
   const build = runIfScript(appDir, "build");
   if (build) qualitySteps.push(build);
+
+  const backendDir = path.join(appDir, "backend");
+  if (fs.existsSync(path.join(backendDir, "pom.xml"))) {
+    if (hasCommand("mvn")) {
+      qualitySteps.push(run("mvn", ["-q", "test"], backendDir));
+    } else {
+      qualitySteps.push({
+        ok: false,
+        command: "mvn -q test",
+        output: "Maven not available to validate Java backend"
+      });
+    }
+  }
+
+  const frontendDir = path.join(appDir, "frontend");
+  if (fs.existsSync(path.join(frontendDir, "package.json"))) {
+    if (packageNeedsInstall(frontendDir)) {
+      qualitySteps.push(run("npm", ["install"], frontendDir));
+    }
+    const feLint = runIfScript(frontendDir, "lint");
+    if (feLint) qualitySteps.push(feLint);
+    const feTest = runIfScript(frontendDir, "test");
+    if (feTest) qualitySteps.push(feTest);
+    const feBuild = runIfScript(frontendDir, "build");
+    if (feBuild) qualitySteps.push(feBuild);
+  }
+
   qualitySteps.push(advancedQualityCheck(appDir, context));
   if (qualitySteps.length === 0) {
     qualitySteps.push(basicQualityCheck(appDir));

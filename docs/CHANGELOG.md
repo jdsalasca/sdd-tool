@@ -3,6 +3,16 @@
 ## Unreleased
 - None.
 
+## 0.1.26
+- Release notes: `docs/releases/v0.1.26.md`
+- Add strict Java+React architecture gates for generated apps:
+  - required DTO layer, service/repository interfaces, and Java `record` usage.
+  - required frontend layering (`src/api`, `src/hooks/use*`, `src/components`).
+  - required minimum frontend test evidence for Java+React profile.
+- Strengthen relational-domain checks with SQL schema enforcement (`schema.sql`/migrations) and explicit DB technology declaration.
+- Improve lifecycle execution quality checks in multi-module projects (`backend` and `frontend`), including better Windows Maven command resolution.
+- Improve AI repair loop robustness with compact diagnostics and minimal-patch fallback prompts.
+
 ## 0.1.25
 - Release notes: `docs/releases/v0.1.25.md`
 - Restructure strategic product material under `docs/strategy/` for clearer documentation ownership and navigation.

@@ -145,6 +145,63 @@ function detectBaselineKind(intent: string): "notes" | "user_news" | "generic" {
   return "generic";
 }
 
+function normalizeIntentText(intent: string): string {
+  return intent
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function intentRequiresJavaReactFullstack(intent: string): boolean {
+  const lower = normalizeIntentText(intent);
+  return /\bjava\b/.test(lower) && /\breact\b/.test(lower);
+}
+
+function intentSuggestsRelationalDataDomain(intent: string): boolean {
+  const lower = normalizeIntentText(intent);
+  return [
+    "library",
+    "biblioteca",
+    "inventario",
+    "inventory",
+    "prestamo",
+    "prestamos",
+    "loan",
+    "loans",
+    "usuario",
+    "usuarios",
+    "user",
+    "users",
+    "book",
+    "books",
+    "cita",
+    "citas",
+    "appointment",
+    "appointments",
+    "hospital"
+  ].some((token) => lower.includes(token));
+}
+
+function extraPromptConstraints(intent: string): string[] {
+  const constraints: string[] = [];
+  if (intentRequiresJavaReactFullstack(intent)) {
+    constraints.push("Use split structure: backend/ (Java Spring Boot) and frontend/ (React + Vite).");
+    constraints.push("Backend must expose REST APIs for users, books, loans, and inventory.");
+    constraints.push("Frontend must consume backend APIs (do not keep data only in static mocks).");
+    constraints.push("Use modern React data layer: @tanstack/react-query (not react-query).");
+    constraints.push("Backend architecture must include DTO classes, service interfaces, and repository interfaces.");
+    constraints.push("Use Java records for immutable request/response or transport models.");
+    constraints.push("Frontend architecture must include src/api, src/hooks (use*.ts/tsx), and src/components layers.");
+    constraints.push("Include frontend tests and backend tests that run in local CI.");
+  }
+  if (intentSuggestsRelationalDataDomain(intent)) {
+    constraints.push("Use a scalable relational database default (prefer PostgreSQL).");
+    constraints.push("Include SQL schema file named schema.sql (or db/schema.sql) with tables, keys, indexes, and constraints.");
+    constraints.push("Document local database strategy in README and DummyLocal docs.");
+  }
+  return constraints;
+}
+
 function commonPackageJson(projectName: string): string {
   return `{
   "name": "${projectName.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}",
@@ -1132,12 +1189,14 @@ export function bootstrapProjectCode(
   let fallbackReason: string | undefined;
 
   if (resolution.ok) {
+    const constraints = extraPromptConstraints(intent);
     const prompt = [
       "Generate a production-lean starter app from user intent.",
       "The project must be executable fully in local development.",
       "Use DummyLocal adapters for integrations (databases, external APIs, queues) so everything runs locally.",
       "Add a schema document named schemas.md with entities, fields, relations, and constraints.",
       "Add regression tests and regression notes/documentation.",
+      ...constraints,
       "Do not mix unrelated runtime stacks unless the intent explicitly requests a multi-tier architecture.",
       "Return ONLY valid JSON with this shape:",
       '{"files":[{"path":"relative/path","content":"file content"}],"run_command":"...","deploy_steps":["..."],"publish_steps":["..."]}',
@@ -1165,11 +1224,13 @@ export function bootstrapProjectCode(
       }
     }
     if (files.length === 0) {
+      const fallbackConstraints = extraPromptConstraints(intent);
       const fallbackPrompt = [
         "Return ONLY valid JSON. No markdown.",
         "Schema: {\"files\":[{\"path\":\"relative/path\",\"content\":\"...\"}]}",
         "Generate only essential starter files to run locally with quality-first defaults.",
         "Must include: README.md, schemas.md, regression notes, and DummyLocal integration docs.",
+        ...fallbackConstraints,
         `Project: ${projectName}`,
         `Intent: ${intent}`
       ].join("\n");
@@ -1234,7 +1295,7 @@ export function bootstrapProjectCode(
 }
 
 function compactFilesForPrompt(files: Array<{ path: string; content: string }>): Array<{ path: string; content: string }> {
-  const maxFiles = 12;
+  const maxFiles = 8;
   const maxChars = 700;
   return files.slice(0, maxFiles).map((file) => ({
     path: file.path,
@@ -1286,6 +1347,12 @@ export function improveGeneratedApp(
   }
 
   const currentFiles = compactFilesForPrompt(collectProjectFiles(appDir));
+  const compactDiagnostics = (qualityDiagnostics ?? [])
+    .map((line) => line.replace(/\u001b\[[0-9;]*m/g, "").replace(/\s+/g, " ").trim())
+    .filter((line) => line.length > 0)
+    .slice(0, 8)
+    .map((line) => (line.length > 280 ? `${line.slice(0, 280)}...[truncated]` : line));
+  const constraints = extraPromptConstraints(intent);
   const prompt = [
     "Improve this generated app to production-lean quality.",
     "Requirements:",
@@ -1293,18 +1360,20 @@ export function improveGeneratedApp(
     "- Ensure tests pass for the selected stack.",
     "- Ensure code is clear and maintainable.",
     "- Ensure schemas.md exists and documents data schemas.",
+    "- Ensure relational-data apps include schema.sql with proper keys/indexes.",
     "- Ensure DummyLocal integration exists and is documented.",
     "- Ensure regression tests (or explicit regression test documentation) exists.",
+    ...constraints.map((line) => `- ${line}`),
     "- Fix every listed quality diagnostic failure.",
     "Return ONLY JSON with shape:",
     '{"files":[{"path":"relative/path","content":"full file content"}]}',
     `Intent: ${intent}`,
-    `Quality diagnostics: ${JSON.stringify(qualityDiagnostics ?? [])}`,
+    `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
     `Current files JSON: ${JSON.stringify(currentFiles)}`
   ].join("\n");
 
   let parsed = askProviderForJson(resolution.provider.exec, prompt);
-  if ((!parsed || !Array.isArray(parsed.files)) && Array.isArray(qualityDiagnostics) && qualityDiagnostics.length > 0) {
+  if ((!parsed || !Array.isArray(parsed.files)) && compactDiagnostics.length > 0) {
     const fileNames = collectProjectFiles(appDir).map((f) => f.path).slice(0, 120);
     const targetedPrompt = [
       "Return ONLY valid JSON. No markdown.",
@@ -1312,10 +1381,21 @@ export function improveGeneratedApp(
       "Fix exactly the listed quality diagnostics with minimal file edits.",
       "If diagnostics mention missing docs/tests, generate them.",
       `Intent: ${intent}`,
-      `Quality diagnostics: ${JSON.stringify(qualityDiagnostics)}`,
+      `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
       `Current file names: ${JSON.stringify(fileNames)}`
     ].join("\n");
     parsed = askProviderForJson(resolution.provider.exec, targetedPrompt);
+  }
+  if (!parsed || !Array.isArray(parsed.files)) {
+    const minimalPrompt = [
+      "Return ONLY valid JSON. No markdown.",
+      'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
+      "Apply minimal patch set: 1 to 5 files only.",
+      "Prioritize fixing the first quality diagnostic immediately.",
+      `Intent: ${intent}`,
+      `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`
+    ].join("\n");
+    parsed = askProviderForJson(resolution.provider.exec, minimalPrompt);
   }
   if (!parsed || !Array.isArray(parsed.files)) {
     return { attempted: true, applied: false, fileCount: 0, reason: "provider response unusable" };

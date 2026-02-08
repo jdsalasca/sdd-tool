@@ -428,7 +428,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         if (!lifecycleDisabled && !lifecycle.qualityPassed) {
           const appDir = path.join(projectRoot, "generated-app");
           const parsedAttempts = Number.parseInt(process.env.SDD_AI_REPAIR_MAX_ATTEMPTS ?? "", 10);
-          const maxRepairAttempts = Number.isFinite(parsedAttempts) && parsedAttempts > 0 ? parsedAttempts : 6;
+          const maxRepairAttempts = Number.isFinite(parsedAttempts) && parsedAttempts > 0 ? parsedAttempts : 10;
           printWhy("Quality gates failed. Attempting AI repair iterations.");
           lifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Quality issue: ${issue}`));
           for (let attempt = 1; attempt <= maxRepairAttempts && !lifecycle.qualityPassed; attempt += 1) {
