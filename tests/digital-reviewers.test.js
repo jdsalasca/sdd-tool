@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { runDigitalHumanReview } = require("../dist/commands/digital-reviewers.js");
+const { runDigitalHumanReview, writeDigitalReviewReport } = require("../dist/commands/digital-reviewers.js");
 
 function write(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -24,6 +24,7 @@ test("digital reviewers flag missing product and QA quality", () => {
   assert.equal(result.passed, false);
   assert.equal(result.diagnostics.some((line) => /qa_engineer/i.test(line)), true);
   assert.equal(result.diagnostics.some((line) => /program_manager/i.test(line)), true);
+  assert.equal(result.score < result.threshold, true);
 });
 
 test("digital reviewers approve strong delivery baseline", () => {
@@ -46,6 +47,9 @@ test("digital reviewers approve strong delivery baseline", () => {
     ].join("\n")
   );
   write(path.join(appDir, "user-flow.md"), "# User Flow\n- add note\n- edit note\n");
+  write(path.join(appDir, "architecture.md"), "# Architecture\n- layers\n");
+  write(path.join(appDir, "execution-guide.md"), "# Execution Guide\n- run local\n");
+  write(path.join(appDir, "LICENSE"), "MIT License");
   write(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});");
   write(path.join(appDir, "tests", "b.test.js"), "test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});");
 
@@ -56,6 +60,7 @@ test("digital reviewers approve strong delivery baseline", () => {
 
   assert.equal(result.passed, true);
   assert.equal(result.diagnostics.length, 0);
+  assert.equal(result.score >= result.threshold, true);
 });
 
 test("digital reviewers enforce legal artifacts in legal domain", () => {
@@ -76,3 +81,20 @@ test("digital reviewers enforce legal artifacts in legal domain", () => {
   assert.equal(result.diagnostics.some((line) => /compliance_officer/i.test(line)), true);
 });
 
+test("digital review writes machine-readable report", () => {
+  const appDir = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-digital-review-report-"));
+  write(path.join(appDir, "README.md"), "# App\n\n## Features\n- x\n\n## Run\n- npm start\n\n## User flow\n- x\n");
+  write(path.join(appDir, "architecture.md"), "# Architecture\n- layers\n");
+  write(path.join(appDir, "execution-guide.md"), "# Execution Guide\n- run\n");
+  write(path.join(appDir, "LICENSE"), "MIT License");
+  write(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});");
+  write(path.join(appDir, "tests", "b.test.js"), "test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});");
+  const review = runDigitalHumanReview(appDir, { goalText: "create app" });
+  const reportPath = writeDigitalReviewReport(appDir, review);
+  assert.equal(typeof reportPath, "string");
+  assert.equal(fs.existsSync(reportPath), true);
+  const raw = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
+  assert.equal(typeof raw.score, "number");
+  assert.equal(typeof raw.threshold, "number");
+  assert.equal(typeof raw.summary, "string");
+});

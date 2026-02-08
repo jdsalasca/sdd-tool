@@ -3,6 +3,14 @@
 ## Unreleased
 - None.
 
+## 0.1.29
+- Release notes: `docs/releases/v0.1.29.md`
+- Release metrics: _pending_
+- Add stricter digital-review scoring with configurable threshold (`SDD_DIGITAL_REVIEW_MIN_SCORE`, default 85).
+- Add production-readiness checks in digital reviewers for architecture/runbook docs and license presence.
+- Add machine-readable delivery report `deploy/digital-review-report.json` to generated projects.
+- Integrate digital-review reporting and scoring feedback into hello repair loop logs.
+
 ## 0.1.28
 - Release notes: `docs/releases/v0.1.28.md`
 - Release metrics: _pending_

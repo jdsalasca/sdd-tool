@@ -12,6 +12,9 @@ export type DigitalReviewResult = {
   passed: boolean;
   findings: ReviewerFinding[];
   diagnostics: string[];
+  score: number;
+  threshold: number;
+  summary: string;
 };
 
 function normalizeText(input: string): string {
@@ -90,6 +93,32 @@ function hasUserFlowDocs(root: string, readme: string): boolean {
   return Boolean(findDoc(root, ["user-flow.md", "ux-notes.md", "experience.md"]));
 }
 
+function parseThreshold(): number {
+  const raw = Number.parseInt(process.env.SDD_DIGITAL_REVIEW_MIN_SCORE ?? "", 10);
+  if (!Number.isFinite(raw)) {
+    return 85;
+  }
+  return Math.max(60, Math.min(98, raw));
+}
+
+function scoreForFindings(findings: ReviewerFinding[]): number {
+  let score = 100;
+  for (const finding of findings) {
+    score -= finding.severity === "high" ? 20 : 8;
+  }
+  return Math.max(0, score);
+}
+
+function hasArchitectureAndExecutionDocs(root: string): boolean {
+  const architecture = findDoc(root, ["architecture.md"]);
+  const execution = findDoc(root, ["execution-guide.md", "runbook.md", "operations-runbook.md"]);
+  return Boolean(architecture && execution);
+}
+
+function hasLicense(root: string): boolean {
+  return fs.existsSync(path.join(root, "LICENSE"));
+}
+
 function hasSecretLeak(root: string): boolean {
   const files = collectFilesRecursive(root, 8).filter((rel) => /\.(env|txt|md|json|yml|yaml|properties|ts|js|py|java)$/i.test(rel));
   const patterns = [/api[_-]?key\s*[:=]\s*[^\s]+/i, /secret\s*[:=]\s*[^\s]+/i, /password\s*[:=]\s*[^\s]+/i];
@@ -102,11 +131,16 @@ function hasSecretLeak(root: string): boolean {
 
 export function runDigitalHumanReview(appDir: string, context?: LifecycleContext): DigitalReviewResult {
   const findings: ReviewerFinding[] = [];
+  const threshold = parseThreshold();
   if (!fs.existsSync(appDir)) {
+    const diagnostics = ["[DigitalReviewer:program_manager][high] Generated app directory is missing."];
     return {
       passed: false,
       findings: [{ reviewer: "program_manager", severity: "high", message: "Generated app directory is missing." }],
-      diagnostics: ["[DigitalReviewer:program_manager][high] Generated app directory is missing."]
+      diagnostics,
+      score: 0,
+      threshold,
+      summary: "failed: app directory missing"
     };
   }
 
@@ -131,6 +165,20 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
       reviewer: "qa_engineer",
       severity: "high",
       message: `Automated test depth is low (${totalTests}). Minimum expected is 8 tests for acceptance.`
+    });
+  }
+  if (!hasArchitectureAndExecutionDocs(appDir)) {
+    findings.push({
+      reviewer: "program_manager",
+      severity: "medium",
+      message: "Architecture and execution/runbook docs are required for production readiness."
+    });
+  }
+  if (!hasLicense(appDir)) {
+    findings.push({
+      reviewer: "program_manager",
+      severity: "medium",
+      message: "Project should include a LICENSE file for delivery readiness."
     });
   }
 
@@ -178,9 +226,46 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
   }
 
   const diagnostics = findings.map((finding) => `[DigitalReviewer:${finding.reviewer}][${finding.severity}] ${finding.message}`);
+  const score = scoreForFindings(findings);
+  const highCount = findings.filter((finding) => finding.severity === "high").length;
+  const mediumCount = findings.length - highCount;
+  const passed = findings.length === 0 || (highCount === 0 && score >= threshold);
+  const summary = passed
+    ? `passed: score ${score}/${threshold} (high=${highCount}, medium=${mediumCount})`
+    : `failed: score ${score}/${threshold} (high=${highCount}, medium=${mediumCount})`;
   return {
-    passed: findings.length === 0,
+    passed,
     findings,
-    diagnostics
+    diagnostics,
+    score,
+    threshold,
+    summary
   };
+}
+
+export function writeDigitalReviewReport(appDir: string, review: DigitalReviewResult): string | null {
+  if (!fs.existsSync(appDir)) {
+    return null;
+  }
+  const deployDir = path.join(appDir, "deploy");
+  fs.mkdirSync(deployDir, { recursive: true });
+  const reportPath = path.join(deployDir, "digital-review-report.json");
+  fs.writeFileSync(
+    reportPath,
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        passed: review.passed,
+        score: review.score,
+        threshold: review.threshold,
+        summary: review.summary,
+        findings: review.findings,
+        diagnostics: review.diagnostics
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+  return reportPath;
 }

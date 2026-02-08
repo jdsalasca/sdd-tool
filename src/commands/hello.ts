@@ -15,7 +15,7 @@ import { recordActivationMetric } from "../telemetry/local-metrics";
 import { printError } from "../errors";
 import { bootstrapProjectCode, enrichDraftWithAI, improveGeneratedApp } from "./ai-autopilot";
 import { runAppLifecycle } from "./app-lifecycle";
-import { runDigitalHumanReview } from "./digital-reviewers";
+import { runDigitalHumanReview, writeDigitalReviewReport } from "./digital-reviewers";
 import {
   AutopilotCheckpoint,
   AutopilotStep,
@@ -467,8 +467,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             intentDomain: intent.domain,
             intentFlow: intent.flow
           });
+          const initialReviewReport = writeDigitalReviewReport(appDir, review);
+          if (initialReviewReport) {
+            printWhy(`Digital-review report: ${initialReviewReport}`);
+          }
           if (!review.passed) {
-            printWhy("Digital human reviewers found delivery issues. Applying targeted refinements.");
+            printWhy(`Digital human reviewers found delivery issues (${review.summary}). Applying targeted refinements.`);
             review.diagnostics.forEach((issue) => printWhy(`Reviewer issue: ${issue}`));
           }
           for (let attempt = 1; attempt <= maxReviewAttempts && !review.passed; attempt += 1) {
@@ -509,6 +513,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               intentDomain: intent.domain,
               intentFlow: intent.flow
             });
+            writeDigitalReviewReport(appDir, review);
             if (!review.passed) {
               review.diagnostics.forEach((issue) => printWhy(`Reviewer issue (retry ${attempt}): ${issue}`));
             }
@@ -518,7 +523,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
-          printWhy("Digital reviewers approved delivery quality.");
+          printWhy(`Digital reviewers approved delivery quality (${review.summary}).`);
         }
         recordActivationMetric("completed", {
           project: activeProject,
