@@ -32,6 +32,10 @@ This document defines machine-readable error code ranges and remediation guidanc
 - `SDD-1006`: Invalid max runtime value or runtime budget exceeded
   - Fix (input): use `--max-runtime-minutes` with an integer between `1` and `720`.
   - Fix (timeout): rerun with a higher runtime budget or resume from the printed `--from-step` checkpoint command.
+- `SDD-1013`: Stage transition blocked by delivery state machine
+  - Fix: complete and pass all prerequisite stages before entering the target stage.
+- `SDD-1014`: Project root mismatch during stage transition
+  - Fix: rerun from `--from-step create` to rebuild a consistent delivery state for the project.
 - `SDD-1011`: Invalid quickstart example
   - Fix: run `sdd-cli quickstart --list-examples` and pass one of the supported keys.
 - `SDD-1012`: Hello questions mode could not load prompt packs

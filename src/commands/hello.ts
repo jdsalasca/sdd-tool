@@ -37,6 +37,7 @@ import {
   normalizeStep,
   saveCheckpoint
 } from "./autopilot-checkpoint";
+import { canEnterStage, markStage, loadStageSnapshot, type DeliveryStage } from "./stage-machine";
 
 function printStep(step: string, description: string): void {
   console.log(`${step}: ${description}`);
@@ -123,6 +124,17 @@ function persistAgentsSnapshot(appDir: string): void {
   } catch {
     // best effort
   }
+}
+
+function ensureStageGate(projectRoot: string, stage: DeliveryStage): boolean {
+  const snapshot = loadStageSnapshot(projectRoot);
+  const gate = canEnterStage(snapshot, stage);
+  if (!gate.ok) {
+    printError("SDD-1013", gate.reason || `Cannot enter stage ${stage}.`);
+    markStage(projectRoot, stage, "failed", gate.reason);
+    return false;
+  }
+  return true;
 }
 
 function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
@@ -592,6 +604,17 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       console.log(`To execute for real: sdd-cli --project "${activeProject}" hello "${text}"`);
       return;
     }
+    const projectRoot = path.join(workspace.root, activeProject);
+    if (startStep !== "create") {
+      markStage(projectRoot, "discovery", "passed", "resume prime");
+    }
+    if (startStep === "plan" || startStep === "start" || startStep === "test" || startStep === "finish") {
+      markStage(projectRoot, "functional_requirements", "passed", `resume prime from ${startStep}`);
+    }
+    if (startStep === "start" || startStep === "test" || startStep === "finish") {
+      markStage(projectRoot, "technical_backlog", "passed", `resume prime from ${startStep}`);
+    }
+    markStage(projectRoot, "discovery", "passed", `Intent classified as ${intent.intent}/${intent.flow}`);
     for (let i = stepIndex; i < AUTOPILOT_STEPS.length; i += 1) {
       const step = AUTOPILOT_STEPS[i];
       const resumeBase = step === "create" ? "create" : (AUTOPILOT_STEPS[Math.max(0, i - 1)] as AutopilotStep);
@@ -609,6 +632,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           return;
         }
         reqId = created.reqId;
+        markStage(projectRoot, "functional_requirements", "passed", `reqId=${reqId}`);
       }
 
       if (step === "plan") {
@@ -626,6 +650,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           printRecoveryNext(activeProject, "plan", text);
           return;
         }
+        markStage(projectRoot, "technical_backlog", "passed", `planned reqId=${reqId}`);
       }
 
       if (step === "start") {
@@ -643,6 +668,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           printRecoveryNext(activeProject, "start", text);
           return;
         }
+        markStage(projectRoot, "technical_backlog", "passed", `start phase completed reqId=${reqId}`);
       }
 
       if (step === "test") {
@@ -660,6 +686,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           printRecoveryNext(activeProject, "test", text);
           return;
         }
+        markStage(projectRoot, "technical_backlog", "passed", `test plan updated reqId=${reqId}`);
       }
 
       if (step === "finish") {
@@ -678,17 +705,27 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           return;
         }
         clearCheckpoint(activeProject);
-        const projectRoot = path.resolve(finished.doneDir, "..", "..", "..");
+        const resolvedProjectRoot = path.resolve(finished.doneDir, "..", "..", "..");
+        if (resolvedProjectRoot !== projectRoot) {
+          markStage(projectRoot, "implementation", "failed", "Project root mismatch after finish stage.");
+          printError("SDD-1014", "Project root mismatch detected during stage transition.");
+          return;
+        }
         if (hasTimedOut(activeProject, reqId, "test", text)) {
+          return;
+        }
+        if (!ensureStageGate(projectRoot, "implementation")) {
           return;
         }
         const codeBootstrap = bootstrapProjectCode(projectRoot, activeProject, text, provider, intent.domain);
         if (!codeBootstrap.generated) {
+          markStage(projectRoot, "implementation", "failed", codeBootstrap.reason || "code generation failed");
           printWhy(`Code generation blocked: ${codeBootstrap.reason || "provider did not return valid files"}.`);
           printWhy("No template fallback was applied. Re-run with clearer prompt or improve provider response contract.");
           printRecoveryNext(activeProject, "finish", text);
           return;
         }
+        markStage(projectRoot, "implementation", "passed", `generated files=${codeBootstrap.fileCount}`);
         printWhy(`Code scaffold ready at: ${codeBootstrap.outputDir} (${codeBootstrap.fileCount} files)`);
         persistAgentsSnapshot(codeBootstrap.outputDir);
         if (codeBootstrap.reason) {
@@ -698,6 +735,9 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           process.env.SDD_DISABLE_APP_LIFECYCLE !== "1" &&
           process.env.SDD_DISABLE_AI_AUTOPILOT !== "1" &&
           process.env.SDD_DISABLE_DIGITAL_REVIEW !== "1";
+        if (!ensureStageGate(projectRoot, "quality_validation")) {
+          return;
+        }
         let lifecycle = runAppLifecycle(projectRoot, activeProject, {
           goalText: text,
           intentSignals: intent.signals,
@@ -707,7 +747,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         });
         lifecycle.summary.forEach((line) => printWhy(`Lifecycle: ${line}`));
         const lifecycleDisabled = process.env.SDD_DISABLE_APP_LIFECYCLE === "1";
-        if (!lifecycleDisabled && !lifecycle.qualityPassed) {
+          if (!lifecycleDisabled && !lifecycle.qualityPassed) {
           const appDir = path.join(projectRoot, "generated-app");
           const parsedAttempts = Number.parseInt(process.env.SDD_AI_REPAIR_MAX_ATTEMPTS ?? "", 10);
           const maxRepairAttempts = Number.isFinite(parsedAttempts) && parsedAttempts > 0 ? parsedAttempts : 10;
@@ -740,14 +780,19 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             }
           }
           if (!lifecycle.qualityPassed) {
+            markStage(projectRoot, "quality_validation", "failed", lifecycle.qualityDiagnostics.slice(0, 4).join(" | "));
             printWhy("Quality still failing after AI repair attempts. Stopping without template fallback.");
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
+          markStage(projectRoot, "quality_validation", "passed", "Lifecycle quality checks passed after repair loop.");
         }
         const digitalReviewDisabled =
           lifecycleDisabled || process.env.SDD_DISABLE_AI_AUTOPILOT === "1" || process.env.SDD_DISABLE_DIGITAL_REVIEW === "1";
         if (!digitalReviewDisabled) {
+          if (!ensureStageGate(projectRoot, "role_review")) {
+            return;
+          }
           const appDir = path.join(projectRoot, "generated-app");
           let deliveryApproved = false;
           let approvalStreak = 0;
@@ -921,6 +966,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
                 }
               });
               printWhy(`Release candidate ${candidateRelease.version}: ${candidateRelease.summary}`);
+              markStage(
+                projectRoot,
+                "release_candidate",
+                candidateRelease.created ? "passed" : "failed",
+                `${candidateRelease.version}: ${candidateRelease.summary}`
+              );
               recordIterationMetric({
                 round,
                 phase: "publish",
@@ -955,10 +1006,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             }
           }
           if (!deliveryApproved) {
+            markStage(projectRoot, "role_review", "failed", "Digital reviewers did not approve within configured iterations.");
             printWhy("Digital-review quality bar not met after configured iterations.");
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
+          markStage(projectRoot, "role_review", "passed", "Digital reviewers approved delivery.");
           const finalLifecycle = runAppLifecycle(projectRoot, activeProject, {
             goalText: text,
             intentSignals: intent.signals,
@@ -968,11 +1021,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           });
           finalLifecycle.summary.forEach((line) => printWhy(`Lifecycle (final): ${line}`));
           if (!finalLifecycle.qualityPassed) {
+            markStage(projectRoot, "quality_validation", "failed", finalLifecycle.qualityDiagnostics.slice(0, 4).join(" | "));
             printWhy("Final lifecycle verification failed after digital approval. Delivery blocked until all quality checks pass.");
             finalLifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Final quality issue: ${issue}`));
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
+          markStage(projectRoot, "quality_validation", "passed", "Final lifecycle verification passed.");
           const publish = publishGeneratedApp(projectRoot, activeProject, {
             goalText: text,
             intentSignals: intent.signals,
@@ -994,10 +1049,17 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               })
             : { created: false, version: "disabled", summary: "release management disabled by config" };
           printWhy(`Final release ${finalRelease.version}: ${finalRelease.summary}`);
+          markStage(
+            projectRoot,
+            "final_release",
+            finalRelease.created ? "passed" : "failed",
+            `${finalRelease.version}: ${finalRelease.summary}`
+          );
           const runtime = config.git.run_after_finalize
             ? startGeneratedApp(projectRoot, activeProject)
             : { started: false, processes: [], summary: "runtime auto-start disabled by config" };
           printWhy(`Runtime start: ${runtime.summary}`);
+          markStage(projectRoot, "runtime_start", runtime.started ? "passed" : "failed", runtime.summary);
           appendIterationMetric(path.join(projectRoot, "generated-app"), {
             at: new Date().toISOString(),
             round: Math.max(iterations, 1),

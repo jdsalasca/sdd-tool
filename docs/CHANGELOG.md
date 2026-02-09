@@ -42,6 +42,10 @@
 - Improve Gemini file normalization and quality-repair prompting:
   - flatten accidental single nested project root inside `generated-app` responses.
   - stronger constraints/hints for TypeScript/Jest consistency, valid dependency versions, and contract-domain relational schemas.
+- Add explicit stage-state enforcement in hello orchestration:
+  - persistent stage machine file (`.sdd-stage-state.json`) tracks discovery -> requirements -> backlog -> implementation -> quality -> review -> release -> runtime.
+  - block invalid stage transitions with machine-readable errors (`SDD-1013`, `SDD-1014`).
+  - record pass/fail outcomes for quality validation, role review, release candidate/final release, and runtime start.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`
