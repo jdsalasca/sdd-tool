@@ -2,6 +2,7 @@ import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
 import fs from "fs";
 import path from "path";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
+import { getRepoRoot } from "../paths";
 import { ask, confirm } from "../ui/prompt";
 import { getPromptPackById, loadPromptPacks, PromptPack } from "../router/prompt-packs";
 import { mapAnswersToRequirement } from "../router/prompt-map";
@@ -88,6 +89,40 @@ function appendIterationMetric(appDir: string, metric: IterationMetric): void {
   const metrics = Array.isArray(current.metrics) ? current.metrics : [];
   metrics.push(metric);
   fs.writeFileSync(file, JSON.stringify({ metrics }, null, 2), "utf-8");
+}
+
+function readAgentsExecutionSummary(): string | null {
+  try {
+    const file = path.join(getRepoRoot(), "AGENTS.md");
+    if (!fs.existsSync(file)) {
+      return null;
+    }
+    const raw = fs.readFileSync(file, "utf-8");
+    const lines = raw.split(/\r?\n/).map((line) => line.trim());
+    const canonical = lines.find((line) => line.toLowerCase().startsWith("`sdd-tool` must orchestrate end-to-end delivery"));
+    if (canonical) {
+      return canonical;
+    }
+    const objective = lines.find((line) => line.toLowerCase().includes("production-ready outcome"));
+    return objective ?? "AGENTS execution contract loaded.";
+  } catch {
+    return null;
+  }
+}
+
+function persistAgentsSnapshot(appDir: string): void {
+  try {
+    const src = path.join(getRepoRoot(), "AGENTS.md");
+    if (!fs.existsSync(src) || !fs.existsSync(appDir)) {
+      return;
+    }
+    const deployDir = path.join(appDir, "deploy");
+    fs.mkdirSync(deployDir, { recursive: true });
+    const target = path.join(deployDir, "agents-contract.snapshot.md");
+    fs.copyFileSync(src, target);
+  } catch {
+    // best effort
+  }
 }
 
 function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
@@ -359,6 +394,10 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
 
   console.log("Hello from sdd-cli.");
   console.log(`Workspace: ${workspace.root}`);
+  const agentsSummary = readAgentsExecutionSummary();
+  if (agentsSummary) {
+    printWhy(`AGENTS contract loaded: ${agentsSummary}`);
+  }
   if (beginnerMode) {
     printBeginnerTip(true, "I will explain each step and tell you what happens next.");
   }
@@ -651,6 +690,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           return;
         }
         printWhy(`Code scaffold ready at: ${codeBootstrap.outputDir} (${codeBootstrap.fileCount} files)`);
+        persistAgentsSnapshot(codeBootstrap.outputDir);
         if (codeBootstrap.reason) {
           printWhy(`Code scaffold note: ${codeBootstrap.reason}`);
         }
