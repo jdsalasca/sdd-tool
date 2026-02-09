@@ -1456,6 +1456,7 @@ export function enrichDraftWithAI(
     "Return ONLY valid JSON with keys:",
     "objective, actors, scope_in, scope_out, acceptance_criteria, nfr_security, nfr_performance, nfr_availability, constraints, risks.",
     "No markdown. No explanation.",
+    "Do not mention tool limits or inability; provide the JSON payload directly.",
     "Write all values in English.",
     `Intent: ${input}`,
     `Flow: ${flow}`,
@@ -1560,6 +1561,8 @@ export function bootstrapProjectCode(
       '{"files":[{"path":"relative/path","content":"file content"}],"run_command":"...","deploy_steps":["..."],"publish_steps":["..."]}',
       "Use only relative file paths. Keep files concise and runnable.",
       "Use English for README/docs/messages/comments.",
+      "Never mention unavailable tools or ask the user to create files manually.",
+      "Assume you can directly author repository files and return only the JSON payload.",
       `Project: ${projectName}`,
       `Intent: ${intent}`
     ].join("\n");
@@ -1575,6 +1578,8 @@ export function bootstrapProjectCode(
         "Generate only essential production-ready files to run locally with quality-first defaults.",
         "Must include: README.md, architecture.md, components.md, schemas.md, regression notes, and DummyLocal integration docs.",
         "Use MVC architecture by default and keep files in English.",
+        "Never mention unavailable tools or ask the user to create files manually.",
+        "Assume you can directly author repository files and return only the JSON payload.",
         `Domain profile: ${domain}.`,
         ...fallbackConstraints,
         `Project: ${projectName}`,
@@ -1611,6 +1616,8 @@ export function bootstrapProjectCode(
         "- schemas.md",
         "Also include: dummy-local.md, regression.md, schema.sql, LICENSE, and a smoke script in package.json.",
         "Use English only.",
+        "Never mention unavailable tools or ask the user to create files manually.",
+        "Assume you can directly author repository files and return only the JSON payload.",
         `Project: ${projectName}`,
         `Intent: ${intent}`
       ].join("\n");
@@ -1629,6 +1636,8 @@ export function bootstrapProjectCode(
         "Include one runnable app entrypoint and one smoke validation script command in package.json.",
         "Include at least one test file and keep dependencies aligned with imports.",
         "Do not include explanations. Output JSON only.",
+        "Never mention unavailable tools or ask the user to create files manually.",
+        "Assume you can directly author repository files and return only the JSON payload.",
         `Project: ${projectName}`,
         `Intent: ${intent}`
       ].join("\n");
@@ -1778,6 +1787,8 @@ export function improveGeneratedApp(
     "- Fix every listed quality diagnostic failure.",
     "Return ONLY JSON with shape:",
     '{"files":[{"path":"relative/path","content":"full file content"}]}',
+    "Never mention unavailable tools or ask the user to create files manually.",
+    "Assume you can directly author repository files and return only the JSON payload.",
     `Intent: ${intent}`,
     `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
     `Current files JSON: ${JSON.stringify(currentFiles)}`
@@ -1791,6 +1802,8 @@ export function improveGeneratedApp(
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
       "Fix exactly the listed quality diagnostics with minimal file edits.",
       "If diagnostics mention missing docs/tests, generate them.",
+      "Never mention unavailable tools or ask the user to create files manually.",
+      "Assume you can directly author repository files and return only the JSON payload.",
       `Domain profile: ${domain}.`,
       `Intent: ${intent}`,
       `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
@@ -1804,6 +1817,8 @@ export function improveGeneratedApp(
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
       "Apply minimal patch set: 1 to 5 files only.",
       "Prioritize fixing the first quality diagnostic immediately.",
+      "Never mention unavailable tools or ask the user to create files manually.",
+      "Assume you can directly author repository files and return only the JSON payload.",
       `Domain profile: ${domain}.`,
       `Intent: ${intent}`,
       `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`

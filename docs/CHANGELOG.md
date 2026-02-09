@@ -49,6 +49,7 @@
 - Add deep orchestration debugging for provider interactions:
   - log every provider prompt/response pair with timestamp and duration at `<project>/debug/provider-prompts.jsonl`.
   - log orchestration timeline events at `<project>/orchestration-journal.jsonl` to support long-running runs and resume analysis.
+- Harden provider prompt contracts to reject "tool unavailable/manual steps" style responses and force direct JSON file payloads for generation/repair loops.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`
