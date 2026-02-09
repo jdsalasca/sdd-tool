@@ -99,6 +99,18 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     if (normalized.includes("haste module naming collision")) {
       hints.add("Avoid nested duplicated app folders/package.json names; keep a single project root structure.");
     }
+    if (normalized.includes("nested generated-app/package.json detected")) {
+      hints.add("Remove nested generated-app folder duplication and keep a single project root layout.");
+    }
+    if (normalized.includes("script smoke uses shell-only path") || normalized.includes("test:smoke uses shell-only path")) {
+      hints.add("Use cross-platform smoke command in package.json (node script or npm run), not shell-specific paths.");
+    }
+    if (normalized.includes("missing dependency '")) {
+      hints.add("Synchronize package.json dependencies with all imports/requires used in source and tests.");
+    }
+    if (normalized.includes("typescript tests detected but ts-jest is not declared") || normalized.includes("jest config uses ts-jest preset")) {
+      hints.add("For TS tests, add ts-jest + proper jest config, or convert tests to JS consistently.");
+    }
     if (normalized.includes("no-unused-vars") || normalized.includes("unexpected console statement")) {
       hints.add("Fix lint blockers or adjust lint config/rules so lint passes in CI without warnings-as-errors failures.");
     }

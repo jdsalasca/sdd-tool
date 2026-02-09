@@ -20,6 +20,11 @@
   - lifecycle quality now requires `components.md` and MVC-oriented architecture evidence for software/generic flows.
   - improved Spanish-to-English intent token normalization for naming and alignment checks.
   - repo naming is more market-descriptive by default (platform-oriented instead of generic `-app`).
+- Add lifecycle preflight hardening before expensive quality runs:
+  - detect nested duplicated app roots (`generated-app/generated-app`).
+  - detect shell-only smoke scripts and require cross-platform npm/node commands.
+  - detect import/dependency mismatches for common runtime/test modules (`supertest`, `axios`, `knex`, `ts-jest`).
+  - detect TypeScript Jest preset/dependency inconsistencies earlier.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

@@ -308,3 +308,30 @@ test("runAppLifecycle defers publish when digital-review defer flag is enabled",
     assert.equal(result.githubPublished, false);
     assert.equal(result.summary.some((line) => /deferred until digital review approval/i.test(line)), true);
   }));
+
+test("runAppLifecycle preflight fails on nested generated-app duplication", () =>
+  withTempConfig((root) => {
+    const appDir = path.join(root, "generated-app");
+    fs.mkdirSync(path.join(appDir, "generated-app"), { recursive: true });
+    fs.mkdirSync(path.join(appDir, "tests"), { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "README.md"),
+      ["# Demo", "## Features", "- x", "## Testing", "- npm test", "## Run", "- npm start"].join("\n"),
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- x\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- x\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "components.md"), "# Components\n- x\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "architecture.md"), "# Architecture\n- MVC\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- x\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");
+    fs.writeFileSync(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});", "utf-8");
+    fs.writeFileSync(path.join(appDir, "generated-app", "package.json"), "{\"name\":\"nested\"}", "utf-8");
+
+    const result = runAppLifecycle(root, "autopilot-nested-20260209", {
+      goalText: "create parking registry app"
+    });
+
+    assert.equal(result.qualityPassed, false);
+    assert.equal(result.qualityDiagnostics.some((line) => /Nested generated-app\/package\.json detected/i.test(line)), true);
+  }));

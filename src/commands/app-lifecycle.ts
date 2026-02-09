@@ -254,6 +254,74 @@ function hasSmokeScript(cwd: string): string | null {
   return null;
 }
 
+function scanSourceFiles(root: string): Array<{ rel: string; raw: string }> {
+  if (!fs.existsSync(root)) {
+    return [];
+  }
+  const files = collectFilesRecursive(root, 10).filter((rel) => /\.(js|jsx|ts|tsx|mjs|cjs)$/i.test(rel));
+  return files.map((rel) => ({ rel, raw: fs.readFileSync(path.join(root, rel), "utf-8") }));
+}
+
+function preflightQualityCheck(appDir: string): StepResult {
+  const issues: string[] = [];
+  const nestedGenerated = path.join(appDir, "generated-app", "package.json");
+  if (fs.existsSync(nestedGenerated)) {
+    issues.push("Nested generated-app/package.json detected; project structure is recursively duplicated.");
+  }
+
+  const pkg = readPackageJson(appDir);
+  if (pkg?.scripts) {
+    for (const scriptName of ["smoke", "test:smoke", "e2e"]) {
+      const script = pkg.scripts[scriptName];
+      if (typeof script === "string" && /\.\//.test(script)) {
+        issues.push(`Script ${scriptName} uses shell-only path (${script}). Use cross-platform node/npm command.`);
+      }
+    }
+  }
+
+  const deps = { ...(pkg?.dependencies ?? {}), ...(pkg?.devDependencies ?? {}) };
+  const sourceFiles = scanSourceFiles(appDir);
+  const importedTokens = [
+    { token: "supertest", expected: "supertest" },
+    { token: "axios", expected: "axios" },
+    { token: "knex", expected: "knex" },
+    { token: "ts-jest", expected: "ts-jest" }
+  ];
+  for (const item of importedTokens) {
+    const used = sourceFiles.some(({ raw }) => new RegExp(`['"]${item.token}['"]`).test(raw));
+    if (used && typeof deps[item.expected] !== "string") {
+      issues.push(`Missing dependency '${item.expected}' while source imports/requires '${item.token}'.`);
+    }
+  }
+
+  const hasTsTests = sourceFiles.some(({ rel }) => /\.test\.ts$|\.spec\.ts$/.test(rel));
+  const jestConfigPath =
+    fileExistsAny(appDir, ["jest.config.js", "jest.config.cjs", "jest.config.mjs", "jest.config.ts"]) ??
+    fileExistsAny(path.join(appDir, "config"), ["jest.config.js", "jest.config.cjs"]);
+  if (hasTsTests && typeof deps["ts-jest"] !== "string") {
+    issues.push("TypeScript tests detected but ts-jest is not declared.");
+  }
+  if (hasTsTests && jestConfigPath) {
+    const cfg = normalizeText(fs.readFileSync(jestConfigPath, "utf-8"));
+    if (/preset\s*:\s*['"]ts-jest['"]/.test(cfg) && typeof deps["ts-jest"] !== "string") {
+      issues.push("Jest config uses ts-jest preset but ts-jest dependency is missing.");
+    }
+  }
+
+  if (issues.length > 0) {
+    return {
+      ok: false,
+      command: "preflight-quality-check",
+      output: issues.join(" | ")
+    };
+  }
+  return {
+    ok: true,
+    command: "preflight-quality-check",
+    output: "Preflight checks passed"
+  };
+}
+
 function hasCurlEvidence(root: string): boolean {
   const files = collectFilesRecursive(root, 8).filter((rel) => /\.(md|sh|ps1|txt|http|yml|yaml|json)$/i.test(rel));
   for (const rel of files) {
@@ -1087,6 +1155,7 @@ export function runAppLifecycle(projectRoot: string, projectName: string, contex
   }
 
   const qualitySteps: StepResult[] = [];
+  qualitySteps.push(preflightQualityCheck(appDir));
   const install = packageNeedsInstall(appDir) ? run("npm", ["install"], appDir) : null;
   if (install) qualitySteps.push(install);
   const lint = runIfScript(appDir, "lint");
