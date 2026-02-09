@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { spawnSync } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import { ensureConfig } from "../config";
 
 type StepResult = {
@@ -1141,6 +1141,109 @@ function tryPublishGitHub(appDir: string, metadata: RepoMetadata): StepResult {
   return create.ok ? create : { ok: false, command: create.command, output: create.output };
 }
 
+function ensureRepoRemote(appDir: string, metadata: RepoMetadata): StepResult {
+  const remote = run("git", ["remote", "get-url", "origin"], appDir);
+  if (remote.ok) {
+    return { ok: true, command: "git remote get-url origin", output: remote.output };
+  }
+  return tryPublishGitHub(appDir, metadata);
+}
+
+function nextManagedVersion(appDir: string, finalRelease: boolean, round: number): string {
+  const historyPath = path.join(appDir, "deploy", "release-history.json");
+  if (!fs.existsSync(historyPath)) {
+    return finalRelease ? "v1.0.0" : `v0.9.0-rc.${round}`;
+  }
+  try {
+    const raw = JSON.parse(fs.readFileSync(historyPath, "utf-8")) as {
+      releases?: Array<{ version?: string; stage?: string }>;
+    };
+    const releases = Array.isArray(raw.releases) ? raw.releases : [];
+    const stage = finalRelease ? "final" : "candidate";
+    const stageCount = releases.filter((entry) => entry.stage === stage).length;
+    if (finalRelease) {
+      return `v1.0.${stageCount}`;
+    }
+    return `v0.9.${stageCount}-rc.${round}`;
+  } catch {
+    return finalRelease ? "v1.0.0" : `v0.9.0-rc.${round}`;
+  }
+}
+
+function writeReleaseNote(appDir: string, version: string, stage: "candidate" | "final", note: string): string {
+  const releasesDir = path.join(appDir, "deploy", "releases");
+  fs.mkdirSync(releasesDir, { recursive: true });
+  const file = path.join(releasesDir, `${version}.md`);
+  const lines = [
+    `# ${version}`,
+    "",
+    `Stage: ${stage}`,
+    `Generated at: ${new Date().toISOString()}`,
+    "",
+    "## Summary",
+    note
+  ];
+  fs.writeFileSync(file, `${lines.join("\n")}\n`, "utf-8");
+  return file;
+}
+
+function appendReleaseHistory(
+  appDir: string,
+  entry: { version: string; stage: "candidate" | "final"; note: string; pushed: boolean; published: boolean }
+): void {
+  const deployDir = path.join(appDir, "deploy");
+  fs.mkdirSync(deployDir, { recursive: true });
+  const file = path.join(deployDir, "release-history.json");
+  const current = fs.existsSync(file)
+    ? (JSON.parse(fs.readFileSync(file, "utf-8")) as { releases?: unknown[] })
+    : { releases: [] };
+  const releases = Array.isArray(current.releases) ? current.releases : [];
+  releases.push({
+    ...entry,
+    at: new Date().toISOString()
+  });
+  fs.writeFileSync(file, JSON.stringify({ releases }, null, 2), "utf-8");
+}
+
+function createGitTag(appDir: string, version: string, note: string): StepResult {
+  const existing = run("git", ["tag", "--list", version], appDir);
+  if (existing.ok && existing.output.trim() === version) {
+    return { ok: true, command: `git tag ${version}`, output: "already exists" };
+  }
+  return run("git", ["tag", "-a", version, "-m", note], appDir);
+}
+
+function pushGitWithTags(appDir: string): StepResult {
+  const pushMain = run("git", ["push", "-u", "origin", "main"], appDir);
+  if (!pushMain.ok) {
+    return pushMain;
+  }
+  const pushTags = run("git", ["push", "--tags"], appDir);
+  return pushTags.ok ? pushTags : pushMain;
+}
+
+function publishGitHubRelease(appDir: string, version: string, notesFile: string, finalRelease: boolean): StepResult {
+  if (!hasCommand("gh")) {
+    return { ok: false, command: "gh", output: "gh CLI not available" };
+  }
+  const auth = run("gh", ["auth", "status"], appDir);
+  if (!auth.ok) {
+    return { ok: false, command: "gh auth status", output: "gh not authenticated" };
+  }
+  const args = ["release", "create", version, notesFile, "--title", version];
+  if (!finalRelease) {
+    args.push("--prerelease");
+  }
+  const created = run("gh", args, appDir);
+  if (created.ok) {
+    return created;
+  }
+  if (/already exists/i.test(created.output)) {
+    return run("gh", ["release", "edit", version, "--notes-file", notesFile, "--title", version], appDir);
+  }
+  return created;
+}
+
 export type AppLifecycleResult = {
   qualityPassed: boolean;
   deployPrepared: boolean;
@@ -1152,6 +1255,18 @@ export type AppLifecycleResult = {
 
 export type PublishOutcome = {
   published: boolean;
+  summary: string;
+};
+
+export type ReleaseOutcome = {
+  created: boolean;
+  version: string;
+  summary: string;
+};
+
+export type RuntimeStartOutcome = {
+  started: boolean;
+  processes: Array<{ command: string; cwd: string; pid: number }>;
   summary: string;
 };
 
@@ -1300,5 +1415,143 @@ export function publishGeneratedApp(projectRoot: string, projectName: string, co
   return {
     published: publish.ok,
     summary: publish.ok ? publish.command : `${publish.command}: ${publish.output || "publish failed"}`
+  };
+}
+
+export function createManagedRelease(
+  projectRoot: string,
+  projectName: string,
+  options: { round: number; finalRelease: boolean; note: string; context?: LifecycleContext }
+): ReleaseOutcome {
+  const appDir = path.join(projectRoot, "generated-app");
+  if (!fs.existsSync(appDir)) {
+    return { created: false, version: "n/a", summary: "generated-app directory missing" };
+  }
+  const git = ensureGitRepo(appDir);
+  if (!git.ok) {
+    return { created: false, version: "n/a", summary: `git preparation failed: ${git.output || git.command}` };
+  }
+  const metadata = deriveRepoMetadata(projectName, appDir, options.context);
+  const version = nextManagedVersion(appDir, options.finalRelease, options.round);
+  const stage: "candidate" | "final" = options.finalRelease ? "final" : "candidate";
+  const releaseNote = writeReleaseNote(appDir, version, stage, options.note);
+  run("git", ["add", "."], appDir);
+  const commit = run("git", ["commit", "-m", `chore(release): ${version}`], appDir);
+  if (!commit.ok && !/nothing to commit/i.test(commit.output)) {
+    return { created: false, version, summary: `${commit.command}: ${commit.output || "release commit failed"}` };
+  }
+  const tag = createGitTag(appDir, version, options.note);
+  if (!tag.ok) {
+    return { created: false, version, summary: `${tag.command}: ${tag.output || "tag creation failed"}` };
+  }
+
+  const config = ensureConfig();
+  let pushed = false;
+  let published = false;
+  let publishSummary = "local release created";
+  if (config.git.publish_enabled) {
+    const remote = ensureRepoRemote(appDir, metadata);
+    if (remote.ok) {
+      const pushedStep = pushGitWithTags(appDir);
+      pushed = pushedStep.ok;
+      publishSummary = pushedStep.ok ? "pushed main and tags" : `${pushedStep.command}: ${pushedStep.output || "push failed"}`;
+      if (pushedStep.ok) {
+        const ghRelease = publishGitHubRelease(appDir, version, releaseNote, options.finalRelease);
+        published = ghRelease.ok;
+        publishSummary = ghRelease.ok ? `${publishSummary}; github release published` : `${publishSummary}; ${ghRelease.command}: ${ghRelease.output || "release publish failed"}`;
+      }
+    } else {
+      publishSummary = `${remote.command}: ${remote.output || "remote setup failed"}`;
+    }
+  }
+
+  appendReleaseHistory(appDir, {
+    version,
+    stage,
+    note: options.note,
+    pushed,
+    published
+  });
+
+  return {
+    created: true,
+    version,
+    summary: publishSummary
+  };
+}
+
+function resolveStartScripts(appDir: string): Array<{ cwd: string; script: string }> {
+  const scripts: Array<{ cwd: string; script: string }> = [];
+  const collect = (cwd: string): void => {
+    const pkg = readPackageJson(cwd);
+    if (!pkg?.scripts) {
+      return;
+    }
+    if (typeof pkg.scripts.start === "string") {
+      scripts.push({ cwd, script: "start" });
+      return;
+    }
+    if (typeof pkg.scripts.dev === "string") {
+      scripts.push({ cwd, script: "dev" });
+    }
+  };
+  collect(appDir);
+  if (scripts.length > 0) {
+    return scripts.slice(0, 1);
+  }
+  collect(path.join(appDir, "backend"));
+  collect(path.join(appDir, "frontend"));
+  return scripts.slice(0, 2);
+}
+
+export function startGeneratedApp(projectRoot: string, _projectName: string): RuntimeStartOutcome {
+  const appDir = path.join(projectRoot, "generated-app");
+  if (!fs.existsSync(appDir)) {
+    return { started: false, processes: [], summary: "generated-app directory missing" };
+  }
+  const scripts = resolveStartScripts(appDir);
+  if (scripts.length === 0) {
+    return { started: false, processes: [], summary: "No start/dev script found to run application." };
+  }
+  const processes: Array<{ command: string; cwd: string; pid: number }> = [];
+  for (const target of scripts) {
+    const command = process.platform === "win32" ? "npm.cmd" : "npm";
+    const child = spawn(command, ["run", target.script], {
+      cwd: target.cwd,
+      shell: process.platform === "win32",
+      detached: true,
+      stdio: "ignore"
+    });
+    child.unref();
+    if (typeof child.pid === "number") {
+      processes.push({
+        command: `${command} run ${target.script}`,
+        cwd: target.cwd,
+        pid: child.pid
+      });
+    }
+  }
+  const deployDir = path.join(appDir, "deploy");
+  fs.mkdirSync(deployDir, { recursive: true });
+  const runtimeFile = path.join(deployDir, "runtime-processes.json");
+  fs.writeFileSync(
+    runtimeFile,
+    JSON.stringify(
+      {
+        startedAt: new Date().toISOString(),
+        processes
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+  if (processes.length === 0) {
+    return { started: false, processes: [], summary: "Failed to spawn runtime process." };
+  }
+  return {
+    started: true,
+    processes,
+    summary: `Started ${processes.length} runtime process(es); details: ${runtimeFile}`
   };
 }

@@ -35,6 +35,13 @@
   - on timeout, `hello` stores checkpoint state and prints an explicit resume command.
   - persist per-round improvement metrics to `generated-app/deploy/iteration-metrics.json`.
   - emit opt-in local telemetry events for review/repair/lifecycle/publish iteration phases.
+- Add release/runtime orchestration controls for generated apps:
+  - managed release candidates per quality iteration and final production release support.
+  - new config keys: `git.release_management_enabled` and `git.run_after_finalize`.
+  - optional runtime auto-start writes process metadata to `generated-app/deploy/runtime-processes.json`.
+- Improve Gemini file normalization and quality-repair prompting:
+  - flatten accidental single nested project root inside `generated-app` responses.
+  - stronger constraints/hints for TypeScript/Jest consistency, valid dependency versions, and contract-domain relational schemas.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

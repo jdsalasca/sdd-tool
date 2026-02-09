@@ -127,6 +127,8 @@ This file defines the command set, intent, and expected behavior.
   - Auto-generates project name when missing
   - Generates app scaffold under `generated-app/`
   - Runs lifecycle orchestration (quality checks, deploy artifacts, git init/commit, GitHub publish attempt via `gh` when authenticated)
+  - Creates managed release candidates during quality iterations and a final release when delivery is approved (when `git.release_management_enabled=true`)
+  - Can auto-start generated app runtime after finalization (when `git.run_after_finalize=true`)
   - Enforces minimum quality rounds and approval streak before final acceptance
 - `--questions`: manual question packs and explicit draft confirmation
 - `--beginner`: keeps autopilot behavior but adds beginner-friendly explanations at each step

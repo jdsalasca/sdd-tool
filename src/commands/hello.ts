@@ -15,7 +15,8 @@ import { runTestPlan } from "./test-plan";
 import { recordActivationMetric, recordIterationMetric } from "../telemetry/local-metrics";
 import { printError } from "../errors";
 import { bootstrapProjectCode, enrichDraftWithAI, improveGeneratedApp } from "./ai-autopilot";
-import { publishGeneratedApp, runAppLifecycle } from "./app-lifecycle";
+import { createManagedRelease, publishGeneratedApp, runAppLifecycle, startGeneratedApp } from "./app-lifecycle";
+import { ensureConfig } from "../config";
 import {
   appendDigitalReviewRound,
   convertFindingsToUserStories,
@@ -99,6 +100,9 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     if (normalized.includes("eslint couldn't find a configuration file") || normalized.includes("no-config-found")) {
       hints.add("Fix frontend linting: add eslint config (eslint.config.js or .eslintrc) or align lint script with available config.");
     }
+    if (normalized.includes("\"eslint\" no se reconoce como un comando interno o externo") || normalized.includes("eslint is not recognized")) {
+      hints.add("Fix lint script/dependencies: install eslint as devDependency or remove failing lint script until properly configured.");
+    }
     if (normalized.includes("rollup failed to resolve import \"axios\"") || normalized.includes("could not resolve import \"axios\"")) {
       hints.add("Fix frontend dependencies: add axios to package.json dependencies or replace axios import with installed client.");
     }
@@ -110,6 +114,12 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     }
     if (normalized.includes("cannot find module 'supertest'")) {
       hints.add("Add supertest to devDependencies and ensure tests run with installed test libraries.");
+    }
+    if (normalized.includes("no matching version found for @types/supertest")) {
+      hints.add("Use an available @types/supertest version (or omit strict pin) and rerun npm install.");
+    }
+    if (normalized.includes("cannot find module 'cors'")) {
+      hints.add("Add cors (and @types/cors for TS) to dependencies and verify server imports.");
     }
     if (normalized.includes("cannot find module 'uuid'") || normalized.includes("could not find a declaration file for module 'uuid'")) {
       hints.add("Fix uuid typing/runtime consistency: install uuid and @types/uuid (or configure moduleResolution) and verify imports.");
@@ -148,6 +158,9 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     ) {
       hints.add("Fix Jest TypeScript support: configure ts-jest/babel for .ts tests or convert tests to plain JS.");
     }
+    if (normalized.includes("cannot use import statement outside a module")) {
+      hints.add("Align test/module system: configure Jest ESM/TS transform or switch tests to CommonJS consistently.");
+    }
     if (normalized.includes("cannot find module") && normalized.includes("dist/smoke.js")) {
       hints.add("Fix smoke flow: ensure build emits smoke artifact before smoke script or point smoke script to source entry.");
     }
@@ -159,6 +172,9 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     }
     if (normalized.includes("missing sql schema file")) {
       hints.add("Add schema.sql with tables, keys, indexes, and constraints for relational domain.");
+    }
+    if (normalized.includes("missing readme.md") || normalized.includes("readme missing sections")) {
+      hints.add("Add production README with sections: Features, Run/Setup, Testing, Architecture summary.");
     }
     if (normalized.includes("missing java dto layer")) {
       hints.add("Add Java DTO package and DTO classes for request/response boundaries.");
@@ -291,6 +307,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
 
   let { workspace, projects } = loadWorkspace();
   const runtimeFlags = getFlags();
+  const config = ensureConfig();
   const hasDirectIntent = input.trim().length > 0;
   const shouldRunQuestions = runQuestions === true;
   const autoGuidedMode = !shouldRunQuestions && (runtimeFlags.nonInteractive || hasDirectIntent);
@@ -851,6 +868,26 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               result: "passed"
             });
             recordIterationMetric({ round, phase: "lifecycle", passed: true });
+            if (config.git.release_management_enabled) {
+              const candidateRelease = createManagedRelease(projectRoot, activeProject, {
+                round,
+                finalRelease: false,
+                note: `Iteration ${round} candidate after passing lifecycle and reviewer loop.`,
+                context: {
+                  goalText: text,
+                  intentSignals: intent.signals,
+                  intentDomain: intent.domain,
+                  intentFlow: intent.flow
+                }
+              });
+              printWhy(`Release candidate ${candidateRelease.version}: ${candidateRelease.summary}`);
+              recordIterationMetric({
+                round,
+                phase: "publish",
+                passed: candidateRelease.created,
+                summary: `candidate ${candidateRelease.version}: ${candidateRelease.summary}`
+              });
+            }
 
             review = runDigitalHumanReview(appDir, {
               goalText: text,
@@ -903,14 +940,36 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             intentFlow: intent.flow
           });
           printWhy(`Publish after review: ${publish.summary}`);
+          const finalRelease = config.git.release_management_enabled
+            ? createManagedRelease(projectRoot, activeProject, {
+                round: Math.max(iterations, 1),
+                finalRelease: true,
+                note: `Final production release after passing lifecycle and digital review. Publish summary: ${publish.summary}`,
+                context: {
+                  goalText: text,
+                  intentSignals: intent.signals,
+                  intentDomain: intent.domain,
+                  intentFlow: intent.flow
+                }
+              })
+            : { created: false, version: "disabled", summary: "release management disabled by config" };
+          printWhy(`Final release ${finalRelease.version}: ${finalRelease.summary}`);
+          const runtime = config.git.run_after_finalize
+            ? startGeneratedApp(projectRoot, activeProject)
+            : { started: false, processes: [], summary: "runtime auto-start disabled by config" };
+          printWhy(`Runtime start: ${runtime.summary}`);
           appendIterationMetric(path.join(projectRoot, "generated-app"), {
             at: new Date().toISOString(),
             round: Math.max(iterations, 1),
             phase: "publish",
             result: publish.published ? "passed" : "failed",
-            diagnostics: [publish.summary]
+            diagnostics: [publish.summary, `final release: ${finalRelease.version}`, runtime.summary]
           });
-          recordIterationMetric({ phase: "publish", passed: publish.published, summary: publish.summary });
+          recordIterationMetric({
+            phase: "publish",
+            passed: publish.published,
+            summary: `${publish.summary}; final release ${finalRelease.version}; runtime: ${runtime.summary}`
+          });
         }
         recordActivationMetric("completed", {
           project: activeProject,

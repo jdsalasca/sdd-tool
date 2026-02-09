@@ -197,6 +197,48 @@ function safeRelativePath(input: string): string | null {
   return normalized;
 }
 
+function flattenSingleTopFolder(
+  files: Array<{ path: string; content: string }>,
+  projectName?: string
+): Array<{ path: string; content: string }> {
+  if (files.length < 2) {
+    return files;
+  }
+  const segments = files
+    .map((file) => file.path.split("/").filter(Boolean)[0] ?? "")
+    .filter((segment) => segment.length > 0);
+  if (segments.length !== files.length) {
+    return files;
+  }
+  const unique = [...new Set(segments)];
+  if (unique.length !== 1) {
+    return files;
+  }
+  const root = unique[0];
+  const safeRoots = new Set(["src", "backend", "frontend", "docs", "deploy", "tests", "test", "config"]);
+  const normalizedProject = projectName
+    ? projectName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+    : "";
+  const looksNestedProjectRoot =
+    root.toLowerCase().includes("autopilot") ||
+    root.toLowerCase().includes("generated-app") ||
+    root.toLowerCase().includes("project") ||
+    (normalizedProject.length > 0 && root.toLowerCase().includes(normalizedProject));
+  if (safeRoots.has(root.toLowerCase()) || !looksNestedProjectRoot) {
+    return files;
+  }
+  return files
+    .map((file) => {
+      const stripped = file.path.startsWith(`${root}/`) ? file.path.slice(root.length + 1) : file.path;
+      const rel = safeRelativePath(stripped);
+      return rel ? { path: rel, content: file.content } : null;
+    })
+    .filter((item): item is { path: string; content: string } => Boolean(item));
+}
+
 function askProviderForJson(
   providerExec: (prompt: string) => { ok: boolean; output: string; error?: string },
   prompt: string,
@@ -270,6 +312,11 @@ function intentRequiresJavaReactFullstack(intent: string): boolean {
   return /\bjava\b/.test(lower) && /\breact\b/.test(lower);
 }
 
+function intentExplicitlyRequestsTypeScript(intent: string): boolean {
+  const lower = normalizeIntentText(intent);
+  return /\btypescript\b|\bts\b/.test(lower);
+}
+
 function intentSuggestsRelationalDataDomain(intent: string): boolean {
   const lower = normalizeIntentText(intent);
   return [
@@ -291,7 +338,14 @@ function intentSuggestsRelationalDataDomain(intent: string): boolean {
     "citas",
     "appointment",
     "appointments",
-    "hospital"
+    "hospital",
+    "contract",
+    "contracts",
+    "lawyer",
+    "client",
+    "clients",
+    "cost",
+    "costs"
   ].some((token) => lower.includes(token));
 }
 
@@ -383,10 +437,16 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   constraints.push("Default architecture style is MVC unless the user explicitly requests another pattern.");
   constraints.push("Use modular, extensible component blocks. Add components.md with responsibilities, contracts, and extension points.");
   constraints.push("Prefer clear OOP-oriented modules/classes with explicit interfaces and separation of concerns.");
+  if (!intentExplicitlyRequestsTypeScript(intent)) {
+    constraints.push("Default to JavaScript implementation and JavaScript tests unless the user explicitly requests TypeScript.");
+  }
   constraints.push("Folder structure must be clean, scalable, and easy to evolve.");
   constraints.push("Include local runtime verification with a smoke script (npm run smoke or test:smoke or e2e).");
   constraints.push("Smoke script must be cross-platform (Node/npm command), avoid bash-only commands like ./smoke.sh.");
   constraints.push("Ensure every imported/required third-party package is declared in package.json dependencies/devDependencies.");
+  constraints.push("If tests are written in TypeScript, configure Jest for TypeScript (ts-jest or equivalent) and include required test type packages.");
+  constraints.push("Do not place TypeScript-only syntax inside .js files. Keep smoke scripts valid for the selected runtime.");
+  constraints.push("Avoid non-existent package versions. Use currently available npm versions for dependencies and type packages.");
   constraints.push("If API/backend exists, include curl-based local endpoint checks in smoke docs/scripts.");
   constraints.push("Target minimum automated test depth of 8 tests across critical flows.");
   if (intentRequiresJavaReactFullstack(intent)) {
@@ -410,6 +470,10 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
     constraints.push("Use a scalable relational database default (prefer PostgreSQL).");
     constraints.push("Include SQL schema file named schema.sql (or db/schema.sql) with tables, keys, indexes, and constraints.");
     constraints.push("Document local database strategy in README and DummyLocal docs.");
+    if (/\bcontract|contracts|lawyer|client|clients|cost|costs\b/.test(normalizeIntentText(intent))) {
+      constraints.push("Schema must include contract, lawyer, client, and cost entities with explicit foreign keys.");
+      constraints.push("README and API docs must explain contract-lawyer-client-cost relationships and validation rules.");
+    }
   }
   return constraints;
 }
@@ -1533,6 +1597,7 @@ export function bootstrapProjectCode(
       };
     }
   }
+  files = flattenSingleTopFolder(files, projectName);
   files = ensureQualityBaseline(files, projectName, intent);
 
   const unique = new Map<string, string>();
@@ -1641,7 +1706,7 @@ export function improveGeneratedApp(
   ].join("\n");
 
   let parsed = askProviderForJson(resolution.provider.exec, prompt);
-  if (extractFilesFromParsed(parsed).length === 0 && compactDiagnostics.length > 0) {
+  if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0 && compactDiagnostics.length > 0) {
     const fileNames = collectProjectFiles(appDir).map((f) => f.path).slice(0, 120);
     const targetedPrompt = [
       "Return ONLY valid JSON. No markdown.",
@@ -1655,7 +1720,7 @@ export function improveGeneratedApp(
     ].join("\n");
     parsed = askProviderForJson(resolution.provider.exec, targetedPrompt);
   }
-  if (extractFilesFromParsed(parsed).length === 0) {
+  if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0) {
     const minimalPrompt = [
       "Return ONLY valid JSON. No markdown.",
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
@@ -1667,11 +1732,11 @@ export function improveGeneratedApp(
     ].join("\n");
     parsed = askProviderForJson(resolution.provider.exec, minimalPrompt);
   }
-  if (extractFilesFromParsed(parsed).length === 0) {
+  if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0) {
     return { attempted: true, applied: false, fileCount: 0, reason: "provider response unusable" };
   }
 
-  const updates = extractFilesFromParsed(parsed);
+  const updates = flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir));
   if (updates.length === 0) {
     return { attempted: true, applied: false, fileCount: 0, reason: "no valid files in response" };
   }

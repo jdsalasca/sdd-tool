@@ -18,6 +18,8 @@ export type SddConfig = {
   };
   git: {
     publish_enabled: boolean;
+    release_management_enabled: boolean;
+    run_after_finalize: boolean;
   };
 };
 
@@ -55,7 +57,9 @@ export function defaultConfig(): SddConfig {
       default: "guided"
     },
     git: {
-      publish_enabled: false
+      publish_enabled: false,
+      release_management_enabled: true,
+      run_after_finalize: true
     }
   };
 }
@@ -120,7 +124,11 @@ function parseSimpleYaml(raw: string): Partial<SddConfig> {
     } else if (section === "mode" && key === "default") {
       result.mode = { default: normalizeMode(value) };
     } else if (section === "git" && key === "publish_enabled") {
-      result.git = { publish_enabled: value.trim().toLowerCase() === "true" };
+      result.git = { ...(result.git ?? defaultConfig().git), publish_enabled: value.trim().toLowerCase() === "true" };
+    } else if (section === "git" && key === "release_management_enabled") {
+      result.git = { ...(result.git ?? defaultConfig().git), release_management_enabled: value.trim().toLowerCase() === "true" };
+    } else if (section === "git" && key === "run_after_finalize") {
+      result.git = { ...(result.git ?? defaultConfig().git), run_after_finalize: value.trim().toLowerCase() === "true" };
     }
   }
   return result;
@@ -139,6 +147,8 @@ function renderYaml(config: SddConfig): string {
     `  default: ${config.mode.default}`,
     "git:",
     `  publish_enabled: ${config.git.publish_enabled ? "true" : "false"}`,
+    `  release_management_enabled: ${config.git.release_management_enabled ? "true" : "false"}`,
+    `  run_after_finalize: ${config.git.run_after_finalize ? "true" : "false"}`,
     ""
   ].join("\n");
 }
@@ -158,7 +168,13 @@ function mergeConfig(base: SddConfig, input: Partial<SddConfig>): SddConfig {
     },
     git: {
       publish_enabled:
-        typeof input.git?.publish_enabled === "boolean" ? input.git.publish_enabled : base.git.publish_enabled
+        typeof input.git?.publish_enabled === "boolean" ? input.git.publish_enabled : base.git.publish_enabled,
+      release_management_enabled:
+        typeof input.git?.release_management_enabled === "boolean"
+          ? input.git.release_management_enabled
+          : base.git.release_management_enabled,
+      run_after_finalize:
+        typeof input.git?.run_after_finalize === "boolean" ? input.git.run_after_finalize : base.git.run_after_finalize
     }
   };
 }
@@ -213,6 +229,10 @@ export function updateConfigValue(key: string, value: string): SddConfig | null 
     next.mode.default = normalizeMode(value);
   } else if (normalized === "git.publish_enabled") {
     next.git.publish_enabled = value.trim().toLowerCase() === "true";
+  } else if (normalized === "git.release_management_enabled") {
+    next.git.release_management_enabled = value.trim().toLowerCase() === "true";
+  } else if (normalized === "git.run_after_finalize") {
+    next.git.run_after_finalize = value.trim().toLowerCase() === "true";
   } else {
     return null;
   }

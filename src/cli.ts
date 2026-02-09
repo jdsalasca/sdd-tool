@@ -410,7 +410,9 @@ configCmd
   .action((key: string, value: string) => {
     const updated = updateConfigValue(key, value);
     if (!updated) {
-      console.log("[SDD-1506] Invalid config key. Use workspace.default_root, ai.preferred_cli, ai.model, mode.default, git.publish_enabled.");
+      console.log(
+        "[SDD-1506] Invalid config key. Use workspace.default_root, ai.preferred_cli, ai.model, mode.default, git.publish_enabled, git.release_management_enabled, git.run_after_finalize."
+      );
       return;
     }
     console.log(`Config updated: ${configPath()}`);
