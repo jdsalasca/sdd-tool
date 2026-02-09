@@ -15,6 +15,11 @@
 - Improve AI response parsing robustness in autopilot:
   - accept alternative JSON shapes for generated file payloads (`artifacts`, `changes`, nested `result/data` wrappers).
   - recover file payloads from markdown `FILE: path` fenced blocks when strict JSON extraction fails.
+- Raise production delivery baseline:
+  - prompts now enforce English-only outputs, production-ready quality (no POC/first-draft), modular component blocks, and MVC-by-default architecture.
+  - lifecycle quality now requires `components.md` and MVC-oriented architecture evidence for software/generic flows.
+  - improved Spanish-to-English intent token normalization for naming and alignment checks.
+  - repo naming is more market-descriptive by default (platform-oriented instead of generic `-app`).
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

@@ -378,6 +378,12 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   const constraints: string[] = [];
   const domain = detectAutopilotDomain(intent, domainHint);
   constraints.push(...domainPromptConstraints(domain));
+  constraints.push("All generated artifacts, docs, code comments, and commit-ready messages must be in English.");
+  constraints.push("Do not generate proof-of-concept, MVP draft, or first-draft placeholders. Deliver production-ready baseline quality.");
+  constraints.push("Default architecture style is MVC unless the user explicitly requests another pattern.");
+  constraints.push("Use modular, extensible component blocks. Add components.md with responsibilities, contracts, and extension points.");
+  constraints.push("Prefer clear OOP-oriented modules/classes with explicit interfaces and separation of concerns.");
+  constraints.push("Folder structure must be clean, scalable, and easy to evolve.");
   constraints.push("Include local runtime verification with a smoke script (npm run smoke or test:smoke or e2e).");
   constraints.push("Smoke script must be cross-platform (Node/npm command), avoid bash-only commands like ./smoke.sh.");
   constraints.push("Ensure every imported/required third-party package is declared in package.json dependencies/devDependencies.");
@@ -1318,6 +1324,7 @@ export function enrichDraftWithAI(
     "Return ONLY valid JSON with keys:",
     "objective, actors, scope_in, scope_out, acceptance_criteria, nfr_security, nfr_performance, nfr_availability, constraints, risks.",
     "No markdown. No explanation.",
+    "Write all values in English.",
     `Intent: ${input}`,
     `Flow: ${flow}`,
     `Domain: ${domain}`
@@ -1400,9 +1407,12 @@ export function bootstrapProjectCode(
     const domain = detectAutopilotDomain(intent, domainHint);
     const constraints = extraPromptConstraints(intent, domainHint);
     const prompt = [
-      "Generate a production-lean starter app from user intent.",
+      "Generate a production-grade, extensible application from user intent.",
+      "This is not a prototype task. Do not output first-draft or demo-only quality.",
       "The project must be executable fully in local development.",
       `Domain profile: ${domain}.`,
+      "Use MVC architecture by default (models/controllers/views or equivalent backend/frontend MVC layering).",
+      "Add a component map file named components.md with component responsibilities and extension points.",
       "Use DummyLocal adapters for integrations (databases, external APIs, queues) so everything runs locally.",
       "Add a schema document named schemas.md with entities, fields, relations, and constraints.",
       "Add regression tests and regression notes/documentation.",
@@ -1412,6 +1422,7 @@ export function bootstrapProjectCode(
       "Return ONLY valid JSON with this shape:",
       '{"files":[{"path":"relative/path","content":"file content"}],"run_command":"...","deploy_steps":["..."],"publish_steps":["..."]}',
       "Use only relative file paths. Keep files concise and runnable.",
+      "Use English for README/docs/messages/comments.",
       `Project: ${projectName}`,
       `Intent: ${intent}`
     ].join("\n");
@@ -1424,8 +1435,9 @@ export function bootstrapProjectCode(
       const fallbackPrompt = [
         "Return ONLY valid JSON. No markdown.",
         "Schema: {\"files\":[{\"path\":\"relative/path\",\"content\":\"...\"}]}",
-        "Generate only essential starter files to run locally with quality-first defaults.",
-        "Must include: README.md, schemas.md, regression notes, and DummyLocal integration docs.",
+        "Generate only essential production-ready files to run locally with quality-first defaults.",
+        "Must include: README.md, architecture.md, components.md, schemas.md, regression notes, and DummyLocal integration docs.",
+        "Use MVC architecture by default and keep files in English.",
         `Domain profile: ${domain}.`,
         ...fallbackConstraints,
         `Project: ${projectName}`,
@@ -1440,7 +1452,7 @@ export function bootstrapProjectCode(
       const compactPrompt = [
         "Return ONLY valid JSON. No markdown.",
         'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
-        "Generate a MINIMAL Java+React starter with at most 16 files total.",
+        "Generate a MINIMAL but production-ready Java+React starter with at most 16 files total.",
         "Required paths:",
         "- backend/pom.xml",
         "- backend/src/main/java/com/example/Application.java",
@@ -1457,8 +1469,11 @@ export function bootstrapProjectCode(
         "- frontend/src/hooks/useSales.ts",
         "- frontend/src/components/SalesDashboard.tsx",
         "- README.md",
+        "- components.md",
+        "- architecture.md",
         "- schemas.md",
         "Also include: dummy-local.md, regression.md, schema.sql, LICENSE, and a smoke script in package.json.",
+        "Use English only.",
         `Project: ${projectName}`,
         `Intent: ${intent}`
       ].join("\n");
@@ -1472,7 +1487,8 @@ export function bootstrapProjectCode(
         "Return ONLY valid JSON. No markdown.",
         'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
         "Generate ULTRA-COMPACT output with at most 12 files and concise content.",
-        "Must include: package.json, README.md, schemas.md, dummy-local.md, regression.md, LICENSE.",
+        "Must include: package.json, README.md, architecture.md, components.md, schemas.md, dummy-local.md, regression.md, LICENSE.",
+        "Use MVC architecture by default and English-only content.",
         "Include one runnable app entrypoint and one smoke validation script command in package.json.",
         "Include at least one test file and keep dependencies aligned with imports.",
         "Do not include explanations. Output JSON only.",
@@ -1601,10 +1617,14 @@ export function improveGeneratedApp(
   const domain = detectAutopilotDomain(intent, domainHint);
   const constraints = extraPromptConstraints(intent, domainHint);
   const prompt = [
-    "Improve this generated app to production-lean quality.",
+    "Improve this generated app to production-grade, release-ready quality.",
+    "Do not return prototype or first-draft quality.",
     `Domain profile: ${domain}.`,
     "Requirements:",
     "- Keep app intent and behavior.",
+    "- Keep all outputs in English.",
+    "- Use MVC architecture by default and maintain modular extensible components.",
+    "- Ensure architecture.md and components.md are present and aligned with implementation.",
     "- Ensure tests pass for the selected stack.",
     "- Ensure code is clear and maintainable.",
     "- Ensure schemas.md exists and documents data schemas.",

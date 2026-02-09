@@ -42,7 +42,7 @@ function collectFilesRecursive(root: string, maxDepth = 8): string[] {
       const full = path.join(current, entry.name);
       const rel = path.relative(root, full).replace(/\\/g, "/");
       if (entry.isDirectory()) {
-        if ([".git", "node_modules", "dist", "build", "target", "__pycache__", ".venv", "venv"].includes(entry.name.toLowerCase())) {
+        if ([".git", "node_modules", "dist", "build", "target", "__pycache__", ".venv", "venv", "generated-app"].includes(entry.name.toLowerCase())) {
           continue;
         }
         walk(full, depth + 1);
@@ -87,7 +87,7 @@ function findFileRecursive(root: string, predicate: (relative: string) => boolea
       const full = path.join(current, entry.name);
       const rel = path.relative(root, full).replace(/\\/g, "/");
       if (entry.isDirectory()) {
-        if ([".git", "node_modules", "dist", "build", "target", "__pycache__"].includes(entry.name)) {
+        if ([".git", "node_modules", "dist", "build", "target", "__pycache__", "generated-app"].includes(entry.name)) {
           continue;
         }
         const nested = walk(full, depth + 1);
@@ -114,7 +114,7 @@ function countTestsRecursive(root: string, maxDepth = 8): number {
       const full = path.join(current, entry.name);
       const rel = path.relative(root, full).replace(/\\/g, "/").toLowerCase();
       if (entry.isDirectory()) {
-        if ([".git", "node_modules", "dist", "build", "target", "__pycache__", ".venv", "venv"].includes(entry.name.toLowerCase())) {
+        if ([".git", "node_modules", "dist", "build", "target", "__pycache__", ".venv", "venv", "generated-app"].includes(entry.name.toLowerCase())) {
           continue;
         }
         count += walk(full, depth + 1);
@@ -726,6 +726,37 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
       output: "Missing DummyLocal integration doc (expected markdown file with dummylocal/dummy-local in name)"
     };
   }
+  const componentsDoc =
+    findFileRecursive(appDir, (rel) => rel === "components.md" || rel.endsWith("/components.md"), 8) ??
+    findFileRecursive(appDir, (rel) => rel.includes("component") && rel.endsWith(".md"), 8);
+  if (!componentsDoc) {
+    return {
+      ok: false,
+      command: "advanced-quality-check",
+      output: "Missing components.md (required for extensible component-oriented delivery)"
+    };
+  }
+  const domainProfile = parseDomainProfile(context);
+  if (domainProfile === "software" || domainProfile === "generic") {
+    const architectureDoc =
+      findFileRecursive(appDir, (rel) => rel === "architecture.md" || rel.endsWith("/architecture.md"), 8) ??
+      findFileRecursive(appDir, (rel) => rel.includes("architecture") && rel.endsWith(".md"), 8);
+    if (!architectureDoc) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing architecture.md (required for software production readiness)"
+      };
+    }
+    const architectureText = normalizeText(fs.readFileSync(path.join(appDir, architectureDoc), "utf-8"));
+    if (!/\bmvc\b|model|controller|view/.test(architectureText)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Architecture docs must describe MVC layering (model/controller/view or equivalent)."
+      };
+    }
+  }
 
   const regressionEvidence =
     findFileRecursive(appDir, (rel) => rel.includes("regression") && (rel.endsWith(".md") || rel.endsWith(".js") || rel.endsWith(".py") || rel.endsWith(".java"))) ??
@@ -805,6 +836,27 @@ function normalizeText(input: string): string {
 }
 
 function tokenizeIntent(input: string): string[] {
+  const translate: Record<string, string> = {
+    parqueadero: "parking",
+    parqueo: "parking",
+    ventas: "sales",
+    venta: "sales",
+    cliente: "customer",
+    clientes: "customers",
+    vendedor: "seller",
+    vendedores: "sellers",
+    entradas: "entries",
+    entrada: "entry",
+    salidas: "exits",
+    salida: "exit",
+    posiciones: "slots",
+    posicion: "slot",
+    historial: "history",
+    registro: "registry",
+    informes: "reports",
+    mensual: "monthly",
+    mensuales: "monthly"
+  };
   const stopwords = new Set([
     "a",
     "an",
@@ -836,12 +888,17 @@ function tokenizeIntent(input: string): string[] {
     "build",
     "hacer",
     "haz",
+    "genera",
+    "generar",
     "sistema",
     "gestion",
     "management"
   ]);
   const normalized = normalizeText(input);
-  const tokens = normalized.split(/[^a-z0-9]+/g).filter((token) => token.length >= 3 && !stopwords.has(token));
+  const tokens = normalized
+    .split(/[^a-z0-9]+/g)
+    .map((token) => translate[token] ?? token)
+    .filter((token) => token.length >= 3 && !stopwords.has(token));
   return [...new Set(tokens)].slice(0, 14);
 }
 
@@ -867,19 +924,22 @@ function deriveRepoMetadata(projectName: string, appDir: string, context?: Lifec
   const readmePath = path.join(appDir, "README.md");
   const rawBase = projectName
     .replace(/^autopilot-/i, "")
-    .replace(/-\d{8}$/g, "")
+    .replace(/-\d{8}(-\d{6})?$/g, "")
     .replace(/-generated-app$/g, "")
     .trim();
-  const goalSeed = context?.goalText ? tokenizeIntent(context.goalText).slice(0, 6).join("-") : "";
+  const goalTokens = context?.goalText ? tokenizeIntent(context.goalText).slice(0, 6) : [];
+  const goalSeed = goalTokens.join("-");
   const projectSeed = slugify(rawBase);
   const intentSeed = slugify(goalSeed);
   const base = intentSeed || projectSeed || "sdd-project";
-  const cleaned = base.replace(/-app$/g, "");
-  const repoName = `${cleaned}-app`.slice(0, 63).replace(/-+$/g, "");
+  const cleaned = base.replace(/-app$/g, "").replace(/-project$/g, "");
+  const suffix = /platform|suite|hub/.test(cleaned) ? "" : "-platform";
+  const repoName = `${cleaned}${suffix}`.slice(0, 63).replace(/-+$/g, "");
 
+  const tagline = goalTokens.length > 0 ? goalTokens.join(" ") : "production operations";
   let description = context?.goalText?.trim()
-    ? `Generated with sdd-tool: ${context.goalText.trim().slice(0, 150)}`
-    : `Production-ready app generated by sdd-tool for ${projectName}.`;
+    ? `Production-ready ${tagline} solution generated with sdd-tool.`
+    : `Production-ready software platform generated by sdd-tool for ${projectName}.`;
   if ((!context?.goalText || description.length < 30) && fs.existsSync(readmePath)) {
     const lines = fs
       .readFileSync(readmePath, "utf-8")

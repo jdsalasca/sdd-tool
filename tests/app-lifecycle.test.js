@@ -32,8 +32,8 @@ test("deriveRepoMetadata prefers project/goal over generated README title", () =
     goalText: "create a medical appointments app for hospitals"
   });
 
-  assert.equal(metadata.repoName, "medical-appointments-hospitals-app");
-  assert.match(metadata.description, /medical appointments app/i);
+  assert.equal(metadata.repoName, "medical-appointments-hospitals-platform");
+  assert.match(metadata.description, /production-ready/i);
 });
 
 test("runAppLifecycle fails quality when generated app is not aligned with request intent", () =>
@@ -198,6 +198,8 @@ test("runAppLifecycle enforces legal domain artifact quality", () =>
       "utf-8"
     );
     fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- case\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "components.md"), "# Components\n- risk_controller\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "architecture.md"), "# Architecture\n- MVC: model/controller/view\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- stubs\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- checks\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");
@@ -231,6 +233,8 @@ test("runAppLifecycle enforces data-science domain artifact quality", () =>
       "utf-8"
     );
     fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- demand_record\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "components.md"), "# Components\n- forecasting_pipeline\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "architecture.md"), "# Architecture\n- MVC: model/controller/view\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- local data stubs\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- checks\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "dataset-schema.md"), "# Dataset Schema\n- record\n", "utf-8");
@@ -284,6 +288,8 @@ test("runAppLifecycle defers publish when digital-review defer flag is enabled",
       "utf-8"
     );
     fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- calc_entry\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "components.md"), "# Components\n- calc_engine\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "architecture.md"), "# Architecture\n- MVC: model/controller/view\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- local stubs\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- core paths\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");

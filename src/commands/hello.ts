@@ -125,20 +125,45 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
 }
 
 function deriveProjectName(input: string, flow: string): string {
+  const translate: Record<string, string> = {
+    parqueadero: "parking",
+    parqueo: "parking",
+    ventas: "sales",
+    venta: "sales",
+    cliente: "customer",
+    clientes: "customers",
+    vendedor: "seller",
+    vendedores: "sellers",
+    entradas: "entries",
+    entrada: "entry",
+    salidas: "exits",
+    salida: "exit",
+    posiciones: "slots",
+    posicion: "slot",
+    historial: "history",
+    registro: "registry",
+    informes: "reports",
+    mensual: "monthly",
+    mensuales: "monthly"
+  };
+  const stopwords = new Set(["genera", "generar", "app", "application", "create", "build", "sistema", "system", "de", "la", "el", "y", "con"]);
   const seed = input
     .trim()
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9 _-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .split(" ")
-    .filter((token) => token.length > 0)
-    .slice(0, 4)
+    .map((token) => translate[token] ?? token)
+    .filter((token) => token.length > 2 && !stopwords.has(token))
+    .slice(0, 5)
     .join("-");
   const now = new Date();
   const date = now.toISOString().slice(0, 10).replace(/-/g, "");
   const time = [now.getHours(), now.getMinutes(), now.getSeconds()].map((part) => String(part).padStart(2, "0")).join("");
-  const base = seed.length > 0 ? seed : flow.toLowerCase();
+  const base = seed.length > 0 ? `${seed}-platform` : `${flow.toLowerCase()}-platform`;
   return `autopilot-${base}-${date}-${time}`;
 }
 
@@ -329,7 +354,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   }
 
   printStep("Step 2/7", "Requirement setup");
-  printWhy("I will gather enough context to generate a valid first draft.");
+  printWhy("I will gather enough context to generate a production-ready requirement baseline.");
   printBeginnerTip(beginnerMode, "A requirement draft defines scope, acceptance criteria, and constraints.");
   if (shouldRunQuestions) {
     let packs: PromptPack[];
