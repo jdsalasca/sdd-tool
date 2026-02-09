@@ -109,6 +109,14 @@ This file defines the command set, intent, and expected behavior.
 - `--iterations <n>` Number of delivery improvement iterations (`1..10`) with review->stories->implement loops (default `2`)
 - `--max-runtime-minutes <n>` Runtime budget for `hello`/`suite` (`1..720`); on timeout, saves checkpoint and prints resume command
 
+## Orchestration Debug
+- `hello` writes a per-run prompt debug stream to:
+  - `<project>/debug/provider-prompts.jsonl`
+  - each entry includes timestamp, stage, provider, prompt, output, and duration.
+- `hello` writes orchestration timeline events to:
+  - `<project>/orchestration-journal.jsonl`
+  - useful for long-running runs (hours/days) with resume checkpoints.
+
 ## Metrics utilities
 - `npm run metrics:summary -- <workspace-root>`
   - Summarizes local opt-in activation and command usage snapshots

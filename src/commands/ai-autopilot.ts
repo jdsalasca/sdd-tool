@@ -3,6 +3,70 @@ import path from "path";
 import { resolveProvider } from "../providers";
 import { RequirementDraft } from "./req-create";
 
+type ProviderExecFn = (prompt: string) => { ok: boolean; output: string; error?: string };
+
+type PromptDebugContext = {
+  providerId: string;
+  stage: string;
+  filePath?: string;
+};
+
+function resolvePromptDebugFile(filePath?: string): string | null {
+  const envPath = process.env.SDD_PROMPT_DEBUG_FILE?.trim();
+  const target = envPath || filePath?.trim();
+  if (!target) {
+    return null;
+  }
+  return path.resolve(target);
+}
+
+function appendPromptDebug(
+  context: PromptDebugContext,
+  payload: {
+    prompt: string;
+    ok: boolean;
+    output: string;
+    error?: string;
+    durationMs: number;
+  }
+): void {
+  const file = resolvePromptDebugFile(context.filePath);
+  if (!file) {
+    return;
+  }
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const entry = {
+      at: new Date().toISOString(),
+      provider: context.providerId,
+      stage: context.stage,
+      durationMs: payload.durationMs,
+      ok: payload.ok,
+      error: payload.error || "",
+      prompt: payload.prompt,
+      output: payload.output
+    };
+    fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, "utf-8");
+  } catch {
+    // best effort
+  }
+}
+
+function createLoggedExec(providerExec: ProviderExecFn, context: PromptDebugContext): ProviderExecFn {
+  return (prompt: string) => {
+    const started = Date.now();
+    const result = providerExec(prompt);
+    appendPromptDebug(context, {
+      prompt,
+      ok: result.ok,
+      output: result.output ?? "",
+      error: result.error,
+      durationMs: Date.now() - started
+    });
+    return result;
+  };
+}
+
 function extractJsonObject(text: string): Record<string, unknown> | null {
   const parseFirstBalancedObject = (raw: string): Record<string, unknown> | null => {
     const source = raw.trim();
@@ -240,7 +304,7 @@ function flattenSingleTopFolder(
 }
 
 function askProviderForJson(
-  providerExec: (prompt: string) => { ok: boolean; output: string; error?: string },
+  providerExec: ProviderExecFn,
   prompt: string,
   debug?: { attempts: string[]; errors: string[] }
 ): Record<string, unknown> | null {
@@ -1382,6 +1446,10 @@ export function enrichDraftWithAI(
   if (!resolution.ok) {
     return baseDraft;
   }
+  const providerExec = createLoggedExec(resolution.provider.exec, {
+    providerId: resolution.provider.id,
+    stage: "requirements_enrichment"
+  });
 
   const prompt = [
     "You are an SDD requirements assistant.",
@@ -1393,7 +1461,7 @@ export function enrichDraftWithAI(
     `Flow: ${flow}`,
     `Domain: ${domain}`
   ].join("\n");
-  const parsed = askProviderForJson(resolution.provider.exec, prompt);
+  const parsed = askProviderForJson(providerExec, prompt);
   if (!parsed) {
     return baseDraft;
   }
@@ -1468,6 +1536,11 @@ export function bootstrapProjectCode(
   const providerDebug = { attempts: [] as string[], errors: [] as string[] };
 
   if (resolution.ok) {
+    const providerExec = createLoggedExec(resolution.provider.exec, {
+      providerId: resolution.provider.id,
+      stage: "bootstrap_generation",
+      filePath: path.join(path.dirname(outputDir), "debug", "provider-prompts.jsonl")
+    });
     const domain = detectAutopilotDomain(intent, domainHint);
     const constraints = extraPromptConstraints(intent, domainHint);
     const prompt = [
@@ -1490,7 +1563,7 @@ export function bootstrapProjectCode(
       `Project: ${projectName}`,
       `Intent: ${intent}`
     ].join("\n");
-    const parsed = askProviderForJson(resolution.provider.exec, prompt, providerDebug);
+    const parsed = askProviderForJson(providerExec, prompt, providerDebug);
     if (parsed) {
       files.push(...extractFilesFromParsed(parsed));
     }
@@ -1507,7 +1580,7 @@ export function bootstrapProjectCode(
         `Project: ${projectName}`,
         `Intent: ${intent}`
       ].join("\n");
-      const parsedFallback = askProviderForJson(resolution.provider.exec, fallbackPrompt, providerDebug);
+      const parsedFallback = askProviderForJson(providerExec, fallbackPrompt, providerDebug);
       if (parsedFallback) {
         files.push(...extractFilesFromParsed(parsedFallback));
       }
@@ -1541,7 +1614,7 @@ export function bootstrapProjectCode(
         `Project: ${projectName}`,
         `Intent: ${intent}`
       ].join("\n");
-      const parsedCompact = askProviderForJson(resolution.provider.exec, compactPrompt, providerDebug);
+      const parsedCompact = askProviderForJson(providerExec, compactPrompt, providerDebug);
       if (parsedCompact) {
         files.push(...extractFilesFromParsed(parsedCompact));
       }
@@ -1559,7 +1632,7 @@ export function bootstrapProjectCode(
         `Project: ${projectName}`,
         `Intent: ${intent}`
       ].join("\n");
-      const parsedUltraCompact = askProviderForJson(resolution.provider.exec, ultraCompactPrompt, providerDebug);
+      const parsedUltraCompact = askProviderForJson(providerExec, ultraCompactPrompt, providerDebug);
       if (parsedUltraCompact) {
         files.push(...extractFilesFromParsed(parsedUltraCompact));
       }
@@ -1672,6 +1745,11 @@ export function improveGeneratedApp(
   if (!resolution.ok) {
     return { attempted: false, applied: false, fileCount: 0, reason: "provider unavailable" };
   }
+  const providerExec = createLoggedExec(resolution.provider.exec, {
+    providerId: resolution.provider.id,
+    stage: "repair_iteration",
+    filePath: path.join(path.dirname(appDir), "debug", "provider-prompts.jsonl")
+  });
 
   const currentFiles = compactFilesForPrompt(collectProjectFiles(appDir));
   const compactDiagnostics = (qualityDiagnostics ?? [])
@@ -1705,7 +1783,7 @@ export function improveGeneratedApp(
     `Current files JSON: ${JSON.stringify(currentFiles)}`
   ].join("\n");
 
-  let parsed = askProviderForJson(resolution.provider.exec, prompt);
+  let parsed = askProviderForJson(providerExec, prompt);
   if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0 && compactDiagnostics.length > 0) {
     const fileNames = collectProjectFiles(appDir).map((f) => f.path).slice(0, 120);
     const targetedPrompt = [
@@ -1718,7 +1796,7 @@ export function improveGeneratedApp(
       `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
       `Current file names: ${JSON.stringify(fileNames)}`
     ].join("\n");
-    parsed = askProviderForJson(resolution.provider.exec, targetedPrompt);
+    parsed = askProviderForJson(providerExec, targetedPrompt);
   }
   if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0) {
     const minimalPrompt = [
@@ -1730,7 +1808,7 @@ export function improveGeneratedApp(
       `Intent: ${intent}`,
       `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`
     ].join("\n");
-    parsed = askProviderForJson(resolution.provider.exec, minimalPrompt);
+    parsed = askProviderForJson(providerExec, minimalPrompt);
   }
   if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0) {
     return { attempted: true, applied: false, fileCount: 0, reason: "provider response unusable" };

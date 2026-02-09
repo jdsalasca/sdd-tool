@@ -137,6 +137,21 @@ function ensureStageGate(projectRoot: string, stage: DeliveryStage): boolean {
   return true;
 }
 
+function appendOrchestrationJournal(projectRoot: string, event: string, details?: string): void {
+  try {
+    fs.mkdirSync(projectRoot, { recursive: true });
+    const file = path.join(projectRoot, "orchestration-journal.jsonl");
+    const entry = {
+      at: new Date().toISOString(),
+      event,
+      details: details ?? ""
+    };
+    fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, "utf-8");
+  } catch {
+    // best effort
+  }
+}
+
 function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
   const hints = new Set<string>();
   for (const line of diagnostics) {
@@ -383,6 +398,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       return false;
     }
     if (activeProject && reqId) {
+      const timedOutProjectRoot = path.join(workspace.root, activeProject);
+      appendOrchestrationJournal(
+        timedOutProjectRoot,
+        "run.timeout",
+        `reqId=${reqId}; lastCompleted=${lastCompleted}; runtimeLimitMinutes=${maxRuntimeMinutes}`
+      );
       saveCheckpoint(activeProject, {
         project: activeProject,
         reqId,
@@ -571,6 +592,8 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       printError("SDD-1002", "Project name is required to run autopilot.");
       return;
     }
+    const earlyProjectRoot = path.join(workspace.root, activeProject);
+    process.env.SDD_PROMPT_DEBUG_FILE = path.join(earlyProjectRoot, "debug", "provider-prompts.jsonl");
     printWhy(`Using project: ${activeProject}`);
     setFlags({ project: activeProject });
     checkpoint = loadCheckpoint(activeProject);
@@ -605,6 +628,10 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       return;
     }
     const projectRoot = path.join(workspace.root, activeProject);
+    const promptDebugPath = path.join(projectRoot, "debug", "provider-prompts.jsonl");
+    process.env.SDD_PROMPT_DEBUG_FILE = promptDebugPath;
+    printWhy(`Provider prompt debug: ${promptDebugPath}`);
+    appendOrchestrationJournal(projectRoot, "run.started", `intent=${intent.intent}; flow=${intent.flow}; provider=${provider}`);
     if (startStep !== "create") {
       markStage(projectRoot, "discovery", "passed", "resume prime");
     }
@@ -615,6 +642,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
       markStage(projectRoot, "technical_backlog", "passed", `resume prime from ${startStep}`);
     }
     markStage(projectRoot, "discovery", "passed", `Intent classified as ${intent.intent}/${intent.flow}`);
+    appendOrchestrationJournal(projectRoot, "stage.discovery.passed", `${intent.intent}/${intent.flow}`);
     for (let i = stepIndex; i < AUTOPILOT_STEPS.length; i += 1) {
       const step = AUTOPILOT_STEPS[i];
       const resumeBase = step === "create" ? "create" : (AUTOPILOT_STEPS[Math.max(0, i - 1)] as AutopilotStep);
@@ -633,6 +661,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         reqId = created.reqId;
         markStage(projectRoot, "functional_requirements", "passed", `reqId=${reqId}`);
+        appendOrchestrationJournal(projectRoot, "stage.functional_requirements.passed", `reqId=${reqId}`);
       }
 
       if (step === "plan") {
@@ -651,6 +680,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           return;
         }
         markStage(projectRoot, "technical_backlog", "passed", `planned reqId=${reqId}`);
+        appendOrchestrationJournal(projectRoot, "stage.technical_backlog.passed", `planned reqId=${reqId}`);
       }
 
       if (step === "start") {
@@ -669,6 +699,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           return;
         }
         markStage(projectRoot, "technical_backlog", "passed", `start phase completed reqId=${reqId}`);
+        appendOrchestrationJournal(projectRoot, "stage.technical_backlog.passed", `start reqId=${reqId}`);
       }
 
       if (step === "test") {
@@ -687,6 +718,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           return;
         }
         markStage(projectRoot, "technical_backlog", "passed", `test plan updated reqId=${reqId}`);
+        appendOrchestrationJournal(projectRoot, "stage.technical_backlog.passed", `test plan reqId=${reqId}`);
       }
 
       if (step === "finish") {
@@ -720,12 +752,14 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         const codeBootstrap = bootstrapProjectCode(projectRoot, activeProject, text, provider, intent.domain);
         if (!codeBootstrap.generated) {
           markStage(projectRoot, "implementation", "failed", codeBootstrap.reason || "code generation failed");
+          appendOrchestrationJournal(projectRoot, "stage.implementation.failed", codeBootstrap.reason || "code generation failed");
           printWhy(`Code generation blocked: ${codeBootstrap.reason || "provider did not return valid files"}.`);
           printWhy("No template fallback was applied. Re-run with clearer prompt or improve provider response contract.");
           printRecoveryNext(activeProject, "finish", text);
           return;
         }
         markStage(projectRoot, "implementation", "passed", `generated files=${codeBootstrap.fileCount}`);
+        appendOrchestrationJournal(projectRoot, "stage.implementation.passed", `files=${codeBootstrap.fileCount}`);
         printWhy(`Code scaffold ready at: ${codeBootstrap.outputDir} (${codeBootstrap.fileCount} files)`);
         persistAgentsSnapshot(codeBootstrap.outputDir);
         if (codeBootstrap.reason) {
@@ -781,11 +815,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           }
           if (!lifecycle.qualityPassed) {
             markStage(projectRoot, "quality_validation", "failed", lifecycle.qualityDiagnostics.slice(0, 4).join(" | "));
+            appendOrchestrationJournal(projectRoot, "stage.quality_validation.failed", lifecycle.qualityDiagnostics.slice(0, 2).join(" | "));
             printWhy("Quality still failing after AI repair attempts. Stopping without template fallback.");
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
           markStage(projectRoot, "quality_validation", "passed", "Lifecycle quality checks passed after repair loop.");
+          appendOrchestrationJournal(projectRoot, "stage.quality_validation.passed", "repair loop passed");
         }
         const digitalReviewDisabled =
           lifecycleDisabled || process.env.SDD_DISABLE_AI_AUTOPILOT === "1" || process.env.SDD_DISABLE_DIGITAL_REVIEW === "1";
@@ -1007,11 +1043,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           }
           if (!deliveryApproved) {
             markStage(projectRoot, "role_review", "failed", "Digital reviewers did not approve within configured iterations.");
+            appendOrchestrationJournal(projectRoot, "stage.role_review.failed", "not approved in configured iterations");
             printWhy("Digital-review quality bar not met after configured iterations.");
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
           markStage(projectRoot, "role_review", "passed", "Digital reviewers approved delivery.");
+          appendOrchestrationJournal(projectRoot, "stage.role_review.passed", "digital reviewers approved");
           const finalLifecycle = runAppLifecycle(projectRoot, activeProject, {
             goalText: text,
             intentSignals: intent.signals,
@@ -1022,12 +1060,14 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           finalLifecycle.summary.forEach((line) => printWhy(`Lifecycle (final): ${line}`));
           if (!finalLifecycle.qualityPassed) {
             markStage(projectRoot, "quality_validation", "failed", finalLifecycle.qualityDiagnostics.slice(0, 4).join(" | "));
+            appendOrchestrationJournal(projectRoot, "stage.quality_validation.failed", "final lifecycle verification failed");
             printWhy("Final lifecycle verification failed after digital approval. Delivery blocked until all quality checks pass.");
             finalLifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Final quality issue: ${issue}`));
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
           markStage(projectRoot, "quality_validation", "passed", "Final lifecycle verification passed.");
+          appendOrchestrationJournal(projectRoot, "stage.quality_validation.passed", "final lifecycle verification passed");
           const publish = publishGeneratedApp(projectRoot, activeProject, {
             goalText: text,
             intentSignals: intent.signals,
@@ -1055,11 +1095,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             finalRelease.created ? "passed" : "failed",
             `${finalRelease.version}: ${finalRelease.summary}`
           );
+          appendOrchestrationJournal(projectRoot, "stage.final_release", `${finalRelease.version}: ${finalRelease.summary}`);
           const runtime = config.git.run_after_finalize
             ? startGeneratedApp(projectRoot, activeProject)
             : { started: false, processes: [], summary: "runtime auto-start disabled by config" };
           printWhy(`Runtime start: ${runtime.summary}`);
           markStage(projectRoot, "runtime_start", runtime.started ? "passed" : "failed", runtime.summary);
+          appendOrchestrationJournal(projectRoot, "stage.runtime_start", runtime.summary);
           appendIterationMetric(path.join(projectRoot, "generated-app"), {
             at: new Date().toISOString(),
             round: Math.max(iterations, 1),

@@ -46,6 +46,9 @@
   - persistent stage machine file (`.sdd-stage-state.json`) tracks discovery -> requirements -> backlog -> implementation -> quality -> review -> release -> runtime.
   - block invalid stage transitions with machine-readable errors (`SDD-1013`, `SDD-1014`).
   - record pass/fail outcomes for quality validation, role review, release candidate/final release, and runtime start.
+- Add deep orchestration debugging for provider interactions:
+  - log every provider prompt/response pair with timestamp and duration at `<project>/debug/provider-prompts.jsonl`.
+  - log orchestration timeline events at `<project>/orchestration-journal.jsonl` to support long-running runs and resume analysis.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`
