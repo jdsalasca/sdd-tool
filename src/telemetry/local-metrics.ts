@@ -95,3 +95,18 @@ export function recordActivationMetric(type: "started" | "completed", data?: Rec
   }
   fs.writeFileSync(file, JSON.stringify(snapshot, null, 2), "utf-8");
 }
+
+export function recordIterationMetric(data: Record<string, string | number | boolean>): void {
+  if (!isEnabled()) {
+    return;
+  }
+  const file = metricsPath();
+  const snapshot = loadSnapshot(file);
+  const now = new Date().toISOString();
+  snapshot.lastSeenAt = now;
+  snapshot.events.push({ at: now, type: "autopilot.iteration", data });
+  if (snapshot.events.length > 200) {
+    snapshot.events = snapshot.events.slice(snapshot.events.length - 200);
+  }
+  fs.writeFileSync(file, JSON.stringify(snapshot, null, 2), "utf-8");
+}

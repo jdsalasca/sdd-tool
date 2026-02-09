@@ -758,6 +758,18 @@ test("hello emits SDD error code for invalid --iterations value", () => {
   assert.match(result.stdout, /\[SDD-1005\]/i);
 });
 
+test("hello emits SDD error code for invalid --max-runtime-minutes value", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-invalid-runtime-"));
+  const result = runCli(
+    workspaceRoot,
+    "InvalidRuntimeProject",
+    ["--non-interactive", "--max-runtime-minutes", "0", "hello", "build app"],
+    ""
+  );
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /\[SDD-1006\]/i);
+});
+
 test("hello accepts --iterations within range", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-hello-iterations-ok-"));
   const result = runCli(workspaceRoot, "", ["--non-interactive", "--iterations", "2", "hello", "build app"], "");

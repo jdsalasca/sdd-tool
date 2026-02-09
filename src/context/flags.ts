@@ -13,6 +13,7 @@ export type RuntimeFlags = {
   provider?: string;
   model?: string;
   iterations: number;
+  maxRuntimeMinutes?: number;
 };
 
 const flags: RuntimeFlags = {
@@ -29,7 +30,8 @@ const flags: RuntimeFlags = {
   metricsLocal: false,
   provider: process.env.SDD_AI_PROVIDER_DEFAULT ?? "gemini",
   model: process.env.SDD_AI_MODEL_DEFAULT,
-  iterations: 2
+  iterations: 2,
+  maxRuntimeMinutes: undefined
 };
 
 export function setFlags(next: Partial<RuntimeFlags>): void {
@@ -75,6 +77,10 @@ export function setFlags(next: Partial<RuntimeFlags>): void {
   if ("iterations" in next) {
     const raw = Number(next.iterations);
     flags.iterations = Number.isFinite(raw) ? Math.trunc(raw) : flags.iterations;
+  }
+  if ("maxRuntimeMinutes" in next) {
+    const raw = Number(next.maxRuntimeMinutes);
+    flags.maxRuntimeMinutes = Number.isFinite(raw) ? Math.trunc(raw) : flags.maxRuntimeMinutes;
   }
 }
 

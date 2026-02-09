@@ -107,6 +107,7 @@ This file defines the command set, intent, and expected behavior.
 - `--gemini` Shortcut for `--provider gemini`
 - `--model <name>` Select provider model (for example `gemini-2.5-flash-lite`)
 - `--iterations <n>` Number of delivery improvement iterations (`1..10`) with review->stories->implement loops (default `2`)
+- `--max-runtime-minutes <n>` Runtime budget for `hello`/`suite` (`1..720`); on timeout, saves checkpoint and prints resume command
 
 ## Metrics utilities
 - `npm run metrics:summary -- <workspace-root>`

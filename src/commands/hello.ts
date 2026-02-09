@@ -1,4 +1,5 @@
 import { classifyIntent, FLOW_PROMPT_PACKS } from "../router/intent";
+import fs from "fs";
 import path from "path";
 import { ensureWorkspace, getWorkspaceInfo, listProjects } from "../workspace/index";
 import { ask, confirm } from "../ui/prompt";
@@ -11,7 +12,7 @@ import { runReqStart } from "./req-start";
 import { runReqFinish } from "./req-finish";
 import { runRoute } from "./route";
 import { runTestPlan } from "./test-plan";
-import { recordActivationMetric } from "../telemetry/local-metrics";
+import { recordActivationMetric, recordIterationMetric } from "../telemetry/local-metrics";
 import { printError } from "../errors";
 import { bootstrapProjectCode, enrichDraftWithAI, improveGeneratedApp } from "./ai-autopilot";
 import { publishGeneratedApp, runAppLifecycle } from "./app-lifecycle";
@@ -62,6 +63,32 @@ function parseClampedIntEnv(name: string, fallback: number, min: number, max: nu
   return Math.max(min, Math.min(max, raw));
 }
 
+type IterationMetric = {
+  at: string;
+  round: number;
+  phase: "review" | "repair" | "lifecycle" | "publish";
+  result: "passed" | "failed" | "skipped";
+  durationMs?: number;
+  score?: number;
+  threshold?: number;
+  diagnostics?: string[];
+};
+
+function appendIterationMetric(appDir: string, metric: IterationMetric): void {
+  if (!fs.existsSync(appDir)) {
+    return;
+  }
+  const deployDir = path.join(appDir, "deploy");
+  fs.mkdirSync(deployDir, { recursive: true });
+  const file = path.join(deployDir, "iteration-metrics.json");
+  const current = fs.existsSync(file)
+    ? (JSON.parse(fs.readFileSync(file, "utf-8")) as { metrics?: IterationMetric[] })
+    : { metrics: [] };
+  const metrics = Array.isArray(current.metrics) ? current.metrics : [];
+  metrics.push(metric);
+  fs.writeFileSync(file, JSON.stringify({ metrics }, null, 2), "utf-8");
+}
+
 function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
   const hints = new Set<string>();
   for (const line of diagnostics) {
@@ -83,6 +110,9 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     }
     if (normalized.includes("cannot find module 'supertest'")) {
       hints.add("Add supertest to devDependencies and ensure tests run with installed test libraries.");
+    }
+    if (normalized.includes("cannot find module 'uuid'") || normalized.includes("could not find a declaration file for module 'uuid'")) {
+      hints.add("Fix uuid typing/runtime consistency: install uuid and @types/uuid (or configure moduleResolution) and verify imports.");
     }
     if (normalized.includes("cannot find module 'knex'")) {
       hints.add("Add knex (and required db driver) to dependencies and verify db bootstrap imports.");
@@ -110,6 +140,16 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     }
     if (normalized.includes("typescript tests detected but ts-jest is not declared") || normalized.includes("jest config uses ts-jest preset")) {
       hints.add("For TS tests, add ts-jest + proper jest config, or convert tests to JS consistently.");
+    }
+    if (
+      normalized.includes("jest encountered an unexpected token") ||
+      normalized.includes("missing semicolon") ||
+      normalized.includes("failed to parse a file")
+    ) {
+      hints.add("Fix Jest TypeScript support: configure ts-jest/babel for .ts tests or convert tests to plain JS.");
+    }
+    if (normalized.includes("cannot find module") && normalized.includes("dist/smoke.js")) {
+      hints.add("Fix smoke flow: ensure build emits smoke artifact before smoke script or point smoke script to source entry.");
     }
     if (normalized.includes("no-unused-vars") || normalized.includes("unexpected console statement")) {
       hints.add("Fix lint blockers or adjust lint config/rules so lint passes in CI without warnings-as-errors failures.");
@@ -258,10 +298,47 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   const beginnerMode = runtimeFlags.beginner;
   const provider = runtimeFlags.provider;
   const iterations = runtimeFlags.iterations;
+  const maxRuntimeMinutes = runtimeFlags.maxRuntimeMinutes;
   if (!Number.isInteger(iterations) || iterations < 1 || iterations > 10) {
     printError("SDD-1005", "Invalid --iterations value. Use an integer between 1 and 10.");
     return;
   }
+  if (typeof maxRuntimeMinutes === "number" && (!Number.isInteger(maxRuntimeMinutes) || maxRuntimeMinutes < 1 || maxRuntimeMinutes > 720)) {
+    printError("SDD-1006", "Invalid --max-runtime-minutes value. Use an integer between 1 and 720.");
+    return;
+  }
+  const startedAtMs = Date.now();
+  const deadlineMs = typeof maxRuntimeMinutes === "number" ? startedAtMs + maxRuntimeMinutes * 60_000 : null;
+  const hasTimedOut = (
+    activeProject: string | undefined,
+    reqId: string,
+    lastCompleted: AutopilotStep,
+    hint: string
+  ): boolean => {
+    if (!deadlineMs || Date.now() <= deadlineMs) {
+      return false;
+    }
+    if (activeProject && reqId) {
+      saveCheckpoint(activeProject, {
+        project: activeProject,
+        reqId,
+        seedText: hint,
+        flow: intent.flow,
+        domain: intent.domain,
+        lastCompleted,
+        updatedAt: new Date().toISOString()
+      });
+    }
+    const resumeStep = reqId ? nextStep(lastCompleted) ?? "finish" : "create";
+    printError(
+      "SDD-1006",
+      `Max runtime exceeded (${maxRuntimeMinutes} min). Checkpoint saved for safe resume from --from-step ${resumeStep}.`
+    );
+    if (activeProject) {
+      printRecoveryNext(activeProject, resumeStep, hint);
+    }
+    return true;
+  };
 
   console.log("Hello from sdd-cli.");
   console.log(`Workspace: ${workspace.root}`);
@@ -274,6 +351,9 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     printWhy("Auto-guided mode active: using current workspace defaults.");
     printWhy(`AI provider preference: ${provider ?? "gemini"}`);
     printWhy(`Iterations configured: ${iterations}`);
+    if (typeof maxRuntimeMinutes === "number") {
+      printWhy(`Runtime budget: ${maxRuntimeMinutes} minutes`);
+    }
     printWhy(`Minimum quality rounds: ${minQualityRounds}; approval streak required: ${requiredApprovalStreak}`);
   } else {
     const useWorkspace = await confirm("Use this workspace path? (y/n) ");
@@ -458,6 +538,10 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     }
     for (let i = stepIndex; i < AUTOPILOT_STEPS.length; i += 1) {
       const step = AUTOPILOT_STEPS[i];
+      const resumeBase = step === "create" ? "create" : (AUTOPILOT_STEPS[Math.max(0, i - 1)] as AutopilotStep);
+      if (hasTimedOut(activeProject, reqId, resumeBase, text)) {
+        return;
+      }
       if (step === "create") {
         printStep("Step 3/7", "Creating requirement draft automatically");
         printWhy("This creates your baseline scope, acceptance criteria, and NFRs.");
@@ -539,6 +623,9 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         clearCheckpoint(activeProject);
         const projectRoot = path.resolve(finished.doneDir, "..", "..", "..");
+        if (hasTimedOut(activeProject, reqId, "test", text)) {
+          return;
+        }
         const codeBootstrap = bootstrapProjectCode(projectRoot, activeProject, text, provider, intent.domain);
         if (!codeBootstrap.generated) {
           printWhy(`Code generation blocked: ${codeBootstrap.reason || "provider did not return valid files"}.`);
@@ -570,6 +657,9 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           printWhy("Quality gates failed. Attempting AI repair iterations.");
           lifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Quality issue: ${issue}`));
           for (let attempt = 1; attempt <= maxRepairAttempts && !lifecycle.qualityPassed; attempt += 1) {
+            if (hasTimedOut(activeProject, reqId, "test", text)) {
+              return;
+            }
             const condensed = summarizeQualityDiagnostics(lifecycle.qualityDiagnostics);
             const repair = improveGeneratedApp(
               appDir,
@@ -610,6 +700,10 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           const plannedRounds = Math.max(iterations, minQualityRounds);
           const maxRounds = Math.min(10, plannedRounds + maxExtraIterations);
           for (let round = 1; round <= maxRounds; round += 1) {
+            if (hasTimedOut(activeProject, reqId, "test", text)) {
+              return;
+            }
+            const roundStart = Date.now();
             if (round > plannedRounds) {
               printWhy(`Iteration ${round}/${maxRounds}: extending rounds because quality bar is still unmet.`);
             } else {
@@ -631,6 +725,23 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             if (storiesPath) {
               printWhy(`Digital-review user stories: ${storiesPath} (${stories.length} stories)`);
             }
+            appendIterationMetric(appDir, {
+              at: new Date().toISOString(),
+              round,
+              phase: "review",
+              result: review.passed ? "passed" : "failed",
+              durationMs: Date.now() - roundStart,
+              score: review.score,
+              threshold: review.threshold,
+              diagnostics: review.diagnostics.slice(0, 12)
+            });
+            recordIterationMetric({
+              round,
+              phase: "review",
+              passed: review.passed,
+              score: review.score,
+              threshold: review.threshold
+            });
 
             let storyDiagnostics = storiesToDiagnostics(stories);
             if (review.passed) {
@@ -675,9 +786,25 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             );
             if (!repair.attempted || !repair.applied) {
               printWhy(`Iteration ${round}: repair skipped (${repair.reason || "unknown reason"}).`);
+              appendIterationMetric(appDir, {
+                at: new Date().toISOString(),
+                round,
+                phase: "repair",
+                result: "skipped",
+                diagnostics: [repair.reason || "unknown reason"]
+              });
+              recordIterationMetric({ round, phase: "repair", passed: false, skipped: true });
               break;
             }
             printWhy(`Iteration ${round}: repair applied (${repair.fileCount} files). Re-validating lifecycle.`);
+            appendIterationMetric(appDir, {
+              at: new Date().toISOString(),
+              round,
+              phase: "repair",
+              result: "passed",
+              diagnostics: [`files=${repair.fileCount}`]
+            });
+            recordIterationMetric({ round, phase: "repair", passed: true, files: repair.fileCount });
             lifecycle = runAppLifecycle(projectRoot, activeProject, {
               goalText: text,
               intentSignals: intent.signals,
@@ -707,8 +834,23 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             }
             if (!lifecycle.qualityPassed) {
               printWhy(`Iteration ${round}: lifecycle quality still failing.`);
+              appendIterationMetric(appDir, {
+                at: new Date().toISOString(),
+                round,
+                phase: "lifecycle",
+                result: "failed",
+                diagnostics: lifecycle.qualityDiagnostics.slice(0, 12)
+              });
+              recordIterationMetric({ round, phase: "lifecycle", passed: false, issues: lifecycle.qualityDiagnostics.length });
               continue;
             }
+            appendIterationMetric(appDir, {
+              at: new Date().toISOString(),
+              round,
+              phase: "lifecycle",
+              result: "passed"
+            });
+            recordIterationMetric({ round, phase: "lifecycle", passed: true });
 
             review = runDigitalHumanReview(appDir, {
               goalText: text,
@@ -761,6 +903,14 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             intentFlow: intent.flow
           });
           printWhy(`Publish after review: ${publish.summary}`);
+          appendIterationMetric(path.join(projectRoot, "generated-app"), {
+            at: new Date().toISOString(),
+            round: Math.max(iterations, 1),
+            phase: "publish",
+            result: publish.published ? "passed" : "failed",
+            diagnostics: [publish.summary]
+          });
+          recordIterationMetric({ phase: "publish", passed: publish.published, summary: publish.summary });
         }
         recordActivationMetric("completed", {
           project: activeProject,

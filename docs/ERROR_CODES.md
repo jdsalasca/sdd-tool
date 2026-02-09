@@ -29,6 +29,9 @@ This document defines machine-readable error code ranges and remediation guidanc
   - Fix: run from `--from-step create` first, or execute full autopilot once to create checkpoint state.
 - `SDD-1005`: Invalid iterations value
   - Fix: use `--iterations` with an integer between `1` and `10`.
+- `SDD-1006`: Invalid max runtime value or runtime budget exceeded
+  - Fix (input): use `--max-runtime-minutes` with an integer between `1` and `720`.
+  - Fix (timeout): rerun with a higher runtime budget or resume from the printed `--from-step` checkpoint command.
 - `SDD-1011`: Invalid quickstart example
   - Fix: run `sdd-cli quickstart --list-examples` and pass one of the supported keys.
 - `SDD-1012`: Hello questions mode could not load prompt packs

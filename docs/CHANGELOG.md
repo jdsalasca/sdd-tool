@@ -30,6 +30,11 @@
   - digital reviewers now require lifecycle evidence (`deploy/lifecycle-report.md`) with successful test/build/smoke checks and no FAIL entries.
   - reject README content that positions delivery as POC/prototype/placeholder instead of production-ready output.
   - require software/generic package-based projects to provide smoke/e2e npm scripts.
+- Add runtime budget + learning telemetry for long autopilot runs:
+  - new `--max-runtime-minutes <1..720>` global flag for `hello`/`suite`.
+  - on timeout, `hello` stores checkpoint state and prints an explicit resume command.
+  - persist per-round improvement metrics to `generated-app/deploy/iteration-metrics.json`.
+  - emit opt-in local telemetry events for review/repair/lifecycle/publish iteration phases.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

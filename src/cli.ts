@@ -50,6 +50,7 @@ program
   .option("--provider <name>", "AI provider: gemini|codex|auto", defaultProviderPreference())
   .option("--model <name>", "AI model id (for providers that support model override)")
   .option("--iterations <n>", "Autopilot improvement iterations (1-10)", "2")
+  .option("--max-runtime-minutes <n>", "Maximum hello/suite runtime budget in minutes (1-720)")
   .option("--gemini", "Shortcut for --provider gemini");
 
 program.hook("preAction", (thisCommand, actionCommand) => {
@@ -78,7 +79,9 @@ program.hook("preAction", (thisCommand, actionCommand) => {
         : config.ai.preferred_cli,
     model: typeof opts.model === "string" ? opts.model : config.ai.model
     ,
-    iterations: Number.parseInt(typeof opts.iterations === "string" ? opts.iterations : "2", 10)
+    iterations: Number.parseInt(typeof opts.iterations === "string" ? opts.iterations : "2", 10),
+    maxRuntimeMinutes:
+      typeof opts.maxRuntimeMinutes === "string" ? Number.parseInt(opts.maxRuntimeMinutes, 10) : undefined
   });
   process.env.SDD_GEMINI_MODEL = typeof opts.model === "string" ? opts.model : config.ai.model;
 
@@ -490,7 +493,7 @@ function normalizeArgv(argv: string[]): string[] {
   if (args.length === 0) {
     return argv;
   }
-  const valueFlags = new Set(["--from-step", "--project", "--output", "--scope", "--provider", "--model", "--iterations"]);
+  const valueFlags = new Set(["--from-step", "--project", "--output", "--scope", "--provider", "--model", "--iterations", "--max-runtime-minutes"]);
   let positionalIndex = -1;
   for (let i = 0; i < args.length; i += 1) {
     const token = args[i];

@@ -78,7 +78,31 @@ export function classifyIntent(input: string): RouterIntent {
     }
     return normalized.includes(keyword);
   };
+  const softwareRule = SIGNALS.find((rule) => rule.intent === "software");
+  const hasBuildVerb =
+    /\b(create|build|generate|implement|develop|ship|crear|crea|genera|desarrolla|construye)\b/i.test(normalized);
+  const hasAppContext =
+    /\b(app|application|aplicacion|aplicación|system|sistema|platform|plataforma|web|desktop|mobile|movil|móvil|api|backend|frontend)\b/i.test(
+      normalized
+    );
+  if (softwareRule && hasBuildVerb && hasAppContext && softwareRule.keywords.some((keyword) => containsKeyword(keyword))) {
+    return {
+      intent: softwareRule.intent,
+      confidence: 0.85,
+      flow: softwareRule.flow,
+      domain: softwareRule.domain,
+      signals: softwareRule.keywords.filter((keyword) => containsKeyword(keyword))
+    };
+  }
   for (const rule of SIGNALS) {
+    if (
+      rule.intent === "learning" &&
+      hasBuildVerb &&
+      hasAppContext &&
+      !/\b(teach me|what is|syllabus|lesson|course)\b/i.test(normalized)
+    ) {
+      continue;
+    }
     if (rule.keywords.some((keyword) => containsKeyword(keyword))) {
       return {
         intent: rule.intent,

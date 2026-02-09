@@ -32,3 +32,9 @@ test("classifyIntent detects software intent in spanish app requests", () => {
   assert.equal(result.intent, "software");
   assert.equal(result.flow, "SOFTWARE_FEATURE");
 });
+
+test("classifyIntent prioritizes software for app requests mentioning history/audit", () => {
+  const result = classifyIntent("create a parking registry app with audit history and tests");
+  assert.equal(result.intent, "software");
+  assert.equal(result.flow, "SOFTWARE_FEATURE");
+});
