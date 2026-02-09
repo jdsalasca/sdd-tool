@@ -81,6 +81,30 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     if (normalized.includes("expected at least 8 tests")) {
       hints.add("Add automated tests to reach minimum quality bar (at least 8 tests across critical flows).");
     }
+    if (normalized.includes("cannot find module 'supertest'")) {
+      hints.add("Add supertest to devDependencies and ensure tests run with installed test libraries.");
+    }
+    if (normalized.includes("cannot find module 'knex'")) {
+      hints.add("Add knex (and required db driver) to dependencies and verify db bootstrap imports.");
+    }
+    if (normalized.includes("\".\" no se reconoce como un comando interno o externo") || normalized.includes("./smoke.sh")) {
+      hints.add("Replace shell-based smoke command with cross-platform npm/node command (no ./smoke.sh).");
+    }
+    if (normalized.includes("failed to start server") || normalized.includes("process.exit called with \"1\"")) {
+      hints.add("Refactor server entrypoint: export app for tests and move app.listen/process.exit to a separate startup file.");
+    }
+    if (normalized.includes("'describe' is not defined") || normalized.includes("'test' is not defined") || normalized.includes("'expect' is not defined")) {
+      hints.add("Fix ESLint test environment: enable jest globals (env.jest=true) for test files.");
+    }
+    if (normalized.includes("haste module naming collision")) {
+      hints.add("Avoid nested duplicated app folders/package.json names; keep a single project root structure.");
+    }
+    if (normalized.includes("no-unused-vars") || normalized.includes("unexpected console statement")) {
+      hints.add("Fix lint blockers or adjust lint config/rules so lint passes in CI without warnings-as-errors failures.");
+    }
+    if (normalized.includes("eslint couldn't find a configuration file")) {
+      hints.add("Create and commit eslint config at project root to support npm run lint.");
+    }
     if (normalized.includes("missing sql schema file")) {
       hints.add("Add schema.sql with tables, keys, indexes, and constraints for relational domain.");
     }
@@ -111,9 +135,11 @@ function deriveProjectName(input: string, flow: string): string {
     .filter((token) => token.length > 0)
     .slice(0, 4)
     .join("-");
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const time = [now.getHours(), now.getMinutes(), now.getSeconds()].map((part) => String(part).padStart(2, "0")).join("");
   const base = seed.length > 0 ? seed : flow.toLowerCase();
-  return `autopilot-${base}-${date}`;
+  return `autopilot-${base}-${date}-${time}`;
 }
 
 function buildAutopilotDraft(input: string, flow: string, domain: string): RequirementDraft {
@@ -351,6 +377,10 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         const quickProject = await ask("Project name (optional, press Enter to auto-generate): ");
         activeProject = quickProject || deriveProjectName(text, intent.flow);
       }
+    }
+    if (!runtimeFlags.project && activeProject && projects.some((project) => project.name === activeProject)) {
+      const suffix = Date.now().toString().slice(-5);
+      activeProject = `${activeProject}-${suffix}`;
     }
     if (!activeProject) {
       printError("SDD-1002", "Project name is required to run autopilot.");

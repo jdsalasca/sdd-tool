@@ -184,8 +184,14 @@ function safeRelativePath(input: string): string | null {
   if (!clean || clean.startsWith("/") || /^[A-Za-z]:/.test(clean)) {
     return null;
   }
-  const normalized = path.posix.normalize(clean);
+  let normalized = path.posix.normalize(clean);
+  if (normalized.toLowerCase().startsWith("generated-app/")) {
+    normalized = normalized.slice("generated-app/".length);
+  }
   if (normalized.startsWith("../") || normalized === "..") {
+    return null;
+  }
+  if (!normalized || normalized === "." || normalized.toLowerCase().startsWith("node_modules/")) {
     return null;
   }
   return normalized;
@@ -373,6 +379,8 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   const domain = detectAutopilotDomain(intent, domainHint);
   constraints.push(...domainPromptConstraints(domain));
   constraints.push("Include local runtime verification with a smoke script (npm run smoke or test:smoke or e2e).");
+  constraints.push("Smoke script must be cross-platform (Node/npm command), avoid bash-only commands like ./smoke.sh.");
+  constraints.push("Ensure every imported/required third-party package is declared in package.json dependencies/devDependencies.");
   constraints.push("If API/backend exists, include curl-based local endpoint checks in smoke docs/scripts.");
   constraints.push("Target minimum automated test depth of 8 tests across critical flows.");
   if (intentRequiresJavaReactFullstack(intent)) {
@@ -1457,6 +1465,23 @@ export function bootstrapProjectCode(
       const parsedCompact = askProviderForJson(resolution.provider.exec, compactPrompt, providerDebug);
       if (parsedCompact) {
         files.push(...extractFilesFromParsed(parsedCompact));
+      }
+    }
+    if (files.length === 0) {
+      const ultraCompactPrompt = [
+        "Return ONLY valid JSON. No markdown.",
+        'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
+        "Generate ULTRA-COMPACT output with at most 12 files and concise content.",
+        "Must include: package.json, README.md, schemas.md, dummy-local.md, regression.md, LICENSE.",
+        "Include one runnable app entrypoint and one smoke validation script command in package.json.",
+        "Include at least one test file and keep dependencies aligned with imports.",
+        "Do not include explanations. Output JSON only.",
+        `Project: ${projectName}`,
+        `Intent: ${intent}`
+      ].join("\n");
+      const parsedUltraCompact = askProviderForJson(resolution.provider.exec, ultraCompactPrompt, providerDebug);
+      if (parsedUltraCompact) {
+        files.push(...extractFilesFromParsed(parsedUltraCompact));
       }
     }
   }
