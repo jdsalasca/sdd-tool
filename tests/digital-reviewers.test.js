@@ -17,6 +17,21 @@ function write(filePath, content) {
   fs.writeFileSync(filePath, content, "utf-8");
 }
 
+function writePassingLifecycleReport(appDir) {
+  write(
+    path.join(appDir, "deploy", "lifecycle-report.md"),
+    [
+      "# Lifecycle Report",
+      "",
+      `Generated at: ${new Date().toISOString()}`,
+      "",
+      "- OK: npm run test",
+      "- OK: npm run build",
+      "- OK: npm run smoke"
+    ].join("\n")
+  );
+}
+
 test("digital reviewers flag missing product and QA quality", () => {
   const appDir = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-digital-review-fail-"));
   write(path.join(appDir, "README.md"), "# App\n\nNo sections.\n");
@@ -70,6 +85,7 @@ test("digital reviewers approve strong delivery baseline", () => {
     path.join(appDir, "tests", "b.test.js"),
     "test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});test('i',()=>{});test('j',()=>{});"
   );
+  writePassingLifecycleReport(appDir);
 
   const result = runDigitalHumanReview(appDir, {
     goalText: "create a notes app",
@@ -89,6 +105,7 @@ test("digital reviewers enforce legal artifacts in legal domain", () => {
   );
   write(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});");
   write(path.join(appDir, "tests", "b.test.js"), "test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});");
+  writePassingLifecycleReport(appDir);
 
   const result = runDigitalHumanReview(appDir, {
     goalText: "legal compliance project",
@@ -108,6 +125,7 @@ test("digital review writes machine-readable report", () => {
   write(path.join(appDir, "package.json"), JSON.stringify({ scripts: { smoke: "echo smoke" } }, null, 2));
   write(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});");
   write(path.join(appDir, "tests", "b.test.js"), "test('f',()=>{});test('g',()=>{});test('h',()=>{});test('i',()=>{});test('j',()=>{});");
+  writePassingLifecycleReport(appDir);
   const review = runDigitalHumanReview(appDir, { goalText: "create app" });
   const reportPath = writeDigitalReviewReport(appDir, review);
   assert.equal(typeof reportPath, "string");
@@ -116,6 +134,36 @@ test("digital review writes machine-readable report", () => {
   assert.equal(typeof raw.score, "number");
   assert.equal(typeof raw.threshold, "number");
   assert.equal(typeof raw.summary, "string");
+});
+
+test("digital reviewers require lifecycle report evidence", () => {
+  const appDir = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-digital-review-lifecycle-"));
+  write(
+    path.join(appDir, "README.md"),
+    [
+      "# Minimal App",
+      "",
+      "## Features",
+      "- feature",
+      "",
+      "## Run",
+      "- npm run dev"
+    ].join("\n")
+  );
+  write(path.join(appDir, "architecture.md"), "# Architecture\n- MVC\n");
+  write(path.join(appDir, "execution-guide.md"), "# Execution\n- run\n");
+  write(path.join(appDir, "accessibility.md"), "# Accessibility\n- notes\n");
+  write(path.join(appDir, "performance-budget.md"), "# Performance\n- p95\n");
+  write(path.join(appDir, "troubleshooting.md"), "# Support\n- notes\n");
+  write(path.join(appDir, "release-notes.md"), "# Release\n- notes\n");
+  write(path.join(appDir, "LICENSE"), "MIT");
+  write(path.join(appDir, "package.json"), JSON.stringify({ scripts: { smoke: "echo smoke" } }, null, 2));
+  write(path.join(appDir, "tests", "a.test.js"), "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});");
+  write(path.join(appDir, "tests", "b.test.js"), "test('f',()=>{});test('g',()=>{});test('h',()=>{});test('i',()=>{});test('j',()=>{});");
+
+  const result = runDigitalHumanReview(appDir, { goalText: "create notes app" });
+  assert.equal(result.passed, false);
+  assert.equal(result.diagnostics.some((line) => /lifecycle report is missing/i.test(line)), true);
 });
 
 test("findings are converted to prioritized user stories and diagnostics", () => {

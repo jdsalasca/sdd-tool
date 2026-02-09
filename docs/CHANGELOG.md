@@ -25,6 +25,11 @@
   - detect shell-only smoke scripts and require cross-platform npm/node commands.
   - detect import/dependency mismatches for common runtime/test modules (`supertest`, `axios`, `knex`, `ts-jest`).
   - detect TypeScript Jest preset/dependency inconsistencies earlier.
+- Tighten final delivery acceptance and anti-mock quality guardrails:
+  - enforce a final lifecycle verification pass after digital-review approval and before publish.
+  - digital reviewers now require lifecycle evidence (`deploy/lifecycle-report.md`) with successful test/build/smoke checks and no FAIL entries.
+  - reject README content that positions delivery as POC/prototype/placeholder instead of production-ready output.
+  - require software/generic package-based projects to provide smoke/e2e npm scripts.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

@@ -531,6 +531,21 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
     };
   }
   const readme = fs.readFileSync(readmePath, "utf-8").toLowerCase();
+  const nonProductionPatterns = [
+    /\bproof[-\s]?of[-\s]?concept\b/,
+    /\bpoc\b/,
+    /\bfirst[-\s]?draft\b/,
+    /\bprototype\b/,
+    /\bdemo[-\s]?only\b/,
+    /\bplaceholder\b/
+  ];
+  if (nonProductionPatterns.some((pattern) => pattern.test(readme))) {
+    return {
+      ok: false,
+      command: "advanced-quality-check",
+      output: "README declares non-production intent (POC/prototype/placeholder). Delivery must be production-ready."
+    };
+  }
   const requiredSections = ["features", "test"];
   const missingSections = requiredSections.filter((section) => !readme.includes(section));
   if (missingSections.length > 0) {
@@ -559,6 +574,18 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
     };
   }
   const profile = parseGoalProfile(context);
+  const domainProfile = parseDomainProfile(context);
+  if ((domainProfile === "software" || domainProfile === "generic") && hasPackage) {
+    const rootSmoke = hasSmokeScript(appDir);
+    const frontendSmoke = hasSmokeScript(path.join(appDir, "frontend"));
+    if (!rootSmoke && !frontendSmoke) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing smoke/e2e npm script for software delivery (expected smoke, test:smoke, or e2e)."
+      };
+    }
+  }
   if (profile.relationalDataApp) {
     const sqlSchema =
     findFileRecursive(appDir, (rel) => rel === "schema.sql" || rel.endsWith("/schema.sql")) ??
@@ -804,7 +831,6 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
       output: "Missing components.md (required for extensible component-oriented delivery)"
     };
   }
-  const domainProfile = parseDomainProfile(context);
   if (domainProfile === "software" || domainProfile === "generic") {
     const architectureDoc =
       findFileRecursive(appDir, (rel) => rel === "architecture.md" || rel.endsWith("/architecture.md"), 8) ??

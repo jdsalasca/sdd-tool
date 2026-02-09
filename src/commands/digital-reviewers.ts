@@ -203,6 +203,35 @@ function hasSmokeVerification(root: string): boolean {
   return Boolean(findDoc(root, ["smoke.md", "smoke-tests.md", "smoke.http", "smoke-curl.sh", "smoke.ps1"]));
 }
 
+type LifecycleEvidence = {
+  exists: boolean;
+  hasFailure: boolean;
+  hasTestEvidence: boolean;
+  hasBuildEvidence: boolean;
+  hasSmokeEvidence: boolean;
+};
+
+function readLifecycleEvidence(root: string): LifecycleEvidence {
+  const reportPath = path.join(root, "deploy", "lifecycle-report.md");
+  if (!fs.existsSync(reportPath)) {
+    return {
+      exists: false,
+      hasFailure: false,
+      hasTestEvidence: false,
+      hasBuildEvidence: false,
+      hasSmokeEvidence: false
+    };
+  }
+  const raw = normalizeText(fs.readFileSync(reportPath, "utf-8"));
+  return {
+    exists: true,
+    hasFailure: /\n-\s*fail:/.test(raw),
+    hasTestEvidence: /\n-\s*ok:\s*.*\b(test|mvn .* test)\b/.test(raw),
+    hasBuildEvidence: /\n-\s*ok:\s*.*\bbuild\b/.test(raw),
+    hasSmokeEvidence: /\n-\s*ok:\s*.*\b(smoke|test:smoke|e2e)\b/.test(raw)
+  };
+}
+
 function parseThreshold(): number {
   const raw = Number.parseInt(process.env.SDD_DIGITAL_REVIEW_MIN_SCORE ?? "", 10);
   if (!Number.isFinite(raw)) {
@@ -259,6 +288,7 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
   const totalTests = countTests(appDir);
   const domain = detectDomain(context);
   const apiLikeGoal = /\bapi\b|\bbackend\b|\brest\b|\bmicroservice\b|\bserver\b/.test(normalizeText(context?.goalText ?? ""));
+  const lifecycleEvidence = readLifecycleEvidence(appDir);
 
   if (!readme) {
     findings.push({ reviewer: "program_manager", severity: "high", message: "README.md is missing; delivery is not product-ready." });
@@ -284,6 +314,42 @@ export function runDigitalHumanReview(appDir: string, context?: LifecycleContext
       severity: "high",
       message: "Smoke verification is missing. Add executable smoke script and local validation evidence."
     });
+  }
+  if (!lifecycleEvidence.exists) {
+    findings.push({
+      reviewer: "release_manager",
+      severity: "high",
+      message: "Lifecycle report is missing. Run end-to-end lifecycle validation before delivery."
+    });
+  } else {
+    if (lifecycleEvidence.hasFailure) {
+      findings.push({
+        reviewer: "qa_engineer",
+        severity: "high",
+        message: "Lifecycle report contains failed checks. Resolve all FAIL entries before release."
+      });
+    }
+    if (!lifecycleEvidence.hasTestEvidence) {
+      findings.push({
+        reviewer: "qa_engineer",
+        severity: "high",
+        message: "Lifecycle report does not show successful automated test execution."
+      });
+    }
+    if (!lifecycleEvidence.hasBuildEvidence) {
+      findings.push({
+        reviewer: "release_manager",
+        severity: "high",
+        message: "Lifecycle report does not show successful build validation."
+      });
+    }
+    if (!lifecycleEvidence.hasSmokeEvidence) {
+      findings.push({
+        reviewer: "qa_engineer",
+        severity: "high",
+        message: "Lifecycle report does not show successful smoke/e2e verification."
+      });
+    }
   }
   if (!hasArchitectureAndExecutionDocs(appDir)) {
     findings.push({

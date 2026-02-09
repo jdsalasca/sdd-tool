@@ -740,6 +740,20 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
+          const finalLifecycle = runAppLifecycle(projectRoot, activeProject, {
+            goalText: text,
+            intentSignals: intent.signals,
+            intentDomain: intent.domain,
+            intentFlow: intent.flow,
+            deferPublishUntilReview: true
+          });
+          finalLifecycle.summary.forEach((line) => printWhy(`Lifecycle (final): ${line}`));
+          if (!finalLifecycle.qualityPassed) {
+            printWhy("Final lifecycle verification failed after digital approval. Delivery blocked until all quality checks pass.");
+            finalLifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Final quality issue: ${issue}`));
+            printRecoveryNext(activeProject, "finish", text);
+            return;
+          }
           const publish = publishGeneratedApp(projectRoot, activeProject, {
             goalText: text,
             intentSignals: intent.signals,
