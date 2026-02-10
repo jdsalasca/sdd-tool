@@ -131,39 +131,19 @@ export function geminiExec(prompt: string): GeminiResult {
     return args;
   };
   const runPrimary = (withModel: boolean) =>
-    runner.useShell
-      ? spawnSync(
-          `${runner.command} ${withModel && model ? `-m "${model.replace(/"/g, "\"\"")}" ` : ""}--prompt "${normalizedPrompt.replace(/"/g, "\"\"")}" --output-format json`,
-          {
-            encoding: "utf-8",
-            shell: true,
-            env,
-            timeout
-          }
-        )
-      : spawnSync(runner.command, buildArgs(withModel, true), {
-          encoding: "utf-8",
-          shell: false,
-          env,
-          timeout
-        });
+    spawnSync(runner.command, buildArgs(withModel, true), {
+      encoding: "utf-8",
+      shell: runner.useShell,
+      env,
+      timeout
+    });
   const runFallback = (withModel: boolean) =>
-    runner.useShell
-      ? spawnSync(
-          `${runner.command} ${withModel && model ? `-m "${model.replace(/"/g, "\"\"")}" ` : ""}--prompt "${normalizedPrompt.replace(/"/g, "\"\"")}"`,
-          {
-            encoding: "utf-8",
-            shell: true,
-            env,
-            timeout
-          }
-        )
-      : spawnSync(runner.command, buildArgs(withModel, false), {
-          encoding: "utf-8",
-          shell: false,
-          env,
-          timeout
-        });
+    spawnSync(runner.command, buildArgs(withModel, false), {
+      encoding: "utf-8",
+      shell: runner.useShell,
+      env,
+      timeout
+    });
   const attempts: Array<{ name: string; run: () => ReturnType<typeof spawnSync> }> = [
     { name: "primary_model_json", run: () => runPrimary(true) },
     { name: "primary_plain_json", run: () => runPrimary(false) },
