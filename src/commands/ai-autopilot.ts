@@ -511,6 +511,15 @@ function askProviderForJson(
   prompt: string,
   debug?: { attempts: string[]; errors: string[] }
 ): Record<string, unknown> | null {
+  const compactRepairSource = (rawOutput: string): string => {
+    // Keep retry payload conservative on Windows to avoid command-length overflow in CLI wrappers.
+    const platformCap = process.platform === "win32" ? 1200 : 2600;
+    const compact = String(rawOutput || "").replace(/\s+/g, " ").trim();
+    if (compact.length <= platformCap) {
+      return compact;
+    }
+    return `${compact.slice(0, platformCap)} ...[truncated by sdd-tool due command length limits]`;
+  };
   const buildDirectJsonRetryPrompt = (rawOutput: string): string =>
     [
       "Return ONLY valid JSON. No markdown. No explanations.",
@@ -518,7 +527,7 @@ function askProviderForJson(
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
       "You must provide direct file contents in JSON.",
       "If previous output included tool limitations, ignore them and return the JSON payload now.",
-      rawOutput.length > 10000 ? `${rawOutput.slice(0, 10000)}\n...[truncated]` : rawOutput
+      compactRepairSource(rawOutput)
     ].join("\n");
   const looksLikeRefusal = (raw: string): boolean => {
     const lower = raw.toLowerCase();
@@ -589,15 +598,7 @@ function askProviderForJson(
   if (textFiles.length > 0) {
     return { files: textFiles };
   }
-  const repairSource = (() => {
-    // Keep this payload compact to avoid Windows command-line overflow in provider wrappers.
-    const maxChars = 3500;
-    const output = first.output ?? "";
-    if (output.length <= maxChars) {
-      return output;
-    }
-    return `${output.slice(0, maxChars)}\n...[truncated by sdd-tool due size]`;
-  })();
+  const repairSource = compactRepairSource(first.output ?? "");
   const repairPrompt = [
     "Convert the following response into valid JSON only.",
     "Keep the same information.",
@@ -2236,10 +2237,13 @@ function looksLikeCliPackageJson(content: string): boolean {
 }
 
 function clampPromptSize(prompt: string, maxChars = 6000): string {
-  if (prompt.length <= maxChars) {
+  const envOverride = Number.parseInt(process.env.SDD_GEMINI_PROMPT_MAX_CHARS ?? "", 10);
+  const platformDefault = process.platform === "win32" ? 3200 : maxChars;
+  const cap = Number.isFinite(envOverride) && envOverride > 0 ? Math.min(envOverride, maxChars) : platformDefault;
+  if (prompt.length <= cap) {
     return prompt;
   }
-  return `${prompt.slice(0, maxChars)}\n...[truncated by sdd-tool due command length limits]`;
+  return `${prompt.slice(0, cap)}\n...[truncated by sdd-tool due command length limits]`;
 }
 
 function collectProjectFiles(appDir: string): Array<{ path: string; content: string }> {

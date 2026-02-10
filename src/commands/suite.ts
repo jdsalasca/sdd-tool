@@ -32,7 +32,7 @@ type CampaignPolicy = {
   stallCycles: number;
 };
 
-type ProviderIssueType = "none" | "unusable" | "quota";
+type ProviderIssueType = "none" | "unusable" | "quota" | "command_too_long";
 type RecoveryTier = "none" | "tier1" | "tier2" | "tier3" | "tier4";
 type SuiteLockHandle = { lockPath: string; pid: number };
 type BlockingSignals = {
@@ -124,6 +124,89 @@ function appendRecoveryAudit(
       ...entry
     };
     fs.appendFileSync(file, `${JSON.stringify(payload)}\n`, "utf-8");
+  } catch {
+    // best effort
+  }
+}
+
+function categorizeRootCauses(blockers: string[], providerIssue: ProviderIssueType): string[] {
+  const joined = blockers.join("\n").toLowerCase();
+  const causes: string[] = [];
+  if (/etarget|no matching version found|npm error 404/.test(joined)) {
+    causes.push("invalid_or_unavailable_dependency_versions");
+  }
+  if (/no se reconoce como un comando interno o externo|not recognized as an internal or external command/.test(joined)) {
+    causes.push("missing_runtime_dependencies_after_failed_install");
+  }
+  if (/missing smoke|smoke\/e2e/.test(joined)) {
+    causes.push("missing_smoke_validation_script");
+  }
+  if (/write_file|cannot directly create or modify files|unable to fulfill this request/.test(joined)) {
+    causes.push("provider_non_contractual_response");
+  }
+  if (providerIssue === "quota") {
+    causes.push("provider_quota_or_capacity_exhausted");
+  }
+  if (providerIssue === "command_too_long") {
+    causes.push("provider_cli_prompt_length_overflow");
+  }
+  return [...new Set(causes)];
+}
+
+function writeCampaignDebugReport(
+  projectRoot: string,
+  payload: {
+    cycle: number;
+    providerIssue: ProviderIssueType;
+    model?: string;
+    nextFromStep?: string;
+    blockingSignals: BlockingSignals;
+    recoveryTier: RecoveryTier;
+    recoveryAction: string;
+    elapsedMinutes: number;
+  }
+): void {
+  try {
+    const debugDir = path.join(projectRoot, "debug");
+    fs.mkdirSync(debugDir, { recursive: true });
+    const rootCauses = categorizeRootCauses(payload.blockingSignals.blockers, payload.providerIssue);
+    const recommendations: string[] = [];
+    if (rootCauses.includes("provider_cli_prompt_length_overflow")) {
+      recommendations.push("keep provider prompts compact and enforce SDD_GEMINI_PROMPT_MAX_CHARS <= 2200 on Windows");
+    }
+    if (rootCauses.includes("invalid_or_unavailable_dependency_versions")) {
+      recommendations.push("replace unavailable package versions and re-run install/test/build gates");
+    }
+    if (rootCauses.includes("provider_non_contractual_response")) {
+      recommendations.push("retry with strict JSON-only contract and minimal file patch prompt");
+    }
+    if (rootCauses.includes("missing_runtime_dependencies_after_failed_install")) {
+      recommendations.push("block progression until npm install succeeds and required binaries are available");
+    }
+    const file = path.join(debugDir, "campaign-debug-report.json");
+    fs.writeFileSync(
+      file,
+      JSON.stringify(
+        {
+          at: new Date().toISOString(),
+          cycle: payload.cycle,
+          elapsedMinutes: payload.elapsedMinutes,
+          providerIssue: payload.providerIssue,
+          model: payload.model ?? "",
+          nextFromStep: payload.nextFromStep ?? "",
+          recoveryTier: payload.recoveryTier,
+          recoveryAction: payload.recoveryAction,
+          blockers: payload.blockingSignals.blockers,
+          lifecycleFailCount: payload.blockingSignals.lifecycleFailCount,
+          stageFailures: payload.blockingSignals.stageFailures,
+          rootCauses,
+          recommendations
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
   } catch {
     // best effort
   }
@@ -632,6 +715,8 @@ function detectProviderIssueType(projectName?: string): ProviderIssueType {
     return "none";
   }
   const isQuotaLike = (value: string) => /quota|capacity|terminalquotaerror|429/i.test(value);
+  const isCmdTooLongLike = (value: string) =>
+    /the command line is too long|linea de comandos es demasiado larga|la línea de comandos es demasiado larga/i.test(value);
   const isUnusableLike = (value: string) =>
     /provider response unusable|provider did not return valid files|no template fallback was applied|ready for your command|empty output/i.test(
       value
@@ -646,6 +731,9 @@ function detectProviderIssueType(projectName?: string): ProviderIssueType {
         .split(/\r?\n/)
         .filter(Boolean)
         .slice(-40);
+      if (lines.some((line) => isCmdTooLongLike(line))) {
+        return "command_too_long";
+      }
       if (lines.some((line) => isQuotaLike(line))) {
         return "quota";
       }
@@ -655,6 +743,9 @@ function detectProviderIssueType(projectName?: string): ProviderIssueType {
     }
     if (fs.existsSync(providerDebug)) {
       const text = fs.readFileSync(providerDebug, "utf-8");
+      if (isCmdTooLongLike(text)) {
+        return "command_too_long";
+      }
       if (isQuotaLike(text)) {
         return "quota";
       }
@@ -664,6 +755,9 @@ function detectProviderIssueType(projectName?: string): ProviderIssueType {
     }
     if (fs.existsSync(runStatus)) {
       const statusRaw = fs.readFileSync(runStatus, "utf-8");
+      if (isCmdTooLongLike(statusRaw)) {
+        return "command_too_long";
+      }
       if (isQuotaLike(statusRaw)) {
         return "quota";
       }
@@ -916,10 +1010,24 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && providerIssue !== "none") {
       providerFailureStreak += 1;
       const previousModel = model;
-      modelCursor = (modelCursor + 1) % fallbackModels.length;
-      model = fallbackModels[modelCursor];
-      const issueLabel = providerIssue === "quota" ? "quota/capacity" : "non-delivery/unusable output";
-      console.log(`Suite provider recovery: detected ${issueLabel}. Switching model ${previousModel} -> ${model}.`);
+      const issueLabel =
+        providerIssue === "quota"
+          ? "quota/capacity"
+          : providerIssue === "command_too_long"
+            ? "command-length overflow"
+            : "non-delivery/unusable output";
+      if (providerIssue === "command_too_long") {
+        process.env.SDD_GEMINI_PROMPT_MAX_CHARS = "2200";
+        cycleInput = normalizeCampaignInput(cycleInput, [
+          "Provider command-length recovery mode: keep prompts compact and return only minimal JSON file patches.",
+          "Avoid large payload transformations; prioritize small high-impact edits."
+        ]);
+        console.log(`Suite provider recovery: detected ${issueLabel}. Keeping model ${previousModel} and shrinking prompt budget.`);
+      } else {
+        modelCursor = (modelCursor + 1) % fallbackModels.length;
+        model = fallbackModels[modelCursor];
+        console.log(`Suite provider recovery: detected ${issueLabel}. Switching model ${previousModel} -> ${model}.`);
+      }
       if (providerIssue === "unusable") {
         cycleInput = normalizeCampaignInput(cycleInput, [
           "Provider recovery mode: return strict JSON only with files payload and no markdown.",
@@ -965,6 +1073,16 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
           blockingSignals: blockingSignals.blockers,
           lifecycleFailCount: blockingSignals.lifecycleFailCount,
           stageFailures: blockingSignals.stageFailures
+        });
+        writeCampaignDebugReport(quotaRoot, {
+          cycle,
+          providerIssue,
+          model,
+          nextFromStep,
+          blockingSignals,
+          recoveryTier: recoveryTier === "none" ? "tier2" : recoveryTier,
+          recoveryAction: recoveryAction || `provider recovery (${issueLabel})`,
+          elapsedMinutes
         });
       }
       if (providerFailureStreak >= Math.max(3, fallbackModels.length)) {
@@ -1032,6 +1150,16 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
 
     const projectRoot = resolveProjectRoot(lastProject);
     if (projectRoot) {
+      writeCampaignDebugReport(projectRoot, {
+        cycle,
+        providerIssue,
+        model,
+        nextFromStep,
+        blockingSignals,
+        recoveryTier,
+        recoveryAction,
+        elapsedMinutes
+      });
       writeCampaignState(projectRoot, {
         cycle,
         elapsedMinutes,
