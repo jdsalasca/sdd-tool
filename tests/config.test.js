@@ -45,6 +45,7 @@ test("updateConfigValue sets provider and mode defaults", () => {
   updateConfigValue("git.publish_enabled", "true");
   updateConfigValue("git.release_management_enabled", "true");
   updateConfigValue("git.run_after_finalize", "true");
+  updateConfigValue("git.flow_enabled", "true");
   const config = loadConfig();
 
   assert.equal(config.ai.preferred_cli, "codex");
@@ -52,6 +53,7 @@ test("updateConfigValue sets provider and mode defaults", () => {
   assert.equal(config.git.publish_enabled, true);
   assert.equal(config.git.release_management_enabled, true);
   assert.equal(config.git.run_after_finalize, true);
+  assert.equal(config.git.flow_enabled, true);
 
   delete process.env.SDD_CONFIG_PATH;
 });

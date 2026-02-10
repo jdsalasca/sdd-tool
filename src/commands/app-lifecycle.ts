@@ -1304,6 +1304,34 @@ function ensureGitIgnore(appDir: string): void {
   fs.writeFileSync(file, "node_modules/\ndist/\ncoverage/\n.env\n", "utf-8");
 }
 
+function branchExists(appDir: string, branch: string): boolean {
+  const probe = run("git", ["rev-parse", "--verify", `refs/heads/${branch}`], appDir);
+  return probe.ok;
+}
+
+function checkoutBranch(appDir: string, branch: string): StepResult {
+  return run("git", ["checkout", branch], appDir);
+}
+
+function ensureBranchFrom(appDir: string, branch: string, fromBranch: string): StepResult {
+  if (branchExists(appDir, branch)) {
+    return { ok: true, command: `git branch ${branch}`, output: "already exists" };
+  }
+  const checkoutSource = checkoutBranch(appDir, fromBranch);
+  if (!checkoutSource.ok) {
+    return checkoutSource;
+  }
+  return run("git", ["checkout", "-b", branch], appDir);
+}
+
+function mergeNoFf(appDir: string, sourceBranch: string, targetBranch: string, message: string): StepResult {
+  const checkoutTarget = checkoutBranch(appDir, targetBranch);
+  if (!checkoutTarget.ok) {
+    return checkoutTarget;
+  }
+  return run("git", ["merge", "--no-ff", sourceBranch, "-m", message], appDir);
+}
+
 function ensureGitRepo(appDir: string): StepResult {
   if (!hasCommand("git")) {
     return { ok: false, command: "git", output: "git not available" };
@@ -1326,6 +1354,22 @@ function ensureGitRepo(appDir: string): StepResult {
   const commit = run("git", ["commit", "-m", "feat: generated app lifecycle output"], appDir);
   if (!commit.ok && !/nothing to commit/i.test(commit.output)) {
     return commit;
+  }
+  const config = ensureConfig();
+  if (config.git.flow_enabled) {
+    const ensureDevelop = ensureBranchFrom(appDir, "develop", "main");
+    if (!ensureDevelop.ok) {
+      return ensureDevelop;
+    }
+    const onDevelop = checkoutBranch(appDir, "develop");
+    if (!onDevelop.ok) {
+      return onDevelop;
+    }
+  } else {
+    const onMain = checkoutBranch(appDir, "main");
+    if (!onMain.ok) {
+      return onMain;
+    }
   }
   return { ok: true, command: "git init/add/commit", output: commit.output || "committed" };
 }
@@ -1440,6 +1484,21 @@ function pushGitWithTags(appDir: string): StepResult {
   }
   const pushTags = run("git", ["push", "--tags"], appDir);
   return pushTags.ok ? pushTags : pushMain;
+}
+
+function pushBranchesAndTags(appDir: string, branches: string[]): StepResult {
+  const unique = Array.from(new Set(branches.map((branch) => branch.trim()).filter((branch) => branch.length > 0)));
+  for (const branch of unique) {
+    const push = run("git", ["push", "-u", "origin", branch], appDir);
+    if (!push.ok) {
+      return push;
+    }
+  }
+  const pushTags = run("git", ["push", "--tags"], appDir);
+  if (!pushTags.ok) {
+    return pushTags;
+  }
+  return { ok: true, command: `git push branches/tags`, output: unique.join(", ") };
 }
 
 function publishGitHubRelease(appDir: string, version: string, notesFile: string, finalRelease: boolean): StepResult {
@@ -1677,21 +1736,82 @@ export function createManagedRelease(
   if (!git.ok) {
     return { created: false, version: "n/a", summary: `git preparation failed: ${git.output || git.command}` };
   }
+  const config = ensureConfig();
+  const flowEnabled = config.git.flow_enabled;
   const metadata = deriveRepoMetadata(projectName, appDir, options.context);
   const version = nextManagedVersion(appDir, options.finalRelease, options.round);
   const stage: "candidate" | "final" = options.finalRelease ? "final" : "candidate";
   const releaseNote = writeReleaseNote(appDir, version, stage, options.note);
+  let workingBranch = "main";
+  let featureBranch = "";
+  if (flowEnabled) {
+    const ensureDevelop = ensureBranchFrom(appDir, "develop", "main");
+    if (!ensureDevelop.ok) {
+      return { created: false, version, summary: `${ensureDevelop.command}: ${ensureDevelop.output || "failed to ensure develop branch"}` };
+    }
+    if (options.finalRelease) {
+      const onDevelop = checkoutBranch(appDir, "develop");
+      if (!onDevelop.ok) {
+        return { created: false, version, summary: `${onDevelop.command}: ${onDevelop.output || "failed to checkout develop"}` };
+      }
+      workingBranch = "develop";
+    } else {
+      const onDevelop = checkoutBranch(appDir, "develop");
+      if (!onDevelop.ok) {
+        return { created: false, version, summary: `${onDevelop.command}: ${onDevelop.output || "failed to checkout develop"}` };
+      }
+      featureBranch = `feature/iteration-${options.round}-${Date.now().toString().slice(-6)}`;
+      const createFeature = run("git", ["checkout", "-b", featureBranch], appDir);
+      if (!createFeature.ok) {
+        return { created: false, version, summary: `${createFeature.command}: ${createFeature.output || "failed to create feature branch"}` };
+      }
+      workingBranch = featureBranch;
+    }
+  } else {
+    const onMain = checkoutBranch(appDir, "main");
+    if (!onMain.ok) {
+      return { created: false, version, summary: `${onMain.command}: ${onMain.output || "failed to checkout main"}` };
+    }
+  }
+
   run("git", ["add", "."], appDir);
   const commit = run("git", ["commit", "-m", `chore(release): ${version}`], appDir);
   if (!commit.ok && !/nothing to commit/i.test(commit.output)) {
     return { created: false, version, summary: `${commit.command}: ${commit.output || "release commit failed"}` };
+  }
+
+  if (flowEnabled && !options.finalRelease) {
+    const mergedToDevelop = mergeNoFf(appDir, workingBranch, "develop", `merge ${workingBranch} for ${version}`);
+    if (!mergedToDevelop.ok) {
+      return {
+        created: false,
+        version,
+        summary: `${mergedToDevelop.command}: ${mergedToDevelop.output || "failed to merge feature branch into develop"}`
+      };
+    }
+    workingBranch = "develop";
+  }
+  if (flowEnabled && options.finalRelease) {
+    const mergedToMain = mergeNoFf(appDir, "develop", "main", `release ${version} from develop`);
+    if (!mergedToMain.ok) {
+      return {
+        created: false,
+        version,
+        summary: `${mergedToMain.command}: ${mergedToMain.output || "failed to merge develop into main"}`
+      };
+    }
+    workingBranch = "main";
+  }
+
+  const checkoutReleaseBranch = checkoutBranch(appDir, workingBranch);
+  if (!checkoutReleaseBranch.ok) {
+    return { created: false, version, summary: `${checkoutReleaseBranch.command}: ${checkoutReleaseBranch.output || "failed to checkout release branch"}` };
   }
   const tag = createGitTag(appDir, version, options.note);
   if (!tag.ok) {
     return { created: false, version, summary: `${tag.command}: ${tag.output || "tag creation failed"}` };
   }
 
-  const config = ensureConfig();
   const autonomousCampaign = process.env.SDD_CAMPAIGN_AUTONOMOUS === "1";
   let pushed = false;
   let published = false;
@@ -1699,9 +1819,15 @@ export function createManagedRelease(
   if (autonomousCampaign || config.git.publish_enabled) {
     const remote = ensureRepoRemote(appDir, metadata);
     if (remote.ok) {
-      const pushedStep = pushGitWithTags(appDir);
+      const pushedStep = flowEnabled
+        ? pushBranchesAndTags(appDir, options.finalRelease ? ["main", "develop"] : ["develop", featureBranch])
+        : pushGitWithTags(appDir);
       pushed = pushedStep.ok;
-      publishSummary = pushedStep.ok ? "pushed main and tags" : `${pushedStep.command}: ${pushedStep.output || "push failed"}`;
+      publishSummary = pushedStep.ok
+        ? flowEnabled
+          ? `pushed ${options.finalRelease ? "main/develop" : "develop/feature"} and tags`
+          : "pushed main and tags"
+        : `${pushedStep.command}: ${pushedStep.output || "push failed"}`;
       if (pushedStep.ok) {
         const ghRelease = publishGitHubRelease(appDir, version, releaseNote, options.finalRelease);
         published = ghRelease.ok;
@@ -1723,7 +1849,9 @@ export function createManagedRelease(
   return {
     created: true,
     version,
-    summary: publishSummary
+    summary: flowEnabled
+      ? `${publishSummary}; branch=${workingBranch}${featureBranch ? `; feature=${featureBranch}` : ""}`
+      : publishSummary
   };
 }
 

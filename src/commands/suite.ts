@@ -108,6 +108,10 @@ function writeCampaignState(
     nextFromStep?: string;
     autonomous: boolean;
     stallCount: number;
+    running?: boolean;
+    suitePid?: number;
+    phase?: string;
+    lastError?: string;
   }
 ): void {
   try {
@@ -313,7 +317,51 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
         nextFromStep ? ` | resume ${nextFromStep}` : ""
       }`
     );
-    await runHello(cycleInput, false);
+    const preRoot = resolveProjectRoot(lastProject);
+    if (preRoot) {
+      writeCampaignState(preRoot, {
+        cycle,
+        elapsedMinutes,
+        targetStage: policy.targetStage,
+        targetPassed: false,
+        qualityPassed: false,
+        releasePassed: false,
+        runtimePassed: false,
+        model,
+        nextFromStep,
+        autonomous: policy.autonomous,
+        stallCount: stalledCycles,
+        running: true,
+        suitePid: process.pid,
+        phase: "cycle_start"
+      });
+    }
+    try {
+      await runHello(cycleInput, false);
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const failRoot = resolveProjectRoot(lastProject);
+      if (failRoot) {
+        writeCampaignState(failRoot, {
+          cycle,
+          elapsedMinutes,
+          targetStage: policy.targetStage,
+          targetPassed: false,
+          qualityPassed: false,
+          releasePassed: false,
+          runtimePassed: false,
+          model,
+          nextFromStep,
+          autonomous: policy.autonomous,
+          stallCount: stalledCycles,
+          running: true,
+          suitePid: process.pid,
+          phase: "cycle_error",
+          lastError: errMsg
+        });
+      }
+      throw error;
+    }
     cycleInput = `${input}. ${qualityRetryPrompt}`;
     lastProject = getFlags().project ?? lastProject;
 
@@ -336,7 +384,10 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
         model,
         nextFromStep,
         autonomous: policy.autonomous,
-        stallCount: stalledCycles
+        stallCount: stalledCycles,
+        running: true,
+        suitePid: process.pid,
+        phase: "cycle_completed"
       });
       appendCampaignJournal(
         projectRoot,
@@ -350,10 +401,48 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       qualityPassed && releasePassed && targetPassed && (!runtimeRequired || runtimePassed || policy.targetStage !== "runtime_start");
 
     if (deliveryAccepted && minimumRuntimeMet) {
+      const doneRoot = resolveProjectRoot(lastProject);
+      if (doneRoot) {
+        writeCampaignState(doneRoot, {
+          cycle,
+          elapsedMinutes,
+          targetStage: policy.targetStage,
+          targetPassed,
+          qualityPassed,
+          releasePassed,
+          runtimePassed,
+          model,
+          nextFromStep,
+          autonomous: policy.autonomous,
+          stallCount: stalledCycles,
+          running: false,
+          suitePid: process.pid,
+          phase: "completed"
+        });
+      }
       console.log(`Suite campaign completed with production gates passed on cycle ${cycle}.`);
       return;
     }
     if (cycle >= policy.maxCycles) {
+      const maxRoot = resolveProjectRoot(lastProject);
+      if (maxRoot) {
+        writeCampaignState(maxRoot, {
+          cycle,
+          elapsedMinutes,
+          targetStage: policy.targetStage,
+          targetPassed,
+          qualityPassed,
+          releasePassed,
+          runtimePassed,
+          model,
+          nextFromStep,
+          autonomous: policy.autonomous,
+          stallCount: stalledCycles,
+          running: false,
+          suitePid: process.pid,
+          phase: "max_cycles"
+        });
+      }
       console.log("Suite campaign reached max cycles before reaching all configured quality/runtime goals.");
       return;
     }

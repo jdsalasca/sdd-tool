@@ -20,6 +20,7 @@ export type SddConfig = {
     publish_enabled: boolean;
     release_management_enabled: boolean;
     run_after_finalize: boolean;
+    flow_enabled: boolean;
   };
 };
 
@@ -59,7 +60,8 @@ export function defaultConfig(): SddConfig {
     git: {
       publish_enabled: false,
       release_management_enabled: true,
-      run_after_finalize: true
+      run_after_finalize: true,
+      flow_enabled: true
     }
   };
 }
@@ -129,6 +131,8 @@ function parseSimpleYaml(raw: string): Partial<SddConfig> {
       result.git = { ...(result.git ?? defaultConfig().git), release_management_enabled: value.trim().toLowerCase() === "true" };
     } else if (section === "git" && key === "run_after_finalize") {
       result.git = { ...(result.git ?? defaultConfig().git), run_after_finalize: value.trim().toLowerCase() === "true" };
+    } else if (section === "git" && key === "flow_enabled") {
+      result.git = { ...(result.git ?? defaultConfig().git), flow_enabled: value.trim().toLowerCase() === "true" };
     }
   }
   return result;
@@ -149,6 +153,7 @@ function renderYaml(config: SddConfig): string {
     `  publish_enabled: ${config.git.publish_enabled ? "true" : "false"}`,
     `  release_management_enabled: ${config.git.release_management_enabled ? "true" : "false"}`,
     `  run_after_finalize: ${config.git.run_after_finalize ? "true" : "false"}`,
+    `  flow_enabled: ${config.git.flow_enabled ? "true" : "false"}`,
     ""
   ].join("\n");
 }
@@ -174,7 +179,8 @@ function mergeConfig(base: SddConfig, input: Partial<SddConfig>): SddConfig {
           ? input.git.release_management_enabled
           : base.git.release_management_enabled,
       run_after_finalize:
-        typeof input.git?.run_after_finalize === "boolean" ? input.git.run_after_finalize : base.git.run_after_finalize
+        typeof input.git?.run_after_finalize === "boolean" ? input.git.run_after_finalize : base.git.run_after_finalize,
+      flow_enabled: typeof input.git?.flow_enabled === "boolean" ? input.git.flow_enabled : base.git.flow_enabled
     }
   };
 }
@@ -233,6 +239,8 @@ export function updateConfigValue(key: string, value: string): SddConfig | null 
     next.git.release_management_enabled = value.trim().toLowerCase() === "true";
   } else if (normalized === "git.run_after_finalize") {
     next.git.run_after_finalize = value.trim().toLowerCase() === "true";
+  } else if (normalized === "git.flow_enabled") {
+    next.git.flow_enabled = value.trim().toLowerCase() === "true";
   } else {
     return null;
   }

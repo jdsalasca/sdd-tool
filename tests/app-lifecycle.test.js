@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { runAppLifecycle, __internal } = require("../dist/commands/app-lifecycle.js");
+const { runAppLifecycle, createManagedRelease, __internal } = require("../dist/commands/app-lifecycle.js");
 
 function withTempConfig(fn) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-config-"));
@@ -48,6 +48,60 @@ test("deriveRepoMetadata prefers project/goal over generated README title", () =
   assert.equal(metadata.repoName, "medical-appointments-hospitals-platform");
   assert.match(metadata.description, /production-ready/i);
 });
+
+test("createManagedRelease follows git flow branches when enabled", () =>
+  withTempConfig((root) => {
+    const configPath = process.env.SDD_CONFIG_PATH;
+    fs.writeFileSync(
+      configPath,
+      [
+        "workspace:",
+        `  default_root: ${root.replace(/\\/g, "/")}`,
+        "ai:",
+        "  preferred_cli: gemini",
+        "  model: gemini-2.5-flash-lite",
+        "mode:",
+        "  default: non-interactive",
+        "git:",
+        "  publish_enabled: false",
+        "  release_management_enabled: true",
+        "  run_after_finalize: true",
+        "  flow_enabled: true",
+        ""
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const appDir = path.join(root, "generated-app");
+    fs.mkdirSync(path.join(appDir, "src"), { recursive: true });
+    fs.writeFileSync(path.join(appDir, "README.md"), "# Demo\n\nProduction app.\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "src", "index.js"), "export const ok = true;\n", "utf-8");
+
+    const candidate = createManagedRelease(root, "autopilot-flow-check-20260210", {
+      round: 1,
+      finalRelease: false,
+      note: "candidate release"
+    });
+    assert.equal(candidate.created, true);
+    assert.match(candidate.summary, /feature=feature\/iteration-1-/i);
+
+    const final = createManagedRelease(root, "autopilot-flow-check-20260210", {
+      round: 2,
+      finalRelease: true,
+      note: "final release"
+    });
+    assert.equal(final.created, true);
+    assert.match(final.summary, /branch=main/i);
+
+    const main = require("node:child_process")
+      .execSync("git branch --list main", { cwd: appDir, encoding: "utf-8" })
+      .trim();
+    const develop = require("node:child_process")
+      .execSync("git branch --list develop", { cwd: appDir, encoding: "utf-8" })
+      .trim();
+    assert.equal(main.includes("main"), true);
+    assert.equal(develop.includes("develop"), true);
+  }));
 
 test("runAppLifecycle fails quality when generated app is not aligned with request intent", () =>
   withTempConfig((root) => {
