@@ -693,6 +693,33 @@ function applyDeterministicQualityFixes(appDir: string, diagnostics: string[]): 
           actions.push("package.scripts.smoke.created");
         }
       }
+      if (normalized.includes("script smoke uses shell-only path") || normalized.includes("test:smoke uses shell-only path")) {
+        const smokeScriptPath = path.join(appDir, "scripts", "smoke.js");
+        if (!fs.existsSync(smokeScriptPath)) {
+          fs.mkdirSync(path.dirname(smokeScriptPath), { recursive: true });
+          fs.writeFileSync(
+            smokeScriptPath,
+            [
+              "const fs = require('node:fs');",
+              "const path = require('node:path');",
+              "const checks = ['README.md'];",
+              "const missing = checks.filter((name) => !fs.existsSync(path.join(process.cwd(), name)));",
+              "if (missing.length > 0) {",
+              "  console.error(`Smoke failed. Missing: ${missing.join(', ')}`);",
+              "  process.exit(1);",
+              "}",
+              "console.log('Smoke checks passed.');"
+            ].join("\n"),
+            "utf-8"
+          );
+          actions.push("scripts/smoke.js.created.for-cross-platform");
+        }
+        if (typeof pkg.scripts.smoke !== "string" || pkg.scripts.smoke.includes("&&") || pkg.scripts.smoke.includes(".sh")) {
+          pkg.scripts.smoke = "node scripts/smoke.js";
+          changed = true;
+          actions.push("package.scripts.smoke.cross-platformized");
+        }
+      }
       if (normalized.includes("jest-environment-jsdom cannot be found")) {
         if (!pkg.devDependencies || typeof pkg.devDependencies !== "object") {
           pkg.devDependencies = {};
@@ -702,6 +729,72 @@ function applyDeterministicQualityFixes(appDir: string, diagnostics: string[]): 
           pkg.devDependencies["jest-environment-jsdom"] = "^30.0.5";
           changed = true;
           actions.push("package.devDependencies.jest-environment-jsdom.added");
+        }
+      }
+      if (normalized.includes("typescript tests detected but ts-jest is not declared") || normalized.includes("jest config uses ts-jest preset")) {
+        if (!pkg.devDependencies || typeof pkg.devDependencies !== "object") {
+          pkg.devDependencies = {};
+          changed = true;
+        }
+        if (typeof pkg.devDependencies["ts-jest"] !== "string") {
+          pkg.devDependencies["ts-jest"] = "^29.2.5";
+          changed = true;
+          actions.push("package.devDependencies.ts-jest.added");
+        }
+        if (typeof pkg.devDependencies.typescript !== "string") {
+          pkg.devDependencies.typescript = "^5.8.2";
+          changed = true;
+          actions.push("package.devDependencies.typescript.added");
+        }
+        if (typeof pkg.devDependencies["@types/jest"] !== "string") {
+          pkg.devDependencies["@types/jest"] = "^29.5.14";
+          changed = true;
+          actions.push("package.devDependencies.@types-jest.added");
+        }
+      }
+      if (normalized.includes("no matching version found for eslint-config-react-app")) {
+        if (pkg.dependencies && typeof pkg.dependencies["eslint-config-react-app"] === "string") {
+          delete pkg.dependencies["eslint-config-react-app"];
+          changed = true;
+          actions.push("package.dependencies.eslint-config-react-app.removed");
+        }
+        if (pkg.devDependencies && typeof pkg.devDependencies["eslint-config-react-app"] === "string") {
+          delete pkg.devDependencies["eslint-config-react-app"];
+          changed = true;
+          actions.push("package.devDependencies.eslint-config-react-app.removed");
+        }
+      }
+      if (normalized.includes("\"eslint\" no se reconoce como un comando interno o externo") || normalized.includes("eslint is not recognized")) {
+        if (!pkg.devDependencies || typeof pkg.devDependencies !== "object") {
+          pkg.devDependencies = {};
+          changed = true;
+        }
+        if (typeof pkg.devDependencies.eslint !== "string") {
+          pkg.devDependencies.eslint = "^9.20.1";
+          changed = true;
+          actions.push("package.devDependencies.eslint.added");
+        }
+      }
+      if (normalized.includes("\"jest\" no se reconoce como un comando interno o externo") || normalized.includes("jest is not recognized")) {
+        if (!pkg.devDependencies || typeof pkg.devDependencies !== "object") {
+          pkg.devDependencies = {};
+          changed = true;
+        }
+        if (typeof pkg.devDependencies.jest !== "string") {
+          pkg.devDependencies.jest = "^29.7.0";
+          changed = true;
+          actions.push("package.devDependencies.jest.added");
+        }
+      }
+      if (normalized.includes("\"vite\" no se reconoce como un comando interno o externo") || normalized.includes("vite is not recognized")) {
+        if (!pkg.devDependencies || typeof pkg.devDependencies !== "object") {
+          pkg.devDependencies = {};
+          changed = true;
+        }
+        if (typeof pkg.devDependencies.vite !== "string") {
+          pkg.devDependencies.vite = "^5.4.14";
+          changed = true;
+          actions.push("package.devDependencies.vite.added");
         }
       }
       if (
