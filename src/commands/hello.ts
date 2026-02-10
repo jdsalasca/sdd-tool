@@ -1482,7 +1482,6 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           printRecoveryNext(activeProject, "finish", text);
           return;
         }
-        clearCheckpoint(activeProject);
         const resolvedProjectRoot = path.resolve(finished.doneDir, "..", "..", "..");
         if (resolvedProjectRoot !== projectRoot) {
           markStage(projectRoot, "implementation", "failed", "Project root mismatch after finish stage.");
@@ -1508,6 +1507,15 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         const codeBootstrap = bootstrapProjectCode(projectRoot, activeProject, text, provider, intent.domain);
         if (!codeBootstrap.generated) {
+          saveCheckpoint(activeProject, {
+            project: activeProject,
+            reqId,
+            seedText: text,
+            flow: intent.flow,
+            domain: intent.domain,
+            lastCompleted: "test",
+            updatedAt: new Date().toISOString()
+          });
           markStage(projectRoot, "implementation", "failed", codeBootstrap.reason || "code generation failed");
           appendOrchestrationJournal(projectRoot, "stage.implementation.failed", codeBootstrap.reason || "code generation failed");
           writeRunStatus(projectRoot, {
@@ -2139,6 +2147,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           stages: loadStageSnapshot(projectRoot).stages,
           blockers: []
         });
+        clearCheckpoint(activeProject);
         console.log(`Autopilot completed successfully for ${reqId}.`);
         console.log(`Artifacts finalized at: ${finished.doneDir}`);
         return;

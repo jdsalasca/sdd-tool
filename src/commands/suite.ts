@@ -32,6 +32,8 @@ type CampaignPolicy = {
   stallCycles: number;
 };
 
+type ProviderIssueType = "none" | "unusable" | "quota";
+
 function clampInt(input: number, fallback: number, min: number, max: number): number {
   if (!Number.isFinite(input)) {
     return fallback;
@@ -311,6 +313,12 @@ function qualityHintsFromDiagnostics(diagnostics: string[]): string[] {
         hints.add(`Install/configure module ${mod} or remove stale import usage.`);
       }
     }
+    if (lower.includes("provider response unusable") || lower.includes("did not return valid files")) {
+      hints.add("Provider output contract failed. Return strict JSON files payload only and keep response concise.");
+    }
+    if (lower.includes("ready for your command") || lower.includes("empty output")) {
+      hints.add("Provider non-delivery detected. Retry with compact prompt and strict JSON-only contract.");
+    }
   }
   return [...hints].slice(0, 8);
 }
@@ -363,13 +371,19 @@ function loadModelFallbacks(baseModel?: string): string[] {
   return parsed.length > 0 ? parsed : [baseModel?.trim() || "gemini-2.5-flash-lite"];
 }
 
-function detectProviderQuotaIssue(projectName?: string): boolean {
+function detectProviderIssueType(projectName?: string): ProviderIssueType {
   const projectRoot = resolveProjectRoot(projectName);
   if (!projectRoot) {
-    return false;
+    return "none";
   }
+  const isQuotaLike = (value: string) => /quota|capacity|terminalquotaerror|429/i.test(value);
+  const isUnusableLike = (value: string) =>
+    /provider response unusable|provider did not return valid files|no template fallback was applied|ready for your command|empty output/i.test(
+      value
+    );
   const debugMeta = path.join(projectRoot, "debug", "provider-prompts.metadata.jsonl");
   const providerDebug = path.join(projectRoot, "generated-app", "provider-debug.md");
+  const runStatus = path.join(projectRoot, "sdd-run-status.json");
   try {
     if (fs.existsSync(debugMeta)) {
       const lines = fs
@@ -377,21 +391,35 @@ function detectProviderQuotaIssue(projectName?: string): boolean {
         .split(/\r?\n/)
         .filter(Boolean)
         .slice(-40);
-      const hasQuota = lines.some((line) => /quota|capacity|terminalquotaerror|429/i.test(line));
-      if (hasQuota) {
-        return true;
+      if (lines.some((line) => isQuotaLike(line))) {
+        return "quota";
+      }
+      if (lines.some((line) => isUnusableLike(line))) {
+        return "unusable";
       }
     }
     if (fs.existsSync(providerDebug)) {
       const text = fs.readFileSync(providerDebug, "utf-8");
-      if (/quota|capacity|terminalquotaerror|429/i.test(text)) {
-        return true;
+      if (isQuotaLike(text)) {
+        return "quota";
+      }
+      if (isUnusableLike(text)) {
+        return "unusable";
+      }
+    }
+    if (fs.existsSync(runStatus)) {
+      const statusRaw = fs.readFileSync(runStatus, "utf-8");
+      if (isQuotaLike(statusRaw)) {
+        return "quota";
+      }
+      if (isUnusableLike(statusRaw)) {
+        return "unusable";
       }
     }
   } catch {
-    return false;
+    return "none";
   }
-  return false;
+  return "none";
 }
 
 function inferAppType(text: string): SuiteContext["appType"] | undefined {
@@ -572,15 +600,23 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       appendCampaignJournal(feedbackRoot, "campaign.quality.feedback", qualityFeedback.join(" | "));
     }
     lastProject = getFlags().project ?? lastProject;
-    if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && detectProviderQuotaIssue(lastProject)) {
+    const providerIssue = (baseFlags.provider ?? "").toLowerCase() === "gemini" ? detectProviderIssueType(lastProject) : "none";
+    if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && providerIssue !== "none") {
       providerFailureStreak += 1;
       const previousModel = model;
       modelCursor = (modelCursor + 1) % fallbackModels.length;
       model = fallbackModels[modelCursor];
-      console.log(`Suite provider recovery: detected quota/capacity issue. Switching model ${previousModel} -> ${model}.`);
+      const issueLabel = providerIssue === "quota" ? "quota/capacity" : "non-delivery/unusable output";
+      console.log(`Suite provider recovery: detected ${issueLabel}. Switching model ${previousModel} -> ${model}.`);
+      if (providerIssue === "unusable") {
+        cycleInput = normalizeCampaignInput(cycleInput, [
+          "Provider recovery mode: return strict JSON only with files payload and no markdown.",
+          "Keep output concise and ensure files include runnable code, tests, and required delivery docs."
+        ]);
+      }
       const quotaRoot = resolveProjectRoot(lastProject);
       if (quotaRoot) {
-        appendCampaignJournal(quotaRoot, "campaign.provider.recovery", `quota detected; model ${previousModel} -> ${model}`);
+        appendCampaignJournal(quotaRoot, "campaign.provider.recovery", `${issueLabel} detected; model ${previousModel} -> ${model}`);
         writeCampaignState(quotaRoot, {
           cycle,
           elapsedMinutes,
@@ -596,7 +632,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
           running: true,
           suitePid: process.pid,
           phase: "provider_quota_recovery",
-          lastError: `quota/capacity issue detected for ${previousModel}; switched to ${model}`
+          lastError: `${issueLabel} detected for ${previousModel}; switched to ${model}`
         });
       }
       if (providerFailureStreak >= Math.max(3, fallbackModels.length)) {
@@ -780,5 +816,6 @@ export const __internal = {
   resolveCampaignPolicy,
   parseTargetStage,
   chooseResumeStep,
-  stageRank
+  stageRank,
+  detectProviderIssueType
 };

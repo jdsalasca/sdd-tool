@@ -96,3 +96,37 @@ test("suite campaign stage rank reflects passed stage progression", () => {
   setFlags({ output: workspaceRoot, project: projectName });
   assert.equal(__internal.stageRank(projectName), 3);
 });
+
+test("suite provider issue detection identifies unusable provider output", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-suite-provider-unusable-"));
+  const projectName = "ProviderUnusableProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  fs.mkdirSync(projectRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, "sdd-run-status.json"),
+    JSON.stringify(
+      {
+        blockers: ["provider response unusable (see generated-app/provider-debug.md)"]
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+  setFlags({ output: workspaceRoot, project: projectName });
+  assert.equal(__internal.detectProviderIssueType(projectName), "unusable");
+});
+
+test("suite provider issue detection prioritizes quota/capacity failures", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-suite-provider-quota-"));
+  const projectName = "ProviderQuotaProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  fs.mkdirSync(path.join(projectRoot, "generated-app"), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, "generated-app", "provider-debug.md"),
+    "# Provider Debug\n\nTerminalQuotaError: exhausted your capacity",
+    "utf-8"
+  );
+  setFlags({ output: workspaceRoot, project: projectName });
+  assert.equal(__internal.detectProviderIssueType(projectName), "quota");
+});
