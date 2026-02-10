@@ -99,6 +99,16 @@ Projects are created under your workspace root:
 - `<workspace>/<project>/generated-app/...`
 - `<workspace>/<project>/decision-log/...`
 
+## Monitoring Artifacts
+
+Each run writes machine-readable status files for external monitors:
+
+- `<workspace>/<project>/sdd-run-status.json` (current stage, blockers, recovery command)
+- `<workspace>/<project>/.sdd-stage-state.json` (stage machine states/history)
+- `<workspace>/<project>/suite-campaign-state.json` (campaign cycle/runtime state)
+- `<workspace>/<project>/generated-app/deploy/lifecycle-report.json` (quality gate results)
+- `<workspace>/<project>/generated-app/deploy/lifecycle-report.md` (human-readable report)
+
 ## Release and Docs
 
 - Changelog: `docs/CHANGELOG.md`

@@ -324,12 +324,29 @@ function askProviderForJson(
   prompt: string,
   debug?: { attempts: string[]; errors: string[] }
 ): Record<string, unknown> | null {
+  const looksLikeRefusal = (raw: string): boolean => {
+    const lower = raw.toLowerCase();
+    return (
+      lower.includes("cannot directly create or modify files") ||
+      lower.includes("can't directly create or modify files") ||
+      lower.includes("cannot create files directly") ||
+      lower.includes("you can create them manually") ||
+      lower.includes("i can provide the content") ||
+      lower.includes("i cannot fulfill the request to generate the project files directly")
+    );
+  };
   const first = providerExec(prompt);
   if (debug) {
     debug.attempts.push(first.output?.slice(0, 1000) ?? "");
     if (first.error) debug.errors.push(first.error);
   }
   if (!first.ok) {
+    return null;
+  }
+  if (looksLikeRefusal(first.output ?? "")) {
+    if (debug) {
+      debug.errors.push("provider_refused_file_generation");
+    }
     return null;
   }
   const parsed = extractJsonObject(first.output);
@@ -352,6 +369,12 @@ function askProviderForJson(
     if (second.error) debug.errors.push(second.error);
   }
   if (!second.ok) {
+    return null;
+  }
+  if (looksLikeRefusal(second.output ?? "")) {
+    if (debug) {
+      debug.errors.push("provider_refused_file_generation");
+    }
     return null;
   }
   const repaired = extractJsonObject(second.output);

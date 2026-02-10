@@ -1564,6 +1564,7 @@ export function runAppLifecycle(projectRoot: string, projectName: string, contex
   summary.push(`${publish.ok ? "OK" : "SKIP"}: ${publish.command} ${publish.output ? `(${publish.output})` : ""}`.trim());
 
   const reportPath = path.join(appDir, "deploy", "lifecycle-report.md");
+  const reportJsonPath = path.join(appDir, "deploy", "lifecycle-report.json");
   const reportLines = [
     "# Lifecycle Report",
     "",
@@ -1572,6 +1573,28 @@ export function runAppLifecycle(projectRoot: string, projectName: string, contex
     ...summary.map((line) => `- ${line}`)
   ];
   fs.writeFileSync(reportPath, `${reportLines.join("\n")}\n`, "utf-8");
+  fs.writeFileSync(
+    reportJsonPath,
+    JSON.stringify(
+      {
+        at: new Date().toISOString(),
+        qualityPassed,
+        deployPrepared: deploy.ok,
+        gitPrepared: git.ok,
+        githubPublished: publish.ok,
+        qualityDiagnostics,
+        steps: qualitySteps.map((step) => ({
+          ok: step.ok,
+          command: step.command,
+          output: step.output.slice(0, 1200)
+        })),
+        summary
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
 
   return {
     qualityPassed,

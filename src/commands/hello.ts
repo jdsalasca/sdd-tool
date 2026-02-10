@@ -152,6 +152,92 @@ function appendOrchestrationJournal(projectRoot: string, event: string, details?
   }
 }
 
+type RunStatusSnapshot = {
+  at: string;
+  project?: string;
+  reqId?: string;
+  intent?: string;
+  flow?: string;
+  domain?: string;
+  provider?: string;
+  model?: string;
+  step?: string;
+  stageCurrent?: string;
+  stages?: Record<string, string>;
+  lifecycle?: {
+    passed?: boolean;
+    diagnostics?: string[];
+  };
+  review?: {
+    approved?: boolean;
+    score?: number;
+    threshold?: number;
+  };
+  release?: {
+    candidate?: string;
+    final?: string;
+    published?: boolean;
+  };
+  runtime?: {
+    started?: boolean;
+    summary?: string;
+  };
+  blockers?: string[];
+  recovery?: {
+    fromStep?: string;
+    hint?: string;
+    command?: string;
+  };
+};
+
+function readRunStatus(projectRoot: string): RunStatusSnapshot {
+  try {
+    const file = path.join(projectRoot, "sdd-run-status.json");
+    if (!fs.existsSync(file)) {
+      return { at: new Date().toISOString() };
+    }
+    const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as RunStatusSnapshot;
+    return parsed && typeof parsed === "object" ? parsed : { at: new Date().toISOString() };
+  } catch {
+    return { at: new Date().toISOString() };
+  }
+}
+
+function writeRunStatus(projectRoot: string, patch: Partial<RunStatusSnapshot>): void {
+  try {
+    fs.mkdirSync(projectRoot, { recursive: true });
+    const current = readRunStatus(projectRoot);
+    const next: RunStatusSnapshot = {
+      ...current,
+      ...patch,
+      at: new Date().toISOString(),
+      lifecycle: {
+        ...(current.lifecycle ?? {}),
+        ...(patch.lifecycle ?? {})
+      },
+      review: {
+        ...(current.review ?? {}),
+        ...(patch.review ?? {})
+      },
+      release: {
+        ...(current.release ?? {}),
+        ...(patch.release ?? {})
+      },
+      runtime: {
+        ...(current.runtime ?? {}),
+        ...(patch.runtime ?? {})
+      },
+      recovery: {
+        ...(current.recovery ?? {}),
+        ...(patch.recovery ?? {})
+      }
+    };
+    fs.writeFileSync(path.join(projectRoot, "sdd-run-status.json"), JSON.stringify(next, null, 2), "utf-8");
+  } catch {
+    // best effort
+  }
+}
+
 function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
   const hints = new Set<string>();
   for (const line of diagnostics) {
@@ -463,6 +549,18 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         "run.timeout",
         `reqId=${reqId}; lastCompleted=${lastCompleted}; runtimeLimitMinutes=${maxRuntimeMinutes}`
       );
+      writeRunStatus(timedOutProjectRoot, {
+        reqId,
+        step: lastCompleted,
+        stageCurrent: "quality_validation",
+        stages: loadStageSnapshot(timedOutProjectRoot).stages,
+        blockers: [`Max runtime exceeded (${maxRuntimeMinutes} min)`],
+        recovery: {
+          fromStep: nextStep(lastCompleted) ?? "finish",
+          hint,
+          command: `sdd-cli --project "${activeProject}" --from-step ${nextStep(lastCompleted) ?? "finish"} hello "${hint}"`
+        }
+      });
       saveCheckpoint(activeProject, {
         project: activeProject,
         reqId,
@@ -691,6 +789,23 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     process.env.SDD_PROMPT_DEBUG_FILE = promptDebugPath;
     printWhy(`Provider prompt debug: ${promptDebugPath}`);
     appendOrchestrationJournal(projectRoot, "run.started", `intent=${intent.intent}; flow=${intent.flow}; provider=${provider}`);
+    writeRunStatus(projectRoot, {
+      project: activeProject,
+      reqId: reqId || undefined,
+      intent: intent.intent,
+      flow: intent.flow,
+      domain: intent.domain,
+      provider: provider || "gemini",
+      model: runtimeFlags.model || process.env.SDD_GEMINI_MODEL || "",
+      step: startStep,
+      stageCurrent: "discovery",
+      blockers: [],
+      recovery: {
+        fromStep: startStep,
+        hint: text,
+        command: `sdd-cli --provider ${provider || "gemini"} --project "${activeProject}" --from-step ${startStep} hello "${text}"`
+      }
+    });
     if (startStep !== "create") {
       markStage(projectRoot, "discovery", "passed", "resume prime");
     }
@@ -702,6 +817,11 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     }
     markStage(projectRoot, "discovery", "passed", `Intent classified as ${intent.intent}/${intent.flow}`);
     appendOrchestrationJournal(projectRoot, "stage.discovery.passed", `${intent.intent}/${intent.flow}`);
+    writeRunStatus(projectRoot, {
+      step: startStep,
+      stageCurrent: "functional_requirements",
+      stages: loadStageSnapshot(projectRoot).stages
+    });
     for (let i = stepIndex; i < AUTOPILOT_STEPS.length; i += 1) {
       const step = AUTOPILOT_STEPS[i];
       const resumeBase = step === "create" ? "create" : (AUTOPILOT_STEPS[Math.max(0, i - 1)] as AutopilotStep);
@@ -721,6 +841,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         reqId = created.reqId;
         markStage(projectRoot, "functional_requirements", "passed", `reqId=${reqId}`);
         appendOrchestrationJournal(projectRoot, "stage.functional_requirements.passed", `reqId=${reqId}`);
+        writeRunStatus(projectRoot, {
+          reqId,
+          step: "create",
+          stageCurrent: "technical_backlog",
+          stages: loadStageSnapshot(projectRoot).stages
+        });
       }
 
       if (step === "plan") {
@@ -740,6 +866,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         markStage(projectRoot, "technical_backlog", "passed", `planned reqId=${reqId}`);
         appendOrchestrationJournal(projectRoot, "stage.technical_backlog.passed", `planned reqId=${reqId}`);
+        writeRunStatus(projectRoot, {
+          reqId,
+          step: "plan",
+          stageCurrent: "technical_backlog",
+          stages: loadStageSnapshot(projectRoot).stages
+        });
       }
 
       if (step === "start") {
@@ -759,6 +891,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         markStage(projectRoot, "technical_backlog", "passed", `start phase completed reqId=${reqId}`);
         appendOrchestrationJournal(projectRoot, "stage.technical_backlog.passed", `start reqId=${reqId}`);
+        writeRunStatus(projectRoot, {
+          reqId,
+          step: "start",
+          stageCurrent: "technical_backlog",
+          stages: loadStageSnapshot(projectRoot).stages
+        });
       }
 
       if (step === "test") {
@@ -778,6 +916,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         markStage(projectRoot, "technical_backlog", "passed", `test plan updated reqId=${reqId}`);
         appendOrchestrationJournal(projectRoot, "stage.technical_backlog.passed", `test plan reqId=${reqId}`);
+        writeRunStatus(projectRoot, {
+          reqId,
+          step: "test",
+          stageCurrent: "implementation",
+          stages: loadStageSnapshot(projectRoot).stages
+        });
       }
 
       if (step === "finish") {
@@ -799,6 +943,17 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         const resolvedProjectRoot = path.resolve(finished.doneDir, "..", "..", "..");
         if (resolvedProjectRoot !== projectRoot) {
           markStage(projectRoot, "implementation", "failed", "Project root mismatch after finish stage.");
+          writeRunStatus(projectRoot, {
+            step: "finish",
+            stageCurrent: "implementation",
+            stages: loadStageSnapshot(projectRoot).stages,
+            blockers: ["Project root mismatch after finish stage."],
+            recovery: {
+              fromStep: "finish",
+              hint: text,
+              command: `sdd-cli --provider ${provider || "gemini"} --project "${activeProject}" --from-step finish hello "${text}"`
+            }
+          });
           printError("SDD-1014", "Project root mismatch detected during stage transition.");
           return;
         }
@@ -812,6 +967,17 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         if (!codeBootstrap.generated) {
           markStage(projectRoot, "implementation", "failed", codeBootstrap.reason || "code generation failed");
           appendOrchestrationJournal(projectRoot, "stage.implementation.failed", codeBootstrap.reason || "code generation failed");
+          writeRunStatus(projectRoot, {
+            step: "finish",
+            stageCurrent: "implementation",
+            stages: loadStageSnapshot(projectRoot).stages,
+            blockers: [codeBootstrap.reason || "code generation failed"],
+            recovery: {
+              fromStep: "finish",
+              hint: text,
+              command: `sdd-cli --provider ${provider || "gemini"} --project "${activeProject}" --from-step finish hello "${text}"`
+            }
+          });
           printWhy(`Code generation blocked: ${codeBootstrap.reason || "provider did not return valid files"}.`);
           printWhy("No template fallback was applied. Re-run with clearer prompt or improve provider response contract.");
           printRecoveryNext(activeProject, "finish", text);
@@ -819,6 +985,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         markStage(projectRoot, "implementation", "passed", `generated files=${codeBootstrap.fileCount}`);
         appendOrchestrationJournal(projectRoot, "stage.implementation.passed", `files=${codeBootstrap.fileCount}`);
+        writeRunStatus(projectRoot, {
+          step: "finish",
+          stageCurrent: "quality_validation",
+          stages: loadStageSnapshot(projectRoot).stages,
+          blockers: []
+        });
         printWhy(`Code scaffold ready at: ${codeBootstrap.outputDir} (${codeBootstrap.fileCount} files)`);
         persistAgentsSnapshot(codeBootstrap.outputDir);
         if (codeBootstrap.reason) {
@@ -839,6 +1011,15 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           deferPublishUntilReview: digitalReviewExpected
         });
         lifecycle.summary.forEach((line) => printWhy(`Lifecycle: ${line}`));
+        writeRunStatus(projectRoot, {
+          stageCurrent: "quality_validation",
+          stages: loadStageSnapshot(projectRoot).stages,
+          lifecycle: {
+            passed: lifecycle.qualityPassed,
+            diagnostics: lifecycle.qualityDiagnostics.slice(0, 8)
+          },
+          blockers: lifecycle.qualityPassed ? [] : lifecycle.qualityDiagnostics.slice(0, 8)
+        });
         const lifecycleDisabled = process.env.SDD_DISABLE_APP_LIFECYCLE === "1";
           if (!lifecycleDisabled && !lifecycle.qualityPassed) {
           const appDir = path.join(projectRoot, "generated-app");
@@ -875,12 +1056,35 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           if (!lifecycle.qualityPassed) {
             markStage(projectRoot, "quality_validation", "failed", lifecycle.qualityDiagnostics.slice(0, 4).join(" | "));
             appendOrchestrationJournal(projectRoot, "stage.quality_validation.failed", lifecycle.qualityDiagnostics.slice(0, 2).join(" | "));
+            writeRunStatus(projectRoot, {
+              stageCurrent: "quality_validation",
+              stages: loadStageSnapshot(projectRoot).stages,
+              lifecycle: {
+                passed: false,
+                diagnostics: lifecycle.qualityDiagnostics.slice(0, 12)
+              },
+              blockers: lifecycle.qualityDiagnostics.slice(0, 12),
+              recovery: {
+                fromStep: "finish",
+                hint: "continue improving quality",
+                command: `sdd-cli --provider ${provider || "gemini"} --project "${activeProject}" --from-step finish hello "continue improving quality and fix all failing lifecycle gates"`
+              }
+            });
             printWhy("Quality still failing after AI repair attempts. Stopping without template fallback.");
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
           markStage(projectRoot, "quality_validation", "passed", "Lifecycle quality checks passed after repair loop.");
           appendOrchestrationJournal(projectRoot, "stage.quality_validation.passed", "repair loop passed");
+          writeRunStatus(projectRoot, {
+            stageCurrent: "role_review",
+            stages: loadStageSnapshot(projectRoot).stages,
+            lifecycle: {
+              passed: true,
+              diagnostics: []
+            },
+            blockers: []
+          });
         }
         const digitalReviewDisabled =
           lifecycleDisabled || process.env.SDD_DISABLE_AI_AUTOPILOT === "1" || process.env.SDD_DISABLE_DIGITAL_REVIEW === "1";
@@ -962,11 +1166,31 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               );
             } else if (review.passed) {
               printWhy(`Iteration ${round}: digital reviewers approved (${review.summary}).`);
+              writeRunStatus(projectRoot, {
+                stageCurrent: "role_review",
+                stages: loadStageSnapshot(projectRoot).stages,
+                review: {
+                  approved: true,
+                  score: review.score,
+                  threshold: review.threshold
+                },
+                blockers: []
+              });
               deliveryApproved = true;
               break;
             } else {
               printWhy(`Iteration ${round}: reviewers requested improvements (${review.summary}).`);
               review.diagnostics.forEach((issue) => printWhy(`Reviewer issue: ${issue}`));
+              writeRunStatus(projectRoot, {
+                stageCurrent: "role_review",
+                stages: loadStageSnapshot(projectRoot).stages,
+                review: {
+                  approved: false,
+                  score: review.score,
+                  threshold: review.threshold
+                },
+                blockers: review.diagnostics.slice(0, 10)
+              });
             }
 
             const repair = improveGeneratedApp(
@@ -1103,12 +1327,33 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           if (!deliveryApproved) {
             markStage(projectRoot, "role_review", "failed", "Digital reviewers did not approve within configured iterations.");
             appendOrchestrationJournal(projectRoot, "stage.role_review.failed", "not approved in configured iterations");
+            writeRunStatus(projectRoot, {
+              stageCurrent: "role_review",
+              stages: loadStageSnapshot(projectRoot).stages,
+              review: {
+                approved: false
+              },
+              blockers: ["Digital reviewers did not approve within configured iterations."],
+              recovery: {
+                fromStep: "finish",
+                hint: "implement reviewer findings and quality gaps",
+                command: `sdd-cli --provider ${provider || "gemini"} --project "${activeProject}" --from-step finish hello "implement reviewer findings and close all quality gaps"`
+              }
+            });
             printWhy("Digital-review quality bar not met after configured iterations.");
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
           markStage(projectRoot, "role_review", "passed", "Digital reviewers approved delivery.");
           appendOrchestrationJournal(projectRoot, "stage.role_review.passed", "digital reviewers approved");
+          writeRunStatus(projectRoot, {
+            stageCurrent: "quality_validation",
+            stages: loadStageSnapshot(projectRoot).stages,
+            review: {
+              approved: true
+            },
+            blockers: []
+          });
           const finalLifecycle = runAppLifecycle(projectRoot, activeProject, {
             goalText: text,
             intentSignals: intent.signals,
@@ -1120,6 +1365,15 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           if (!finalLifecycle.qualityPassed) {
             markStage(projectRoot, "quality_validation", "failed", finalLifecycle.qualityDiagnostics.slice(0, 4).join(" | "));
             appendOrchestrationJournal(projectRoot, "stage.quality_validation.failed", "final lifecycle verification failed");
+            writeRunStatus(projectRoot, {
+              stageCurrent: "quality_validation",
+              stages: loadStageSnapshot(projectRoot).stages,
+              lifecycle: {
+                passed: false,
+                diagnostics: finalLifecycle.qualityDiagnostics.slice(0, 12)
+              },
+              blockers: finalLifecycle.qualityDiagnostics.slice(0, 12)
+            });
             printWhy("Final lifecycle verification failed after digital approval. Delivery blocked until all quality checks pass.");
             finalLifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Final quality issue: ${issue}`));
             printRecoveryNext(activeProject, "finish", text);
@@ -1127,6 +1381,15 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           }
           markStage(projectRoot, "quality_validation", "passed", "Final lifecycle verification passed.");
           appendOrchestrationJournal(projectRoot, "stage.quality_validation.passed", "final lifecycle verification passed");
+          writeRunStatus(projectRoot, {
+            stageCurrent: "final_release",
+            stages: loadStageSnapshot(projectRoot).stages,
+            lifecycle: {
+              passed: true,
+              diagnostics: []
+            },
+            blockers: []
+          });
           const publish = publishGeneratedApp(projectRoot, activeProject, {
             goalText: text,
             intentSignals: intent.signals,
@@ -1155,12 +1418,30 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             `${finalRelease.version}: ${finalRelease.summary}`
           );
           appendOrchestrationJournal(projectRoot, "stage.final_release", `${finalRelease.version}: ${finalRelease.summary}`);
+          writeRunStatus(projectRoot, {
+            stageCurrent: "runtime_start",
+            stages: loadStageSnapshot(projectRoot).stages,
+            release: {
+              final: finalRelease.version,
+              published: publish.published
+            },
+            blockers: finalRelease.created ? [] : [finalRelease.summary]
+          });
           const runtime = gitPolicy.run_after_finalize
             ? startGeneratedApp(projectRoot, activeProject)
             : { started: false, processes: [], summary: "runtime auto-start disabled by config" };
           printWhy(`Runtime start: ${runtime.summary}`);
           markStage(projectRoot, "runtime_start", runtime.started ? "passed" : "failed", runtime.summary);
           appendOrchestrationJournal(projectRoot, "stage.runtime_start", runtime.summary);
+          writeRunStatus(projectRoot, {
+            stageCurrent: "runtime_start",
+            stages: loadStageSnapshot(projectRoot).stages,
+            runtime: {
+              started: runtime.started,
+              summary: runtime.summary
+            },
+            blockers: runtime.started ? [] : [runtime.summary]
+          });
           appendIterationMetric(path.join(projectRoot, "generated-app"), {
             at: new Date().toISOString(),
             round: Math.max(iterations, 1),
@@ -1177,6 +1458,13 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         recordActivationMetric("completed", {
           project: activeProject,
           reqId
+        });
+        writeRunStatus(projectRoot, {
+          reqId,
+          step: "finish",
+          stageCurrent: "runtime_start",
+          stages: loadStageSnapshot(projectRoot).stages,
+          blockers: []
         });
         console.log(`Autopilot completed successfully for ${reqId}.`);
         console.log(`Artifacts finalized at: ${finished.doneDir}`);
