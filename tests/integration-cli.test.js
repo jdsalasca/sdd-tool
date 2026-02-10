@@ -135,7 +135,7 @@ function writeFakeCommand(binDir, name, body) {
   return scriptPath;
 }
 
-test("req finish rolls back directory move when post-move step fails", () => {
+test("req finish archives decision-log even when archive path already exists", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-finish-"));
   const projectName = "RollbackProject";
   const projectRoot = path.join(workspaceRoot, projectName);
@@ -152,9 +152,12 @@ test("req finish rolls back directory move when post-move step fails", () => {
   const result = runCli(workspaceRoot, projectName, ["req", "finish"], `${reqId}\noverview\nrun\narch\ntest\n`);
 
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /Failed to finish requirement/i);
-  assert.equal(fs.existsSync(sourceDir), true);
-  assert.equal(fs.existsSync(path.join(projectRoot, "requirements", "done", reqId)), false);
+  assert.match(result.stdout, /Moved requirement to/i);
+  assert.equal(fs.existsSync(sourceDir), false);
+  assert.equal(fs.existsSync(path.join(projectRoot, "requirements", "done", reqId)), true);
+  const archivesRoot = path.join(projectRoot, "decision-log");
+  const archives = fs.readdirSync(archivesRoot).filter((entry) => entry.startsWith(reqId));
+  assert.ok(archives.length >= 1);
 });
 
 test("req report validates project readme from project root", () => {

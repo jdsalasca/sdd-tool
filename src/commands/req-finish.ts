@@ -35,6 +35,14 @@ function moveDirWithFallback(sourceDir: string, targetDir: string): { ok: boolea
   }
 }
 
+function resolveArchiveDir(baseDir: string): string {
+  if (!fs.existsSync(baseDir)) {
+    return baseDir;
+  }
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `${baseDir}-${stamp}`;
+}
+
 export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinishResult | null> {
   const auto = Boolean(options?.autofill);
   const projectName = options?.projectName ?? (await askProjectName());
@@ -150,9 +158,13 @@ export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinis
 
     const decisionLog = path.join(doneDir, "decision-log");
     if (fs.existsSync(decisionLog)) {
-      const archiveRoot = path.join(projectRoot, "decision-log", reqId);
-      fs.mkdirSync(path.dirname(archiveRoot), { recursive: true });
-      fs.renameSync(decisionLog, archiveRoot);
+      const archiveBase = path.join(projectRoot, "decision-log", reqId);
+      const archiveTarget = resolveArchiveDir(archiveBase);
+      fs.mkdirSync(path.dirname(archiveTarget), { recursive: true });
+      const archived = moveDirWithFallback(decisionLog, archiveTarget);
+      if (!archived.ok) {
+        printError("SDD-1236", `Warning: decision-log archive skipped (${archived.error || "unknown error"}).`);
+      }
     }
     const progressLog = path.join(doneDir, "progress-log.md");
     if (!fs.existsSync(progressLog)) {
