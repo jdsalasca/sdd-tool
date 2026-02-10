@@ -493,6 +493,32 @@ function normalizeCampaignInput(baseInput: string, additions: string[]): string 
   return normalized.length > maxChars ? `${normalized.slice(0, maxChars)}...[truncated]` : normalized;
 }
 
+function deriveCanonicalGoal(input: string): string {
+  const compact = String(input || "").replace(/\s+/g, " ").trim();
+  if (!compact) return "";
+  const segments = compact
+    .split(/[.!?]/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((segment) => {
+      const lower = segment.toLowerCase();
+      if (lower.startsWith("build target:")) return false;
+      if (lower.startsWith("preferred stack:")) return false;
+      if (lower.startsWith("finish complete delivery")) return false;
+      if (lower.includes("continue from the current project state")) return false;
+      return true;
+    });
+  const joined = segments.slice(0, 2).join(". ").trim();
+  const maxChars = 220;
+  return joined.length > maxChars ? joined.slice(0, maxChars) : joined;
+}
+
+function composeCampaignInput(goalAnchor: string, baseInput: string, additions: string[]): string {
+  const anchor = goalAnchor ? `Primary product objective (do not drift): ${goalAnchor}` : "";
+  const seeded = anchor ? `${anchor}. ${baseInput}` : baseInput;
+  return normalizeCampaignInput(seeded, additions);
+}
+
 function readJsonFile<T>(file: string): T | null {
   try {
     if (!fs.existsSync(file)) {
@@ -866,11 +892,12 @@ function enrichIntent(intent: string, context: SuiteContext): string {
   return `${intent}. Build target: ${context.appType}. Preferred stack: ${context.stack}. Finish complete delivery including tests and deployment notes.`;
 }
 
-async function runCampaign(input: string, options?: SuiteRunOptions): Promise<void> {
+async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoalAnchor?: string): Promise<void> {
   const policy = resolveCampaignPolicy(options);
   const startedAt = Date.now();
   const baseFlags = getFlags();
   const baseIterations = Math.max(1, Math.min(10, baseFlags.iterations || 2));
+  const goalAnchor = deriveCanonicalGoal(explicitGoalAnchor || input);
   const qualityRetryPrompt =
     "Continue from the current project state, fix all quality failures, improve architecture/docs/tests, and only deliver production-grade changes.";
   const config = ensureConfig();
@@ -887,7 +914,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
 
   let cycle = 0;
   let lastProject = baseFlags.project;
-  let cycleInput = normalizeCampaignInput(input, []);
+  let cycleInput = composeCampaignInput(goalAnchor, input, []);
   let previousRank = 0;
   let stalledCycles = 0;
   let providerFailureStreak = 0;
@@ -921,7 +948,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     previousRank = rankBefore;
     if (stalledCycles >= policy.stallCycles) {
       nextFromStep = "create";
-      cycleInput = normalizeCampaignInput(input, [
+      cycleInput = composeCampaignInput(goalAnchor, input, [
         "Force deep recovery: rebuild from a clean requirement and regenerate production-ready project structure."
       ]);
       if (lastProject) {
@@ -999,7 +1026,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     }
     const qualityFeedback = collectQualityFeedback(lastProject);
     const reqFeedback = requirementQualityFeedback(lastProject);
-    cycleInput = normalizeCampaignInput(input, [qualityRetryPrompt, ...qualityFeedback, ...reqFeedback]);
+    cycleInput = composeCampaignInput(goalAnchor, input, [qualityRetryPrompt, ...qualityFeedback, ...reqFeedback]);
     const feedbackRoot = resolveProjectRoot(lastProject);
     if (feedbackRoot && (qualityFeedback.length > 0 || reqFeedback.length > 0)) {
       if (qualityFeedback.length > 0) {
@@ -1019,7 +1046,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       recoveryTier = resolveRecoveryTier(blockingFailureStreak, stalledCycles);
       const plan = buildRecoveryPlan(recoveryTier, blockingSignals);
       if (plan.additions.length > 0) {
-        cycleInput = normalizeCampaignInput(cycleInput, plan.additions);
+        cycleInput = composeCampaignInput(goalAnchor, cycleInput, plan.additions);
       }
       if (plan.enableCompactMode && !process.env.SDD_GEMINI_PROMPT_MAX_CHARS) {
         process.env.SDD_GEMINI_PROMPT_MAX_CHARS = "4200";
@@ -1058,7 +1085,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
             : "non-delivery/unusable output";
       if (providerIssue === "command_too_long") {
         process.env.SDD_GEMINI_PROMPT_MAX_CHARS = "2200";
-        cycleInput = normalizeCampaignInput(cycleInput, [
+        cycleInput = composeCampaignInput(goalAnchor, cycleInput, [
           "Provider command-length recovery mode: keep prompts compact and return only minimal JSON file patches.",
           "Avoid large payload transformations; prioritize small high-impact edits."
         ]);
@@ -1069,7 +1096,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
         console.log(`Suite provider recovery: detected ${issueLabel}. Switching model ${previousModel} -> ${model}.`);
       }
       if (providerIssue === "unusable") {
-        cycleInput = normalizeCampaignInput(cycleInput, [
+        cycleInput = composeCampaignInput(goalAnchor, cycleInput, [
           "Provider recovery mode: return strict JSON only with files payload and no markdown.",
           "Keep output concise and ensure files include runnable code, tests, and required delivery docs."
         ]);
@@ -1077,7 +1104,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       if (providerFailureStreak >= 2) {
         const compactChars = providerFailureStreak >= 4 ? "3200" : "4500";
         process.env.SDD_GEMINI_PROMPT_MAX_CHARS = compactChars;
-        cycleInput = normalizeCampaignInput(cycleInput, [
+        cycleInput = composeCampaignInput(goalAnchor, cycleInput, [
           "Compact recovery mode active: concise production edits only, avoid oversized responses."
         ]);
         console.log(`Suite provider recovery: compact prompt mode enabled (max ${compactChars} chars).`);
@@ -1234,7 +1261,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     if (!qualityPassed) {
       qualityFailureStreak += 1;
       if (qualityFailureStreak >= 2) {
-        cycleInput = normalizeCampaignInput(cycleInput, [
+        cycleInput = composeCampaignInput(goalAnchor, cycleInput, [
           "Quality escalation mode: resolve failing lifecycle gates first (lint/test/build/smoke), then enforce docs/architecture/review artifacts."
         ]);
       }
@@ -1355,7 +1382,7 @@ export async function runSuite(initialInput?: string, options?: SuiteRunOptions)
       }
       const context = await resolveBlockers(current);
       const enriched = enrichIntent(current, context);
-      await runCampaign(enriched, options);
+      await runCampaign(enriched, options, current);
       console.log("Suite task completed. Enter next instruction or 'exit'.");
       current = "";
     }

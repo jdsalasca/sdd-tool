@@ -1049,7 +1049,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   function loadWorkspace() {
     const workspace = getWorkspaceInfo();
     ensureWorkspace(workspace);
-    const projects = listProjects(workspace);
+    const projects = listProjects(workspace, { pruneMissing: true });
     return { workspace, projects };
   }
 

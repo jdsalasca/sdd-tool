@@ -26,6 +26,10 @@ export type ProjectInfo = {
   root: string;
 };
 
+type ListProjectsOptions = {
+  pruneMissing?: boolean;
+};
+
 type WorkspaceIndex = {
   projects: Array<{ name: string; status: string }>;
 };
@@ -63,6 +67,23 @@ function readWorkspaceIndex(workspace: WorkspaceInfo): WorkspaceIndex {
     return { projects: [] };
   }
   return { projects: parsed.projects };
+}
+
+function projectExists(workspace: WorkspaceInfo, name: string): boolean {
+  try {
+    const project = getProjectInfo(workspace, name);
+    return fs.existsSync(project.root) && fs.statSync(project.root).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function pruneWorkspaceIndex(workspace: WorkspaceInfo, index: WorkspaceIndex): WorkspaceIndex {
+  const projects = (index.projects ?? [])
+    .filter((entry) => typeof entry?.name === "string" && entry.name.trim().length > 0)
+    .filter((entry) => projectExists(workspace, entry.name))
+    .map((entry) => ({ name: entry.name, status: entry.status || "unknown" }));
+  return { projects };
 }
 
 function sleepSync(ms: number): void {
@@ -192,15 +213,21 @@ export function getProjectInfo(workspace: WorkspaceInfo, name: string): ProjectI
   return { name: normalized, root: projectRoot };
 }
 
-export function listProjects(workspace: WorkspaceInfo): ProjectSummary[] {
+export function listProjects(workspace: WorkspaceInfo, options?: ListProjectsOptions): ProjectSummary[] {
   if (!fs.existsSync(workspace.indexPath)) {
     return [];
   }
-  const parsed = readJsonFile<{ projects?: Array<{ name?: string; status?: string }> }>(workspace.indexPath);
-  return ((parsed?.projects ?? []) as Array<{ name?: string; status?: string }>).map((project) => ({
-    name: project.name ?? "unknown",
-    status: project.status ?? "unknown"
-  }));
+  return withWorkspaceIndexLock(workspace, () => {
+    const shouldPrune = Boolean(options?.pruneMissing);
+    const index = shouldPrune ? pruneWorkspaceIndex(workspace, readWorkspaceIndex(workspace)) : readWorkspaceIndex(workspace);
+    if (shouldPrune) {
+      fs.writeFileSync(workspace.indexPath, JSON.stringify(index, null, 2), "utf-8");
+    }
+    return (index.projects ?? []).map((project) => ({
+      name: project.name ?? "unknown",
+      status: project.status ?? "unknown"
+    }));
+  });
 }
 
 export function ensureProject(workspace: WorkspaceInfo, name: string, domain: string): ProjectMetadata {
@@ -243,7 +270,7 @@ export function ensureProject(workspace: WorkspaceInfo, name: string, domain: st
   }
 
   withWorkspaceIndexLock(workspace, () => {
-    const index = readWorkspaceIndex(workspace);
+    const index = pruneWorkspaceIndex(workspace, readWorkspaceIndex(workspace));
     index.projects = index.projects ?? [];
     const existing = index.projects.find((entry) => entry.name === project.name);
     if (existing) {
@@ -265,7 +292,7 @@ export function updateProjectStatus(workspace: WorkspaceInfo, name: string, stat
   ensureWorkspace(workspace);
   const project = getProjectInfo(workspace, name);
   withWorkspaceIndexLock(workspace, () => {
-    const index = readWorkspaceIndex(workspace);
+    const index = pruneWorkspaceIndex(workspace, readWorkspaceIndex(workspace));
     index.projects = index.projects ?? [];
     const existing = index.projects.find((entry) => entry.name === project.name);
     if (existing) {
