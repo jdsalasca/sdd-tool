@@ -3,6 +3,7 @@ import path from "path";
 import { spawn, spawnSync } from "child_process";
 import { ensureConfig } from "../config";
 import { runSoftwareDiagnosticToolkit } from "../toolkit/software-diagnostic-toolkit";
+import { writeAutonomousFeedbackReport } from "../toolkit/autonomous-feedback-toolkit";
 
 type StepResult = {
   ok: boolean;
@@ -1478,6 +1479,18 @@ function writeReleaseNote(appDir: string, version: string, stage: "candidate" | 
   return file;
 }
 
+function releaseCommitMessage(options: { finalRelease: boolean; version: string; round: number; note: string }): string {
+  const compactNote = String(options.note || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[^a-zA-Z0-9 .,:;()/_-]/g, "");
+  const summary = compactNote.length > 64 ? `${compactNote.slice(0, 64)}...` : compactNote;
+  if (options.finalRelease) {
+    return `release(final): ${options.version} ${summary}`.trim();
+  }
+  return `feat(iteration-${options.round}): ${options.version} ${summary}`.trim();
+}
+
 function appendReleaseHistory(
   appDir: string,
   entry: { version: string; stage: "candidate" | "final"; note: string; pushed: boolean; published: boolean }
@@ -1676,6 +1689,11 @@ export function runAppLifecycle(projectRoot: string, projectName: string, contex
   const qualityDiagnostics = qualitySteps
     .filter((step) => !step.ok)
     .map((step) => `${step.command}: ${step.output || "no output"}`);
+  writeAutonomousFeedbackReport({
+    appDir,
+    phase: "quality_validation",
+    diagnostics: qualityDiagnostics
+  });
   qualitySteps.forEach((step) =>
     summary.push(`${step.ok ? "OK" : "FAIL"}: ${step.command}${step.ok || !step.output ? "" : ` -> ${step.output}`}`)
   );
@@ -1818,7 +1836,13 @@ export function createManagedRelease(
   }
 
   run("git", ["add", "."], appDir);
-  const commit = run("git", ["commit", "-m", `chore(release): ${version}`], appDir);
+  const commitMessage = releaseCommitMessage({
+    finalRelease: options.finalRelease,
+    version,
+    round: options.round,
+    note: options.note
+  });
+  const commit = run("git", ["commit", "-m", commitMessage], appDir);
   if (!commit.ok && !/nothing to commit/i.test(commit.output)) {
     return { created: false, version, summary: `${commit.command}: ${commit.output || "release commit failed"}` };
   }

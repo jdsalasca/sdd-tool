@@ -1908,6 +1908,7 @@ function toolkitContextLinesForGeneration(): string[] {
     "Toolkit context available during lifecycle/runtime validation:",
     "- generated-app/deploy/runtime-visual-probe.json (screenshot analysis with blank/static heuristics).",
     "- generated-app/deploy/software-diagnostic-report.json (functional checks, action timeline, ui labels, blocking issues).",
+    "- generated-app/deploy/autonomous-feedback-report.json (prioritized root-cause actions from failing quality gates).",
     "- generated-app/deploy/runtime-processes.json (runtime process and start metadata).",
     "If runtime visual probe flags blankLikely=true or staticLikely=true, prioritize fixing renderer/main-window bootstrapping, route mounting, and startup scripts."
   ];
@@ -1974,6 +1975,29 @@ function readSoftwareDiagnosticContext(appDir: string): string | null {
           functionalChecks: Array.isArray(parsed.interaction?.functionalChecks) ? parsed.interaction?.functionalChecks.slice(0, 12) : [],
           actionTimeline: Array.isArray(parsed.interaction?.actionTimeline) ? parsed.interaction?.actionTimeline.slice(-12) : []
         }
+      },
+      null,
+      0
+    );
+  } catch {
+    return null;
+  }
+}
+
+function readAutonomousFeedbackContext(appDir: string): string | null {
+  try {
+    const file = path.join(appDir, "deploy", "autonomous-feedback-report.json");
+    if (!fs.existsSync(file)) return null;
+    const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as {
+      summary?: string;
+      rootCauses?: string[];
+      actions?: Array<{ priority?: string; title?: string; rationale?: string; evidence?: string[] }>;
+    };
+    return JSON.stringify(
+      {
+        summary: String(parsed.summary || ""),
+        rootCauses: Array.isArray(parsed.rootCauses) ? parsed.rootCauses.slice(0, 12) : [],
+        actions: Array.isArray(parsed.actions) ? parsed.actions.slice(0, 10) : []
       },
       null,
       0
@@ -2309,6 +2333,7 @@ export function improveGeneratedApp(
   const compactIntent = compactIntentForPrompt(intent, 700);
   const runtimeProbeContext = readRuntimeVisualProbeContext(appDir);
   const softwareDiagnosticContext = readSoftwareDiagnosticContext(appDir);
+  const autonomousFeedbackContext = readAutonomousFeedbackContext(appDir);
   const prompt = clampPromptSize([
     "Improve this generated app to production-grade, release-ready quality.",
     "Do not return prototype or first-draft quality.",
@@ -2335,6 +2360,7 @@ export function improveGeneratedApp(
     `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
     `Runtime visual probe context: ${runtimeProbeContext ?? "not available"}`,
     `Software diagnostic toolkit context: ${softwareDiagnosticContext ?? "not available"}`,
+    `Autonomous feedback context: ${autonomousFeedbackContext ?? "not available"}`,
     `Current file names: ${JSON.stringify(currentFileNames)}`,
     `Sample files JSON: ${JSON.stringify(currentFiles)}`
   ].join("\n"));
@@ -2357,6 +2383,7 @@ export function improveGeneratedApp(
       `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
       `Runtime visual probe context: ${runtimeProbeContext ?? "not available"}`,
       `Software diagnostic toolkit context: ${softwareDiagnosticContext ?? "not available"}`,
+      `Autonomous feedback context: ${autonomousFeedbackContext ?? "not available"}`,
       `Current file names: ${JSON.stringify(currentFileNames)}`
     ].join("\n"));
     parsed = askProviderForJson(providerExec, targetedPrompt, providerDebug);
@@ -2377,6 +2404,7 @@ export function improveGeneratedApp(
       `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`,
       `Runtime visual probe context: ${runtimeProbeContext ?? "not available"}`,
       `Software diagnostic toolkit context: ${softwareDiagnosticContext ?? "not available"}`,
+      `Autonomous feedback context: ${autonomousFeedbackContext ?? "not available"}`,
       `Current file names: ${JSON.stringify(currentFileNames.slice(0, 40))}`
     ].join("\n"));
     parsed = askProviderForJson(providerExec, minimalPrompt, providerDebug);
