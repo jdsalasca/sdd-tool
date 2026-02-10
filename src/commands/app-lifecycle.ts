@@ -369,6 +369,32 @@ function preflightQualityCheck(appDir: string): StepResult {
   }
 
   const deps = { ...(pkg?.dependencies ?? {}), ...(pkg?.devDependencies ?? {}) };
+  const invalidDependencyRules: Array<{ name: string; versionPattern?: RegExp; reason: string }> = [
+    {
+      name: "jest-electron-runner",
+      reason: "jest-electron-runner dependency is unsupported in current pipelines; use playwright/electron smoke alternatives."
+    },
+    {
+      name: "spectron",
+      reason: "spectron is deprecated and unstable; use playwright-based runtime interaction checks."
+    },
+    {
+      name: "@electron-forge/plugin-auto-unpackaged",
+      reason: "invalid Electron Forge plugin name detected (@electron-forge/plugin-auto-unpackaged)."
+    },
+    {
+      name: "eslint-config-react-app",
+      versionPattern: /^(\^|~)?7\.2\.0$/,
+      reason: "eslint-config-react-app@7.2.0 is not resolvable in this environment."
+    }
+  ];
+  for (const rule of invalidDependencyRules) {
+    const found = deps[rule.name];
+    if (typeof found !== "string") continue;
+    if (!rule.versionPattern || rule.versionPattern.test(found.trim())) {
+      issues.push(`Invalid dependency '${rule.name}@${found}': ${rule.reason}`);
+    }
+  }
   const sourceFiles = scanSourceFiles(appDir);
   const importedTokens = [
     { token: "supertest", expected: "supertest" },

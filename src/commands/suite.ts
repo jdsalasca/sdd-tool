@@ -521,6 +521,15 @@ function qualityHintsFromDiagnostics(diagnostics: string[]): string[] {
     if (lower.includes("no matching version found for eslint-config-react-app")) {
       hints.add("Remove invalid/deprecated eslint-config-react-app dependency and use a valid eslint baseline.");
     }
+    if (lower.includes("invalid dependency 'jest-electron-runner")) {
+      hints.add("Remove jest-electron-runner and replace desktop runtime tests with playwright/electron smoke checks.");
+    }
+    if (lower.includes("invalid dependency 'spectron")) {
+      hints.add("Remove spectron and use modern playwright-based smoke validation.");
+    }
+    if (lower.includes("plugin-auto-unpackaged")) {
+      hints.add("Replace invalid electron-forge plugin references with valid forge/builder configuration.");
+    }
     if (lower.includes("eslint") && (lower.includes("not recognized") || lower.includes("no se reconoce"))) {
       hints.add("Ensure eslint is installed as devDependency and lint script is runnable cross-platform.");
     }
@@ -583,6 +592,37 @@ function qualityHintsFromDiagnostics(diagnostics: string[]): string[] {
     }
   }
   return [...hints].slice(0, 8);
+}
+
+function sanitizeStaleCampaignStates(workspaceRoot: string): void {
+  try {
+    const entries = fs.readdirSync(workspaceRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+    for (const entry of entries) {
+      const projectRoot = path.join(workspaceRoot, entry.name);
+      const stateFile = path.join(projectRoot, "suite-campaign-state.json");
+      if (!fs.existsSync(stateFile)) continue;
+      const parsed = readJsonFile<{
+        running?: boolean;
+        suitePid?: number;
+        phase?: string;
+        lastError?: string;
+      }>(stateFile);
+      if (!parsed || parsed.running !== true) continue;
+      const suitePid = Number(parsed.suitePid || 0);
+      const alive = Number.isFinite(suitePid) && suitePid > 0 ? isPidRunning(suitePid) : false;
+      if (alive) continue;
+      const nextState = {
+        ...parsed,
+        running: false,
+        phase: "stale_state_sanitized",
+        lastError: parsed.lastError || "campaign marked stale because suitePid is no longer running"
+      };
+      fs.writeFileSync(stateFile, JSON.stringify(nextState, null, 2), "utf-8");
+      appendCampaignJournal(projectRoot, "campaign.state.sanitized", `stale running=true cleared (suitePid=${suitePid || 0})`);
+    }
+  } catch {
+    // best effort
+  }
 }
 
 function collectQualityFeedback(projectName?: string): string[] {
@@ -1294,6 +1334,7 @@ export async function runSuite(initialInput?: string, options?: SuiteRunOptions)
     console.log((error as Error).message);
     return;
   }
+  sanitizeStaleCampaignStates(workspace.root);
 
   try {
     let current = (initialInput ?? "").trim();
