@@ -534,6 +534,7 @@ const knownTopLevel = new Set([
   "init",
   "quickstart",
   "suite",
+  "recover",
   "list",
   "status",
   "scope",
