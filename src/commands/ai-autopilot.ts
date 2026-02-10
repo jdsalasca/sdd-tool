@@ -507,12 +507,19 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   constraints.push("Folder structure must be clean, scalable, and easy to evolve.");
   constraints.push("Include local runtime verification with a smoke script (npm run smoke or test:smoke or e2e).");
   constraints.push("Smoke script must be cross-platform (Node/npm command), avoid bash-only commands like ./smoke.sh.");
+  constraints.push("Smoke/test/build scripts in package.json must reference files that exist in the repository.");
+  constraints.push("Do not lint transpiled output folders (dist/build/out); lint source directories only.");
   constraints.push("Ensure every imported/required third-party package is declared in package.json dependencies/devDependencies.");
   constraints.push("If tests are written in TypeScript, configure Jest for TypeScript (ts-jest or equivalent) and include required test type packages.");
   constraints.push("Do not place TypeScript-only syntax inside .js files. Keep smoke scripts valid for the selected runtime.");
   constraints.push("Avoid non-existent package versions. Use currently available npm versions for dependencies and type packages.");
+  constraints.push("All automated tests must pass; fix failing assertions before delivery.");
+  constraints.push("If coverage tooling exists, target at least 80% statement coverage for core modules.");
   constraints.push("If API/backend exists, include curl-based local endpoint checks in smoke docs/scripts.");
   constraints.push("Target minimum automated test depth of 8 tests across critical flows.");
+  if (/\brbac\b|\brole[-\s]?based\b|\bauth\b|\bauthorization\b|\baccess control\b/.test(normalizeIntentText(intent))) {
+    constraints.push("Implement strict RBAC middleware/guards and include negative authorization tests that assert 403 for unauthorized roles.");
+  }
   if (intentRequiresJavaReactFullstack(intent)) {
     constraints.push("Use split structure: backend/ (Java Spring Boot) and frontend/ (React + Vite).");
     constraints.push("Backend must expose REST APIs for users, books, loans, and inventory.");

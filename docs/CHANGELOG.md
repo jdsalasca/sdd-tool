@@ -65,6 +65,9 @@
   - `status --all` for cross-project portfolio view with quality gate signals.
   - `status --quality` for selected-project lifecycle/review/stage/campaign diagnostics.
   - `status --watch <seconds>` for continuous refresh monitoring.
+- Strengthen AI repair guidance for recurring quality failures:
+  - add targeted remediation hints for ESLint typed-lint dist scope errors, missing smoke scripts, RBAC authorization failures, and low coverage patterns.
+  - enforce stronger generation constraints on script/file consistency and lint scope (source-only, no dist/build linting).
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

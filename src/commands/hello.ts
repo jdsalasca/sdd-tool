@@ -213,6 +213,12 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     if (normalized.includes("references missing file")) {
       hints.add("Fix package scripts: every script must reference files that exist in generated-app (or remove stale scripts).");
     }
+    if (normalized.includes("eslint was configured to run on") && normalized.includes("parseroptions.project")) {
+      hints.add("Fix ESLint typed-lint scope: exclude dist/build artifacts from lint, or include files in tsconfig/eslint include patterns.");
+    }
+    if (normalized.includes("dist\\") && normalized.includes("parsing error")) {
+      hints.add("Avoid linting generated dist files; lint should target source files only.");
+    }
     if (normalized.includes("must not be 'sdd-cli'")) {
       hints.add("Set generated app package name to a project-specific name; never reuse orchestrator package identity.");
     }
@@ -234,6 +240,15 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     }
     if (normalized.includes("cannot find module") && normalized.includes("dist/smoke.js")) {
       hints.add("Fix smoke flow: ensure build emits smoke artifact before smoke script or point smoke script to source entry.");
+    }
+    if (normalized.includes("missing smoke/e2e npm script")) {
+      hints.add("Add a real cross-platform smoke script (npm run smoke/test:smoke/e2e) that executes against running app endpoints.");
+    }
+    if (normalized.includes("expected: 403") && normalized.includes("received: 200")) {
+      hints.add("Fix authorization guards and RBAC middleware so protected routes return 403 for unauthorized roles.");
+    }
+    if (normalized.includes("all files") && normalized.includes("% stmts")) {
+      hints.add("Increase test quality and coverage by validating core business logic, auth flows, and negative/error paths.");
     }
     if (normalized.includes("no-unused-vars") || normalized.includes("unexpected console statement")) {
       hints.add("Fix lint blockers or adjust lint config/rules so lint passes in CI without warnings-as-errors failures.");
