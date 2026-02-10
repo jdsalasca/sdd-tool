@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
 import { getFlags } from "../context/flags";
-import { ensureConfig } from "../config";
+import { ensureConfig, saveConfig } from "../config";
 import { setFlags } from "../context/flags";
 import { runHello } from "./hello";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace";
@@ -19,6 +19,8 @@ type SuiteRunOptions = {
   campaignMaxCycles?: string;
   campaignSleepSeconds?: string;
   campaignTargetStage?: string;
+  campaignAutonomous?: boolean;
+  campaignStallCycles?: string;
 };
 
 type CampaignPolicy = {
@@ -26,6 +28,8 @@ type CampaignPolicy = {
   maxCycles: number;
   sleepSeconds: number;
   targetStage: DeliveryStage;
+  autonomous: boolean;
+  stallCycles: number;
 };
 
 function clampInt(input: number, fallback: number, min: number, max: number): number {
@@ -63,13 +67,16 @@ function resolveCampaignPolicy(options?: SuiteRunOptions): CampaignPolicy {
   const cyclesInput = options?.campaignMaxCycles ?? process.env.SDD_SUITE_CAMPAIGN_MAX_CYCLES ?? "24";
   const sleepInput = options?.campaignSleepSeconds ?? process.env.SDD_SUITE_CAMPAIGN_SLEEP_SECONDS ?? "5";
   const stageInput = options?.campaignTargetStage ?? process.env.SDD_SUITE_CAMPAIGN_TARGET_STAGE ?? "runtime_start";
+  const autonomous = options?.campaignAutonomous ?? process.env.SDD_SUITE_CAMPAIGN_AUTONOMOUS !== "0";
+  const stallCyclesInput = options?.campaignStallCycles ?? process.env.SDD_SUITE_CAMPAIGN_STALL_CYCLES ?? "2";
 
   const hours = clampFloat(Number.parseFloat(hoursInput), 0, 0, 24);
   const minRuntimeMinutes = clampInt(Math.round(hours * 60), 0, 0, 24 * 60);
   const maxCycles = clampInt(Number.parseInt(cyclesInput, 10), 24, 1, 500);
   const sleepSeconds = clampInt(Number.parseInt(sleepInput, 10), 5, 0, 300);
   const targetStage = parseTargetStage(stageInput);
-  return { minRuntimeMinutes, maxCycles, sleepSeconds, targetStage };
+  const stallCycles = clampInt(Number.parseInt(stallCyclesInput, 10), 2, 1, 20);
+  return { minRuntimeMinutes, maxCycles, sleepSeconds, targetStage, autonomous: Boolean(autonomous), stallCycles };
 }
 
 function appendCampaignJournal(projectRoot: string, event: string, details?: string): void {
@@ -82,6 +89,30 @@ function appendCampaignJournal(projectRoot: string, event: string, details?: str
       details: details ?? ""
     };
     fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, "utf-8");
+  } catch {
+    // best effort
+  }
+}
+
+function writeCampaignState(
+  projectRoot: string,
+  state: {
+    cycle: number;
+    elapsedMinutes: number;
+    targetStage: DeliveryStage;
+    targetPassed: boolean;
+    qualityPassed: boolean;
+    releasePassed: boolean;
+    runtimePassed: boolean;
+    model?: string;
+    nextFromStep?: string;
+    autonomous: boolean;
+    stallCount: number;
+  }
+): void {
+  try {
+    fs.mkdirSync(projectRoot, { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, "suite-campaign-state.json"), JSON.stringify(state, null, 2), "utf-8");
   } catch {
     // best effort
   }
@@ -132,6 +163,32 @@ function stagePassed(projectName: string | undefined, stage: DeliveryStage): boo
   }
   const snapshot = loadStageSnapshot(projectRoot);
   return snapshot.stages[stage] === "passed";
+}
+
+function stageRank(projectName: string | undefined): number {
+  const projectRoot = resolveProjectRoot(projectName);
+  if (!projectRoot) {
+    return 0;
+  }
+  const snapshot = loadStageSnapshot(projectRoot);
+  const order: DeliveryStage[] = [
+    "discovery",
+    "functional_requirements",
+    "technical_backlog",
+    "implementation",
+    "quality_validation",
+    "role_review",
+    "release_candidate",
+    "final_release",
+    "runtime_start"
+  ];
+  let rank = 0;
+  for (let i = 0; i < order.length; i += 1) {
+    if (snapshot.stages[order[i]] === "passed") {
+      rank = i + 1;
+    }
+  }
+  return rank;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -201,16 +258,36 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
   const qualityRetryPrompt =
     "Continue from the current project state, fix all quality failures, improve architecture/docs/tests, and only deliver production-grade changes.";
   const config = ensureConfig();
+  if (policy.autonomous) {
+    const nextConfig = {
+      ...config,
+      mode: { ...config.mode, default: "non-interactive" as const },
+      git: {
+        ...config.git,
+        publish_enabled: true,
+        release_management_enabled: true,
+        run_after_finalize: true
+      }
+    };
+    saveConfig(nextConfig);
+    appendCampaignJournal(
+      resolveProjectRoot(baseFlags.project) ?? config.workspace.default_root,
+      "campaign.autonomous.config",
+      "Enabled non-interactive mode + git publish + release management + runtime auto-start."
+    );
+  }
 
   if (policy.minRuntimeMinutes > 0) {
     console.log(
-      `Suite campaign enabled: ${policy.minRuntimeMinutes} min minimum runtime, max ${policy.maxCycles} cycles, target stage ${policy.targetStage}.`
+      `Suite campaign enabled: ${policy.minRuntimeMinutes} min minimum runtime, max ${policy.maxCycles} cycles, target stage ${policy.targetStage}, autonomous=${policy.autonomous}.`
     );
   }
 
   let cycle = 0;
   let lastProject = baseFlags.project;
   let cycleInput = input;
+  let previousRank = 0;
+  let stalledCycles = 0;
   while (true) {
     cycle += 1;
     const elapsedMinutes = Math.floor((Date.now() - startedAt) / 60000);
@@ -218,13 +295,29 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     const model =
       (baseFlags.provider ?? "").toLowerCase() === "gemini" && cycle >= 4 ? "gemini-2.5-flash" : baseFlags.model;
 
-    const nextFromStep = chooseResumeStep(lastProject);
+    let nextFromStep = chooseResumeStep(lastProject);
+    const rankBefore = stageRank(lastProject);
+    if (rankBefore <= previousRank) {
+      stalledCycles += 1;
+    } else {
+      stalledCycles = 0;
+    }
+    previousRank = rankBefore;
+    if (stalledCycles >= policy.stallCycles) {
+      nextFromStep = "create";
+      cycleInput = `${input}. Force deep recovery: rebuild from a clean requirement and regenerate production-ready project structure.`;
+      if (lastProject) {
+        clearCheckpoint(lastProject);
+      }
+      console.log(`Suite campaign recovery: detected stage stall for ${stalledCycles} cycles, forcing fresh create.`);
+    }
 
     setFlags({
       iterations: iterationsThisCycle,
       model,
       fromStep: nextFromStep,
-      project: lastProject
+      project: lastProject,
+      nonInteractive: true
     });
     if (model) {
       process.env.SDD_GEMINI_MODEL = model;
@@ -247,10 +340,23 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
 
     const projectRoot = resolveProjectRoot(lastProject);
     if (projectRoot) {
+      writeCampaignState(projectRoot, {
+        cycle,
+        elapsedMinutes,
+        targetStage: policy.targetStage,
+        targetPassed,
+        qualityPassed,
+        releasePassed,
+        runtimePassed,
+        model,
+        nextFromStep,
+        autonomous: policy.autonomous,
+        stallCount: stalledCycles
+      });
       appendCampaignJournal(
         projectRoot,
         "campaign.cycle.completed",
-        `cycle=${cycle}; elapsedMin=${elapsedMinutes}; quality=${qualityPassed}; release=${releasePassed}; runtime=${runtimePassed}; target=${policy.targetStage}; targetPassed=${targetPassed}`
+        `cycle=${cycle}; elapsedMin=${elapsedMinutes}; quality=${qualityPassed}; release=${releasePassed}; runtime=${runtimePassed}; target=${policy.targetStage}; targetPassed=${targetPassed}; stall=${stalledCycles}`
       );
     }
 
@@ -304,5 +410,6 @@ export async function runSuite(initialInput?: string, options?: SuiteRunOptions)
 export const __internal = {
   resolveCampaignPolicy,
   parseTargetStage,
-  chooseResumeStep
+  chooseResumeStep,
+  stageRank
 };

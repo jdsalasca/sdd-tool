@@ -57,6 +57,10 @@
 - Harden preflight quality checks for generated apps:
   - reject orchestrator package leakage (`package.json.name = sdd-cli`).
   - reject npm scripts that reference missing files (for example stale `scripts/preinstall.js` / smoke scripts).
+- Strengthen long-running `suite` autonomy:
+  - `--campaign-autonomous` to force fully non-interactive publishing/runtime behavior.
+  - stall detection with `--campaign-stall-cycles` and automatic recovery from `create`.
+  - per-cycle machine state at `<project>/suite-campaign-state.json`.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

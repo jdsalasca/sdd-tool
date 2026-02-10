@@ -13,12 +13,16 @@ test("suite campaign policy parses explicit values with bounds", () => {
     campaignHours: "5",
     campaignMaxCycles: "80",
     campaignSleepSeconds: "12",
-    campaignTargetStage: "final_release"
+    campaignTargetStage: "final_release",
+    campaignStallCycles: "3",
+    campaignAutonomous: true
   });
   assert.equal(policy.minRuntimeMinutes, 300);
   assert.equal(policy.maxCycles, 80);
   assert.equal(policy.sleepSeconds, 12);
   assert.equal(policy.targetStage, "final_release");
+  assert.equal(policy.stallCycles, 3);
+  assert.equal(policy.autonomous, true);
 });
 
 test("suite campaign policy clamps invalid values", () => {
@@ -26,12 +30,16 @@ test("suite campaign policy clamps invalid values", () => {
     campaignHours: "-2",
     campaignMaxCycles: "0",
     campaignSleepSeconds: "-9",
-    campaignTargetStage: "invalid-stage"
+    campaignTargetStage: "invalid-stage",
+    campaignStallCycles: "0",
+    campaignAutonomous: false
   });
   assert.equal(policy.minRuntimeMinutes, 0);
   assert.equal(policy.maxCycles, 1);
   assert.equal(policy.sleepSeconds, 0);
   assert.equal(policy.targetStage, "runtime_start");
+  assert.equal(policy.stallCycles, 1);
+  assert.equal(policy.autonomous, false);
 });
 
 test("suite campaign falls back to create when checkpoint requirement is stale", () => {
@@ -55,4 +63,36 @@ test("suite campaign falls back to create when checkpoint requirement is stale",
   const resume = __internal.chooseResumeStep(projectName);
   assert.equal(resume, "create");
   assert.equal(loadCheckpoint(projectName), null);
+});
+
+test("suite campaign stage rank reflects passed stage progression", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-suite-rank-"));
+  const projectName = "RankProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  fs.mkdirSync(projectRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, ".sdd-stage-state.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        stages: {
+          discovery: "passed",
+          functional_requirements: "passed",
+          technical_backlog: "passed",
+          implementation: "pending",
+          quality_validation: "pending",
+          role_review: "pending",
+          release_candidate: "pending",
+          final_release: "pending",
+          runtime_start: "pending"
+        },
+        history: []
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+  setFlags({ output: workspaceRoot, project: projectName });
+  assert.equal(__internal.stageRank(projectName), 3);
 });

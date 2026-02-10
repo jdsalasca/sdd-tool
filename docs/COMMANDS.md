@@ -154,5 +154,8 @@ This file defines the command set, intent, and expected behavior.
     - `--campaign-hours <n>` minimum runtime target before suite can stop (`0..24`)
     - `--campaign-max-cycles <n>` upper bound for cycle count before stopping
     - `--campaign-sleep-seconds <n>` pause between cycles
+    - `--campaign-stall-cycles <n>` stalled-cycle threshold before forced recovery from `create`
+    - `--campaign-autonomous` enforce no-human mode (non-interactive + publish + release + runtime)
     - `--campaign-target-stage <stage>` required stage to treat campaign as successful (default `runtime_start`)
   - Writes campaign cycle timeline to `<project>/suite-campaign-journal.jsonl`
+  - Writes live campaign state to `<project>/suite-campaign-state.json`

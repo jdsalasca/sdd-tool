@@ -123,6 +123,8 @@ program
   .option("--campaign-hours <n>", "Minimum campaign runtime in hours before suite can stop (0-24)", "0")
   .option("--campaign-max-cycles <n>", "Maximum campaign cycles before stopping", "24")
   .option("--campaign-sleep-seconds <n>", "Sleep interval between campaign cycles", "5")
+  .option("--campaign-stall-cycles <n>", "Consecutive stalled cycles before forcing fresh create recovery", "2")
+  .option("--campaign-autonomous", "Force autonomous campaign mode (non-interactive + publish + release + runtime)")
   .option(
     "--campaign-target-stage <stage>",
     "Delivery stage required for campaign success: discovery|functional_requirements|technical_backlog|implementation|quality_validation|role_review|release_candidate|final_release|runtime_start",
@@ -133,7 +135,9 @@ program
       campaignHours: options.campaignHours,
       campaignMaxCycles: options.campaignMaxCycles,
       campaignSleepSeconds: options.campaignSleepSeconds,
-      campaignTargetStage: options.campaignTargetStage
+      campaignTargetStage: options.campaignTargetStage,
+      campaignStallCycles: options.campaignStallCycles,
+      campaignAutonomous: Boolean(options.campaignAutonomous)
     })
   );
 
