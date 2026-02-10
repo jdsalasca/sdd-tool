@@ -558,6 +558,8 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
   let stalledCycles = 0;
   let providerFailureStreak = 0;
   let qualityFailureStreak = 0;
+  let emergencyBaselineEnabled = false;
+  const previousTemplateFallbackSetting = process.env.SDD_ALLOW_TEMPLATE_FALLBACK;
   const fallbackModels = loadModelFallbacks(baseFlags.model);
   let modelCursor = Math.max(0, fallbackModels.findIndex((item) => item === baseFlags.model));
   while (true) {
@@ -726,8 +728,31 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
         }
         await sleep(backoffSeconds * 1000);
       }
+      if (providerIssue === "unusable" && providerFailureStreak >= 5 && !emergencyBaselineEnabled) {
+        emergencyBaselineEnabled = true;
+        process.env.SDD_ALLOW_TEMPLATE_FALLBACK = "1";
+        const emergencyMsg = "Emergency baseline mode enabled: template fallback allowed until provider output stabilizes.";
+        console.log(`Suite autonomous recovery: ${emergencyMsg}`);
+        if (quotaRoot) {
+          appendCampaignJournal(quotaRoot, "campaign.recovery.emergency_baseline_enabled", emergencyMsg);
+        }
+      }
     } else {
       providerFailureStreak = 0;
+      if (emergencyBaselineEnabled) {
+        emergencyBaselineEnabled = false;
+        if (previousTemplateFallbackSetting === undefined) {
+          delete process.env.SDD_ALLOW_TEMPLATE_FALLBACK;
+        } else {
+          process.env.SDD_ALLOW_TEMPLATE_FALLBACK = previousTemplateFallbackSetting;
+        }
+        const stableRoot = resolveProjectRoot(lastProject);
+        const stableMsg = "Emergency baseline mode disabled after provider stabilization.";
+        console.log(`Suite autonomous recovery: ${stableMsg}`);
+        if (stableRoot) {
+          appendCampaignJournal(stableRoot, "campaign.recovery.emergency_baseline_disabled", stableMsg);
+        }
+      }
       if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && !process.env.SDD_GEMINI_PROMPT_MAX_CHARS) {
         // keep default
       }

@@ -1019,18 +1019,23 @@ function buildAutopilotDraft(input: string, flow: string, domain: string): Requi
   };
   const safeFlow = scopeByFlow[flow] ? flow : "GENERIC";
   const safeDomain = actorByDomain[domain] ? domain : "generic";
+  const baseObjective =
+    objective.length >= 80
+      ? objective
+      : `Deliver a production-ready ${safeDomain} product from "${objective}" with measurable outcomes, quality gates, and release readiness.`;
   return {
     domain: safeDomain === "generic" ? "software" : safeDomain,
-    actors: actorByDomain[safeDomain],
-    objective,
-    scope_in: scopeByFlow[safeFlow],
-    scope_out: outByFlow[safeFlow],
-    acceptance_criteria: "A baseline requirement is generated and ready for refinement with stakeholders",
-    nfr_security: "Follow secure defaults and data handling best practices",
-    nfr_performance: "Set practical baseline targets for first delivery",
-    nfr_availability: "Keep workflow usable and stable for normal usage",
-    constraints: "Timebox first iteration, keep implementation simple",
-    risks: "Ambiguity in requirements, underestimated scope",
+    actors: `${actorByDomain[safeDomain]}; qa engineer; operations engineer`,
+    objective: baseObjective,
+    scope_in: `${scopeByFlow[safeFlow]}; production deployment readiness; automated quality gates; release documentation`,
+    scope_out: `${outByFlow[safeFlow]}; non-essential integrations; roadmap-only enhancements`,
+    acceptance_criteria:
+      "Core workflows pass lint, test, build, and smoke locally; At least 10 acceptance checks are documented and traceable; p95 response time remains under 300 ms for baseline load; Release notes and deployment docs are complete; No blocker findings remain after role review",
+    nfr_security: "Enforce secure defaults, input validation, least-privilege access, and traceable audit paths.",
+    nfr_performance: "Meet baseline performance budget with measurable thresholds and stable runtime behavior.",
+    nfr_availability: "Ensure local runtime startup reliability and graceful error handling for critical flows.",
+    constraints: "Cross-platform Windows/macOS compatibility; Local-first execution without paid external dependencies; Stage-gate progression is mandatory",
+    risks: "Provider non-delivery or unusable payloads; Dependency/version conflicts breaking build; Scope drift reducing business value",
     links: ""
   };
 }

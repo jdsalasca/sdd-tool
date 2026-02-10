@@ -1,4 +1,4 @@
-import { spawnSync } from "child_process";
+import { execSync, spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { AIProvider, ProviderResult } from "./types";
@@ -65,6 +65,29 @@ function resolveCommand(input: string): string {
   return input;
 }
 
+function resolveWindowsCommandPath(command: string): string {
+  if (process.platform !== "win32") {
+    return command;
+  }
+  if (command.includes("\\") || command.includes("/")) {
+    return command;
+  }
+  try {
+    const raw = execSync(`where.exe ${command}`, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5000
+    });
+    const first = raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+    return first || command;
+  } catch {
+    return command;
+  }
+}
+
 type GeminiRunner = {
   command: string;
   prefixArgs: string[];
@@ -80,7 +103,7 @@ function resolveGeminiRunner(): GeminiRunner {
 
   const explicitNode = process.env.SDD_GEMINI_NODE?.trim();
   const nodeCommand = explicitNode && explicitNode.length > 0 ? explicitNode : process.execPath;
-  const normalizedCommand = command.replace(/"/g, "").trim();
+  const normalizedCommand = resolveWindowsCommandPath(command.replace(/"/g, "").trim());
   const cmdDir = path.dirname(normalizedCommand);
   const directScript = path.resolve(cmdDir, "node_modules", "@google", "gemini-cli", "dist", "index.js");
   if (fs.existsSync(directScript)) {
@@ -91,7 +114,7 @@ function resolveGeminiRunner(): GeminiRunner {
     };
   }
 
-  return { command, prefixArgs: [], useShell: true };
+  return { command: normalizedCommand, prefixArgs: [], useShell: true };
 }
 
 export function geminiVersion(): GeminiResult {
@@ -111,7 +134,7 @@ export function geminiVersion(): GeminiResult {
 export function geminiExec(prompt: string): GeminiResult {
   const runner = resolveGeminiRunner();
   const model = process.env.SDD_GEMINI_MODEL?.trim();
-  const normalizedPrompt = clampPrompt(prompt.replace(/\r?\n/g, "\\n"));
+  const normalizedPrompt = clampPrompt(prompt);
   const env = {
     ...process.env,
     NO_COLOR: "1"

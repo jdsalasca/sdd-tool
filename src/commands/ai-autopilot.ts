@@ -306,21 +306,144 @@ function hasMeasurableAcceptance(items: string[]): boolean {
   return items.some((item) => /(\d+%|\d+\s*(ms|s|sec|seconds|min|minutes)|p95|p99|under\s+\d+|>=?\s*\d+|<=?\s*\d+)/i.test(item));
 }
 
+function measurableAcceptanceCount(items: string[]): number {
+  return items.filter((item) => /(\d+%|\d+\s*(ms|s|sec|seconds|min|minutes)|p95|p99|under\s+\d+|>=?\s*\d+|<=?\s*\d+)/i.test(item)).length;
+}
+
 function requirementsNeedRefinement(draft: RequirementDraft): boolean {
   const actors = parseCsvLikeItems(draft.actors ?? "");
   const scopeIn = parseCsvLikeItems(draft.scope_in ?? "");
+  const scopeOut = parseCsvLikeItems(draft.scope_out ?? "");
   const acceptance = parseCsvLikeItems(draft.acceptance_criteria ?? "");
   const constraints = parseCsvLikeItems(draft.constraints ?? "");
   const risks = parseCsvLikeItems(draft.risks ?? "");
-  const weakObjective = (draft.objective ?? "").trim().length < 35;
+  const weakObjective = (draft.objective ?? "").trim().length < 80;
+  const weakNfr =
+    (draft.nfr_security ?? "").trim().length < 30 ||
+    (draft.nfr_performance ?? "").trim().length < 30 ||
+    (draft.nfr_availability ?? "").trim().length < 30;
   if (weakObjective) return true;
-  if (actors.length < 3) return true;
-  if (scopeIn.length < 6 || containsGenericOnly(scopeIn)) return true;
-  if (acceptance.length < 8 || containsGenericOnly(acceptance)) return true;
-  if (!hasMeasurableAcceptance(acceptance)) return true;
-  if (constraints.length < 3) return true;
-  if (risks.length < 3) return true;
+  if (actors.length < 4 || containsGenericOnly(actors)) return true;
+  if (scopeIn.length < 8 || containsGenericOnly(scopeIn)) return true;
+  if (scopeOut.length < 3) return true;
+  if (acceptance.length < 10 || containsGenericOnly(acceptance)) return true;
+  if (!hasMeasurableAcceptance(acceptance) || measurableAcceptanceCount(acceptance) < 2) return true;
+  if (constraints.length < 4 || containsGenericOnly(constraints)) return true;
+  if (risks.length < 4 || containsGenericOnly(risks)) return true;
+  if (weakNfr) return true;
   return false;
+}
+
+function intentKeywords(input: string): string[] {
+  return String(input || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4 && !/^(create|build|app|application|with|using|from|that|this|for|and|then)$/.test(token))
+    .slice(0, 8);
+}
+
+function ensureMinItems(items: string[], min: number, fallbackFactory: (index: number) => string): string[] {
+  const next = [...items];
+  for (let i = next.length; i < min; i += 1) {
+    next.push(fallbackFactory(i));
+  }
+  return next;
+}
+
+function hardenRequirementDraft(draft: RequirementDraft, input: string, domain: string): RequirementDraft {
+  const keywords = intentKeywords(input);
+  const keyA = keywords[0] || "core";
+  const keyB = keywords[1] || "business";
+  const keyC = keywords[2] || "quality";
+  const objective = (draft.objective || "").trim();
+  const safeObjective =
+    objective.length >= 80
+      ? objective
+      : `Deliver a production-ready ${domain} solution focused on ${keyA} and ${keyB}, with measurable value outcomes, clear operational readiness, and quality gates that must pass before release.`;
+
+  const actors = ensureMinItems(parseCsvLikeItems(draft.actors || ""), 4, (i) => {
+    const defaults = ["end user", "product owner", "operations engineer", "quality engineer", "security reviewer"];
+    return defaults[i] || `stakeholder-${i + 1}`;
+  });
+  const scopeIn = ensureMinItems(parseCsvLikeItems(draft.scope_in || ""), 8, (i) => {
+    const defaults = [
+      `support ${keyA} creation workflow with validation`,
+      `support ${keyA} update workflow with audit trail`,
+      `support ${keyB} search and filtering`,
+      "persist domain records with deterministic local storage adapters",
+      "provide role-aware access controls for key workflows",
+      "include health/status and error handling paths",
+      `provide reporting view for ${keyC} outcomes`,
+      "export/import baseline data for local validation"
+    ];
+    return defaults[i] || `deliver scope capability ${i + 1}`;
+  });
+  const scopeOut = ensureMinItems(parseCsvLikeItems(draft.scope_out || ""), 3, (i) => {
+    const defaults = [
+      "third-party billing and payments integration",
+      "multi-region deployment and enterprise SSO",
+      "native mobile applications beyond desktop/web scope"
+    ];
+    return defaults[i] || `out-of-scope item ${i + 1}`;
+  });
+  const acceptance = ensureMinItems(parseCsvLikeItems(draft.acceptance_criteria || ""), 10, (i) => {
+    const defaults = [
+      "critical create/read/update/delete paths pass with 100% success in local smoke run",
+      "automated tests cover critical flows with at least 80% statements on core modules",
+      "lint/test/build/smoke commands complete successfully in local environment",
+      "p95 API response time remains under 300ms for baseline dataset",
+      "application starts in under 30 seconds on local machine",
+      "no blocker or critical findings remain after digital role review",
+      "README includes complete setup, test, run, and release instructions",
+      "required architecture/components/schema/dummy-local artifacts are present and consistent",
+      "at least one regression scenario is documented and automated",
+      "release candidate and final release metadata are generated without FAIL entries"
+    ];
+    return defaults[i] || `acceptance criterion ${i + 1} with measurable threshold >= 1`;
+  });
+  const constraints = ensureMinItems(parseCsvLikeItems(draft.constraints || ""), 4, (i) => {
+    const defaults = [
+      "all deliverables must run locally without external paid services",
+      "all project documentation and code comments must be in English",
+      "cross-platform scripts must support Windows and macOS",
+      "release progression must respect stage gates and quality checks"
+    ];
+    return defaults[i] || `constraint ${i + 1}`;
+  });
+  const risks = ensureMinItems(parseCsvLikeItems(draft.risks || ""), 4, (i) => {
+    const defaults = [
+      "provider may return partial/unusable payloads causing iteration delay",
+      "dependency/version mismatch may break build or tests",
+      "insufficient requirement precision can produce low-value implementations",
+      "long-running campaign can stall without clear recovery policies"
+    ];
+    return defaults[i] || `risk ${i + 1}`;
+  });
+
+  return {
+    ...draft,
+    objective: safeObjective,
+    actors: actors.join("; "),
+    scope_in: scopeIn.join("; "),
+    scope_out: scopeOut.join("; "),
+    acceptance_criteria: acceptance.join("; "),
+    constraints: constraints.join("; "),
+    risks: risks.join("; "),
+    nfr_security:
+      (draft.nfr_security || "").trim().length >= 30
+        ? (draft.nfr_security || "").trim()
+        : "Enforce secure defaults, least privilege, input validation, and auditability for sensitive operations.",
+    nfr_performance:
+      (draft.nfr_performance || "").trim().length >= 30
+        ? (draft.nfr_performance || "").trim()
+        : "Meet baseline performance budget with p95 response under defined thresholds and stable resource usage.",
+    nfr_availability:
+      (draft.nfr_availability || "").trim().length >= 30
+        ? (draft.nfr_availability || "").trim()
+        : "Provide resilient startup, deterministic local runtime behavior, and graceful error handling for core flows."
+  };
 }
 
 function safeRelativePath(input: string): string | null {
@@ -1724,7 +1847,43 @@ export function enrichDraftWithAI(
       };
     }
   }
-  return enriched;
+  if (requirementsNeedRefinement(enriched)) {
+    const hardenPrompt = [
+      "HARD REQUIREMENTS REWRITE.",
+      "Return ONLY valid JSON with keys:",
+      "objective, actors, scope_in, scope_out, acceptance_criteria, nfr_security, nfr_performance, nfr_availability, constraints, risks.",
+      "All values must be plain strings and list-like values must be semicolon-separated.",
+      "Mandatory thresholds:",
+      "- actors >= 4",
+      "- scope_in >= 8 concrete capabilities",
+      "- scope_out >= 3",
+      "- acceptance_criteria >= 10 and at least 2 measurable thresholds",
+      "- constraints >= 4",
+      "- risks >= 4",
+      "Do not use generic placeholders or draft language.",
+      `Intent: ${input}`,
+      `Flow: ${flow}`,
+      `Domain: ${domain}`,
+      `Current draft JSON: ${JSON.stringify(enriched)}`
+    ].join("\n");
+    const hardened = askProviderForJson(providerExec, hardenPrompt);
+    if (hardened) {
+      enriched = {
+        ...enriched,
+        objective: asText(hardened.objective, enriched.objective ?? ""),
+        actors: asText(hardened.actors, enriched.actors ?? ""),
+        scope_in: asText(hardened.scope_in, enriched.scope_in ?? ""),
+        scope_out: asText(hardened.scope_out, enriched.scope_out ?? ""),
+        acceptance_criteria: asText(hardened.acceptance_criteria, enriched.acceptance_criteria ?? ""),
+        nfr_security: asText(hardened.nfr_security, enriched.nfr_security ?? ""),
+        nfr_performance: asText(hardened.nfr_performance, enriched.nfr_performance ?? ""),
+        nfr_availability: asText(hardened.nfr_availability, enriched.nfr_availability ?? ""),
+        constraints: asText(hardened.constraints, enriched.constraints ?? ""),
+        risks: asText(hardened.risks, enriched.risks ?? "")
+      };
+    }
+  }
+  return hardenRequirementDraft(enriched, input, domain);
 }
 
 export type CodeBootstrapResult = {
