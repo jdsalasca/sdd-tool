@@ -1906,6 +1906,7 @@ function toolkitContextLinesForGeneration(): string[] {
   return [
     "Toolkit context available during lifecycle/runtime validation:",
     "- generated-app/deploy/runtime-visual-probe.json (screenshot analysis with blank/static heuristics).",
+    "- generated-app/deploy/software-diagnostic-report.json (functional checks, action timeline, ui labels, blocking issues).",
     "- generated-app/deploy/runtime-processes.json (runtime process and start metadata).",
     "If runtime visual probe flags blankLikely=true or staticLikely=true, prioritize fixing renderer/main-window bootstrapping, route mounting, and startup scripts."
   ];
@@ -1944,16 +1945,34 @@ function readSoftwareDiagnosticContext(appDir: string): string | null {
     if (!fs.existsSync(file)) return null;
     const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as {
       summary?: string;
+      qualityScore?: number;
       blockingIssues?: string[];
       http?: { status?: string; reachableUrl?: string };
-      interaction?: { status?: string; clickableCount?: number; clicksPerformed?: number; blankLikely?: boolean };
+      interaction?: {
+        status?: string;
+        clickableCount?: number;
+        clicksPerformed?: number;
+        blankLikely?: boolean;
+        uiLabels?: string[];
+        functionalChecks?: Array<{ name?: string; status?: string; detail?: string }>;
+        actionTimeline?: Array<{ at?: string; action?: string; target?: string; result?: string; detail?: string }>;
+      };
     };
     return JSON.stringify(
       {
         summary: String(parsed.summary || ""),
+        qualityScore: Number(parsed.qualityScore || 0),
         blockingIssues: Array.isArray(parsed.blockingIssues) ? parsed.blockingIssues.slice(0, 8) : [],
         http: parsed.http ?? {},
-        interaction: parsed.interaction ?? {}
+        interaction: {
+          status: String(parsed.interaction?.status || ""),
+          clickableCount: Number(parsed.interaction?.clickableCount || 0),
+          clicksPerformed: Number(parsed.interaction?.clicksPerformed || 0),
+          blankLikely: Boolean(parsed.interaction?.blankLikely),
+          uiLabels: Array.isArray(parsed.interaction?.uiLabels) ? parsed.interaction?.uiLabels.slice(0, 20) : [],
+          functionalChecks: Array.isArray(parsed.interaction?.functionalChecks) ? parsed.interaction?.functionalChecks.slice(0, 12) : [],
+          actionTimeline: Array.isArray(parsed.interaction?.actionTimeline) ? parsed.interaction?.actionTimeline.slice(-12) : []
+        }
       },
       null,
       0
