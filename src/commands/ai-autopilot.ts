@@ -1790,12 +1790,45 @@ export function bootstrapProjectCode(
 }
 
 function compactFilesForPrompt(files: Array<{ path: string; content: string }>): Array<{ path: string; content: string }> {
-  const maxFiles = 8;
-  const maxChars = 700;
+  const maxFiles = 6;
+  const maxChars = 360;
   return files.slice(0, maxFiles).map((file) => ({
     path: file.path,
     content: file.content.length > maxChars ? `${file.content.slice(0, maxChars)}\n/* ...truncated... */` : file.content
   }));
+}
+
+function compactIntentForPrompt(intent: string, maxChars = 700): string {
+  const normalized = intent.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  const sentences = normalized
+    .split(".")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const deduped: string[] = [];
+  for (const sentence of sentences) {
+    if (!deduped.includes(sentence)) {
+      deduped.push(sentence);
+    }
+  }
+  const rebuilt = deduped.join(". ");
+  return rebuilt.length > maxChars ? `${rebuilt.slice(0, maxChars)}...[truncated]` : rebuilt;
+}
+
+function looksLikeCliPackageJson(content: string): boolean {
+  const lower = content.toLowerCase();
+  return (
+    lower.includes('"name": "sdd-cli"') ||
+    lower.includes('"name":"sdd-cli"') ||
+    lower.includes("ai-orchestrated specification-driven delivery cli")
+  );
+}
+
+function clampPromptSize(prompt: string, maxChars = 6000): string {
+  if (prompt.length <= maxChars) {
+    return prompt;
+  }
+  return `${prompt.slice(0, maxChars)}\n...[truncated by sdd-tool due command length limits]`;
 }
 
 function collectProjectFiles(appDir: string): Array<{ path: string; content: string }> {
@@ -1847,7 +1880,9 @@ export function improveGeneratedApp(
     filePath: path.join(path.dirname(appDir), "debug", "provider-prompts.jsonl")
   });
 
-  const currentFiles = compactFilesForPrompt(collectProjectFiles(appDir));
+  const collectedFiles = collectProjectFiles(appDir);
+  const currentFiles = compactFilesForPrompt(collectedFiles);
+  const currentFileNames = collectedFiles.map((file) => file.path).slice(0, 120);
   const compactDiagnostics = (qualityDiagnostics ?? [])
     .map((line) => line.replace(/\u001b\[[0-9;]*m/g, "").replace(/\s+/g, " ").trim())
     .filter((line) => line.length > 0)
@@ -1855,7 +1890,8 @@ export function improveGeneratedApp(
     .map((line) => (line.length > 280 ? `${line.slice(0, 280)}...[truncated]` : line));
   const domain = detectAutopilotDomain(intent, domainHint);
   const constraints = extraPromptConstraints(intent, domainHint);
-  const prompt = [
+  const compactIntent = compactIntentForPrompt(intent, 700);
+  const prompt = clampPromptSize([
     "Improve this generated app to production-grade, release-ready quality.",
     "Do not return prototype or first-draft quality.",
     `Domain profile: ${domain}.`,
@@ -1876,15 +1912,15 @@ export function improveGeneratedApp(
     '{"files":[{"path":"relative/path","content":"full file content"}]}',
     "Never mention unavailable tools or ask the user to create files manually.",
     "Assume you can directly author repository files and return only the JSON payload.",
-    `Intent: ${intent}`,
+    `Intent: ${compactIntent}`,
     `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
-    `Current files JSON: ${JSON.stringify(currentFiles)}`
-  ].join("\n");
+    `Current file names: ${JSON.stringify(currentFileNames)}`,
+    `Sample files JSON: ${JSON.stringify(currentFiles)}`
+  ].join("\n"));
 
   let parsed = askProviderForJson(providerExec, prompt);
   if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0 && compactDiagnostics.length > 0) {
-    const fileNames = collectProjectFiles(appDir).map((f) => f.path).slice(0, 120);
-    const targetedPrompt = [
+    const targetedPrompt = clampPromptSize([
       "Return ONLY valid JSON. No markdown.",
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
       "Fix exactly the listed quality diagnostics with minimal file edits.",
@@ -1892,14 +1928,14 @@ export function improveGeneratedApp(
       "Never mention unavailable tools or ask the user to create files manually.",
       "Assume you can directly author repository files and return only the JSON payload.",
       `Domain profile: ${domain}.`,
-      `Intent: ${intent}`,
+      `Intent: ${compactIntent}`,
       `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
-      `Current file names: ${JSON.stringify(fileNames)}`
-    ].join("\n");
+      `Current file names: ${JSON.stringify(currentFileNames)}`
+    ].join("\n"));
     parsed = askProviderForJson(providerExec, targetedPrompt);
   }
   if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0) {
-    const minimalPrompt = [
+    const minimalPrompt = clampPromptSize([
       "Return ONLY valid JSON. No markdown.",
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
       "Apply minimal patch set: 1 to 5 files only.",
@@ -1907,16 +1943,22 @@ export function improveGeneratedApp(
       "Never mention unavailable tools or ask the user to create files manually.",
       "Assume you can directly author repository files and return only the JSON payload.",
       `Domain profile: ${domain}.`,
-      `Intent: ${intent}`,
-      `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`
-    ].join("\n");
+      `Intent: ${compactIntent}`,
+      `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`,
+      `Current file names: ${JSON.stringify(currentFileNames.slice(0, 40))}`
+    ].join("\n"));
     parsed = askProviderForJson(providerExec, minimalPrompt);
   }
   if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0) {
     return { attempted: true, applied: false, fileCount: 0, reason: "provider response unusable" };
   }
 
-  const updates = flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir));
+  const updates = flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).filter((file) => {
+    if (file.path !== "package.json") {
+      return true;
+    }
+    return !looksLikeCliPackageJson(file.content);
+  });
   if (updates.length === 0) {
     return { attempted: true, applied: false, fileCount: 0, reason: "no valid files in response" };
   }
