@@ -1888,6 +1888,10 @@ function resolveStartScripts(appDir: string): Array<{ cwd: string; script: strin
   return scripts.slice(0, 2);
 }
 
+/**
+ * Starts generated runtime processes and validates desktop visual readiness via toolkit probe.
+ * For desktop-targeted goals, a blank/static visual probe is treated as blocking.
+ */
 export function startGeneratedApp(projectRoot: string, _projectName: string, context?: LifecycleContext): RuntimeStartOutcome {
   const appDir = path.join(projectRoot, "generated-app");
   if (!fs.existsSync(appDir)) {

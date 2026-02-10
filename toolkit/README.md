@@ -12,6 +12,7 @@ This folder hosts autonomous runtime/tool integrations that `sdd-tool` agents ca
 
 - `runtime-visual-probe`
   - Captures a runtime screenshot after app startup.
+  - Performs pixel-level analysis (luma variance, dominant-color ratio, entropy, static frame check).
   - Writes:
     - `generated-app/deploy/runtime-visual-probe.json`
     - `generated-app/deploy/runtime-visual-probe.md`
@@ -27,4 +28,3 @@ This folder hosts autonomous runtime/tool integrations that `sdd-tool` agents ca
 
 `toolkit/mcps/` contains MCP-style manifests/scaffolds that can be used by external agent runtimes.
 They are optional and do not create a hard dependency for `sdd-tool`.
-

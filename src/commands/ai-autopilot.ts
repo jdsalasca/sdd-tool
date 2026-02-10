@@ -1902,6 +1902,42 @@ export type ImproveAppResult = {
   reason?: string;
 };
 
+function toolkitContextLinesForGeneration(): string[] {
+  return [
+    "Toolkit context available during lifecycle/runtime validation:",
+    "- generated-app/deploy/runtime-visual-probe.json (screenshot analysis with blank/static heuristics).",
+    "- generated-app/deploy/runtime-processes.json (runtime process and start metadata).",
+    "If runtime visual probe flags blankLikely=true or staticLikely=true, prioritize fixing renderer/main-window bootstrapping, route mounting, and startup scripts."
+  ];
+}
+
+function readRuntimeVisualProbeContext(appDir: string): string | null {
+  try {
+    const file = path.join(appDir, "deploy", "runtime-visual-probe.json");
+    if (!fs.existsSync(file)) return null;
+    const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as {
+      blankLikely?: boolean;
+      staticLikely?: boolean;
+      summary?: string;
+      stats?: Record<string, unknown>;
+      screenshotPath?: string;
+    };
+    return JSON.stringify(
+      {
+        blankLikely: Boolean(parsed.blankLikely),
+        staticLikely: Boolean(parsed.staticLikely),
+        summary: String(parsed.summary || ""),
+        screenshotPath: String(parsed.screenshotPath || ""),
+        stats: parsed.stats ?? {}
+      },
+      null,
+      0
+    );
+  } catch {
+    return null;
+  }
+}
+
 function templateFallbackAllowed(): boolean {
   return process.env.SDD_ALLOW_TEMPLATE_FALLBACK === "1" || process.env.SDD_DISABLE_AI_AUTOPILOT === "1";
 }
@@ -1960,6 +1996,7 @@ export function bootstrapProjectCode(
       "Add a schema document named schemas.md with entities, fields, relations, and constraints.",
       "Add regression tests and regression notes/documentation.",
       "Quality gate is strict: if required artifacts are missing, your output will be rejected and repaired.",
+      ...toolkitContextLinesForGeneration(),
       ...constraints,
       "Do not mix unrelated runtime stacks unless the intent explicitly requests a multi-tier architecture.",
       "Return ONLY valid JSON with this shape:",
@@ -1986,6 +2023,7 @@ export function bootstrapProjectCode(
         "Generate only essential production-ready files to run locally with quality-first defaults.",
         "Must include: README.md, architecture.md, components.md, mission.md, vision.md, schemas.md, regression notes, and DummyLocal integration docs.",
         "Use MVC architecture by default and keep files in English.",
+        ...toolkitContextLinesForGeneration(),
         "Never mention unavailable tools or ask the user to create files manually.",
         "Assume you can directly author repository files and return only the JSON payload.",
         `Domain profile: ${domain}.`,
@@ -2025,6 +2063,7 @@ export function bootstrapProjectCode(
         "- vision.md",
         "- schemas.md",
         "Also include: dummy-local.md, regression.md, schema.sql, LICENSE, and a smoke script in package.json.",
+        ...toolkitContextLinesForGeneration(),
         "Use English only.",
         "Never mention unavailable tools or ask the user to create files manually.",
         "Assume you can directly author repository files and return only the JSON payload.",
@@ -2045,6 +2084,7 @@ export function bootstrapProjectCode(
         "Use MVC architecture by default and English-only content.",
         "Include one runnable app entrypoint and one smoke validation script command in package.json.",
         "Include at least one test file and keep dependencies aligned with imports.",
+        ...toolkitContextLinesForGeneration(),
         "Do not include explanations. Output JSON only.",
         "Never mention unavailable tools or ask the user to create files manually.",
         "Assume you can directly author repository files and return only the JSON payload.",
@@ -2219,6 +2259,7 @@ export function improveGeneratedApp(
   const domain = detectAutopilotDomain(intent, domainHint);
   const constraints = extraPromptConstraints(intent, domainHint);
   const compactIntent = compactIntentForPrompt(intent, 700);
+  const runtimeProbeContext = readRuntimeVisualProbeContext(appDir);
   const prompt = clampPromptSize([
     "Improve this generated app to production-grade, release-ready quality.",
     "Do not return prototype or first-draft quality.",
@@ -2234,6 +2275,7 @@ export function improveGeneratedApp(
     "- Ensure relational-data apps include schema.sql with proper keys/indexes.",
     "- Ensure DummyLocal integration exists and is documented.",
     "- Ensure regression tests (or explicit regression test documentation) exists.",
+    ...toolkitContextLinesForGeneration().map((line) => `- ${line}`),
     ...constraints.map((line) => `- ${line}`),
     "- Fix every listed quality diagnostic failure.",
     "Return ONLY JSON with shape:",
@@ -2242,6 +2284,7 @@ export function improveGeneratedApp(
     "Assume you can directly author repository files and return only the JSON payload.",
     `Intent: ${compactIntent}`,
     `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
+    `Runtime visual probe context: ${runtimeProbeContext ?? "not available"}`,
     `Current file names: ${JSON.stringify(currentFileNames)}`,
     `Sample files JSON: ${JSON.stringify(currentFiles)}`
   ].join("\n"));
@@ -2262,6 +2305,7 @@ export function improveGeneratedApp(
       `Domain profile: ${domain}.`,
       `Intent: ${compactIntent}`,
       `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
+      `Runtime visual probe context: ${runtimeProbeContext ?? "not available"}`,
       `Current file names: ${JSON.stringify(currentFileNames)}`
     ].join("\n"));
     parsed = askProviderForJson(providerExec, targetedPrompt, providerDebug);
@@ -2280,6 +2324,7 @@ export function improveGeneratedApp(
       `Domain profile: ${domain}.`,
       `Intent: ${compactIntent}`,
       `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`,
+      `Runtime visual probe context: ${runtimeProbeContext ?? "not available"}`,
       `Current file names: ${JSON.stringify(currentFileNames.slice(0, 40))}`
     ].join("\n"));
     parsed = askProviderForJson(providerExec, minimalPrompt, providerDebug);
