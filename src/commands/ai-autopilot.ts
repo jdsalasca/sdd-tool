@@ -310,6 +310,46 @@ function measurableAcceptanceCount(items: string[]): number {
   return items.filter((item) => /(\d+%|\d+\s*(ms|s|sec|seconds|min|minutes)|p95|p99|under\s+\d+|>=?\s*\d+|<=?\s*\d+)/i.test(item)).length;
 }
 
+function objectiveLooksTooBroad(objective: string): boolean {
+  const text = String(objective || "").toLowerCase().trim();
+  if (!text) return true;
+  const broadPatterns = [
+    /\b(create|build|develop|generate)\b.*\b(app|application|platform|system)\b/,
+    /\b(manage|gestion|gestionar)\b.*\b(users?|usuarios?)\b/,
+    /\bend[- ]?to[- ]?end\b/,
+    /\bfull\b.*\bproduct\b/,
+    /\bcomplete\b.*\bsolution\b/
+  ];
+  return text.length < 120 || broadPatterns.some((pattern) => pattern.test(text));
+}
+
+function countTechnicalScopeSignals(items: string[]): number {
+  const keywords = [
+    "backend",
+    "frontend",
+    "api",
+    "controller",
+    "service",
+    "repository",
+    "dto",
+    "validation",
+    "schema",
+    "database",
+    "dummy",
+    "component",
+    "model",
+    "test",
+    "smoke",
+    "ci",
+    "build"
+  ];
+  return items.filter((item) => keywords.some((word) => item.toLowerCase().includes(word))).length;
+}
+
+function countIterationSliceSignals(items: string[]): number {
+  return items.filter((item) => /\b(iteration|sprint|phase|increment)\b/i.test(item)).length;
+}
+
 function requirementsNeedRefinement(draft: RequirementDraft): boolean {
   const actors = parseCsvLikeItems(draft.actors ?? "");
   const scopeIn = parseCsvLikeItems(draft.scope_in ?? "");
@@ -322,11 +362,14 @@ function requirementsNeedRefinement(draft: RequirementDraft): boolean {
     (draft.nfr_security ?? "").trim().length < 30 ||
     (draft.nfr_performance ?? "").trim().length < 30 ||
     (draft.nfr_availability ?? "").trim().length < 30;
-  if (weakObjective) return true;
+  if (weakObjective || objectiveLooksTooBroad(draft.objective ?? "")) return true;
   if (actors.length < 4 || containsGenericOnly(actors)) return true;
   if (scopeIn.length < 8 || containsGenericOnly(scopeIn)) return true;
+  if (countTechnicalScopeSignals(scopeIn) < 5) return true;
+  if (countIterationSliceSignals(scopeIn) < 3) return true;
   if (scopeOut.length < 3) return true;
   if (acceptance.length < 10 || containsGenericOnly(acceptance)) return true;
+  if (countIterationSliceSignals(acceptance) < 3) return true;
   if (!hasMeasurableAcceptance(acceptance) || measurableAcceptanceCount(acceptance) < 2) return true;
   if (constraints.length < 4 || containsGenericOnly(constraints)) return true;
   if (risks.length < 4 || containsGenericOnly(risks)) return true;
@@ -359,9 +402,9 @@ function hardenRequirementDraft(draft: RequirementDraft, input: string, domain: 
   const keyC = keywords[2] || "quality";
   const objective = (draft.objective || "").trim();
   const safeObjective =
-    objective.length >= 80
+    objective.length >= 80 && !objectiveLooksTooBroad(objective)
       ? objective
-      : `Deliver a production-ready ${domain} solution focused on ${keyA} and ${keyB}, with measurable value outcomes, clear operational readiness, and quality gates that must pass before release.`;
+      : `Deliver one iteration-scoped, production-grade slice for a ${domain} solution focused on ${keyA} and ${keyB}, with concrete implementation deliverables and measurable quality gates.`;
 
   const actors = ensureMinItems(parseCsvLikeItems(draft.actors || ""), 4, (i) => {
     const defaults = ["end user", "product owner", "operations engineer", "quality engineer", "security reviewer"];
@@ -369,14 +412,14 @@ function hardenRequirementDraft(draft: RequirementDraft, input: string, domain: 
   });
   const scopeIn = ensureMinItems(parseCsvLikeItems(draft.scope_in || ""), 8, (i) => {
     const defaults = [
-      `support ${keyA} creation workflow with validation`,
-      `support ${keyA} update workflow with audit trail`,
-      `support ${keyB} search and filtering`,
-      "persist domain records with deterministic local storage adapters",
-      "provide role-aware access controls for key workflows",
-      "include health/status and error handling paths",
-      `provide reporting view for ${keyC} outcomes`,
-      "export/import baseline data for local validation"
+      "Iteration 1: scaffold runnable repository structure with backend/frontend folders and CI scripts",
+      `Iteration 1: implement ${keyA} backend model + repository + service + controller with DTO validation`,
+      `Iteration 1: implement ${keyB} frontend module with list/create/update/delete components and API client`,
+      "Iteration 1: define relational schema + dummy-local integration adapters for local execution",
+      "Iteration 1: add auth/role guard baseline and global error handling contract",
+      "Iteration 1: add smoke tests + unit tests for critical CRUD paths",
+      `Iteration 1: add observability baseline (health checks, telemetry/log hooks) for ${keyC} outcomes`,
+      "Iteration 1: document architecture/components/schemas and execution guide in README"
     ];
     return defaults[i] || `deliver scope capability ${i + 1}`;
   });
@@ -390,16 +433,16 @@ function hardenRequirementDraft(draft: RequirementDraft, input: string, domain: 
   });
   const acceptance = ensureMinItems(parseCsvLikeItems(draft.acceptance_criteria || ""), 10, (i) => {
     const defaults = [
-      "critical create/read/update/delete paths pass with 100% success in local smoke run",
-      "automated tests cover critical flows with at least 80% statements on core modules",
-      "lint/test/build/smoke commands complete successfully in local environment",
-      "p95 API response time remains under 300ms for baseline dataset",
-      "application starts in under 30 seconds on local machine",
-      "no blocker or critical findings remain after digital role review",
-      "README includes complete setup, test, run, and release instructions",
-      "required architecture/components/schema/dummy-local artifacts are present and consistent",
-      "at least one regression scenario is documented and automated",
-      "release candidate and final release metadata are generated without FAIL entries"
+      "Iteration 1: backend CRUD contract tests pass 100% for create/read/update/delete entities",
+      "Iteration 1: frontend CRUD flow tests pass for list/create/edit/delete with API integration stubs",
+      "Iteration 1: lint/test/build/smoke commands complete successfully in local environment",
+      "Iteration 1: p95 API response time remains under 300ms for baseline dataset",
+      "Iteration 1: application starts in under 30 seconds on local machine",
+      "Iteration 1: no blocker or critical findings remain after digital role review",
+      "Iteration 1: README includes complete setup, test, run, and release instructions",
+      "Iteration 1: required architecture/components/schema/dummy-local artifacts are present and consistent",
+      "Iteration 1: at least one regression scenario is documented and automated",
+      "Iteration 1: release candidate metadata is generated without FAIL entries"
     ];
     return defaults[i] || `acceptance criterion ${i + 1} with measurable threshold >= 1`;
   });
@@ -1790,12 +1833,14 @@ export function enrichDraftWithAI(
     "Do not mention tool limits or inability; provide the JSON payload directly.",
     "Each key must be a plain string. For list-like fields, return semicolon-separated items (not arrays).",
     "Quality bar:",
-    "- objective: clear business value and user impact.",
-    "- actors: at least 3 specific roles.",
-    "- scope_in: at least 6 concrete capabilities.",
-    "- acceptance_criteria: at least 8 testable criteria with measurable thresholds where possible.",
-    "- constraints: at least 3 concrete constraints.",
-    "- risks: at least 3 concrete risks.",
+    "- objective: one iteration-sized deliverable slice (not full product mission), with clear business value and user impact.",
+    "- actors: at least 4 specific roles.",
+    "- scope_in: at least 8 concrete technical capabilities (backend/frontend/api/controller/service/repository/dto/validation/schema/tests).",
+    "- at least 3 scope_in items must be explicitly iteration/sprint scoped (Iteration 1/2... or Sprint 1/2...).",
+    "- acceptance_criteria: at least 10 testable criteria with measurable thresholds where possible.",
+    "- at least 3 acceptance criteria must be iteration/sprint-scoped and executable in current round.",
+    "- constraints: at least 4 concrete constraints.",
+    "- risks: at least 4 concrete risks.",
     "Write all values in English.",
     `Intent: ${input}`,
     `Flow: ${flow}`,
@@ -1825,7 +1870,10 @@ export function enrichDraftWithAI(
       "objective, actors, scope_in, scope_out, acceptance_criteria, nfr_security, nfr_performance, nfr_availability, constraints, risks.",
       "Output plain strings only. Use semicolon-separated lists where applicable.",
       "Do not use placeholders, generic wording, or MVP-first language.",
-      "Guarantee: actors>=3, scope_in>=6, acceptance_criteria>=8 (measurable), constraints>=3, risks>=3.",
+      "Do not use broad mission statements (for example: create an app that manages users).",
+      "Guarantee: actors>=4, scope_in>=8, acceptance_criteria>=10 (measurable), constraints>=4, risks>=4.",
+      "Guarantee: >=3 scope_in items are iteration/sprint-scoped and technically concrete.",
+      "Guarantee: >=3 acceptance_criteria items are iteration/sprint-scoped and executable in this delivery round.",
       `Intent: ${input}`,
       `Flow: ${flow}`,
       `Domain: ${domain}`,
@@ -1857,8 +1905,11 @@ export function enrichDraftWithAI(
       "Mandatory thresholds:",
       "- actors >= 4",
       "- scope_in >= 8 concrete capabilities",
+      "- scope_in includes >= 3 iteration/sprint-scoped implementation items",
+      "- objective is one increment/slice, not full product mission",
       "- scope_out >= 3",
       "- acceptance_criteria >= 10 and at least 2 measurable thresholds",
+      "- acceptance_criteria includes >= 3 iteration/sprint-scoped executable checks",
       "- constraints >= 4",
       "- risks >= 4",
       "Do not use generic placeholders or draft language.",

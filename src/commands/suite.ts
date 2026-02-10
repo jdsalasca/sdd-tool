@@ -749,9 +749,17 @@ function requirementQualityFeedback(projectName?: string): string[] {
   const measurableAcceptance = req.acceptance.filter((item) =>
     /(\d+%|\d+\s*(ms|s|sec|seconds|min|minutes)|p95|p99|under\s+\d+|>=?\s*\d+|<=?\s*\d+)/i.test(item)
   ).length;
+  const iterationScopedScopeIn = req.scopeIn.filter((item) => /\b(iteration|sprint|phase|increment)\b/i.test(item)).length;
+  const iterationScopedAcceptance = req.acceptance.filter((item) => /\b(iteration|sprint|phase|increment)\b/i.test(item)).length;
+  const technicalScopeSignals = req.scopeIn.filter((item) =>
+    /\b(backend|frontend|api|controller|service|repository|dto|validation|schema|database|component|test|smoke|ci|build)\b/i.test(item)
+  ).length;
   const hints: string[] = [];
   if (req.objective.trim().length < 80) {
     hints.push("Expand objective with explicit business value, target users, and measurable success outcomes.");
+  }
+  if (/\b(create|build|develop|generate)\b.*\b(app|application|platform|system)\b/i.test(req.objective)) {
+    hints.push("Replace broad product-mission objective with one iteration-scoped deliverable slice for current round.");
   }
   if (req.actors.length < 4) {
     hints.push("Increase actors to at least 4 concrete roles (user, product, QA, operations/security).");
@@ -759,8 +767,17 @@ function requirementQualityFeedback(projectName?: string): string[] {
   if (req.scopeIn.length < 8) {
     hints.push("Expand scope_in to at least 8 concrete capabilities tied to product value.");
   }
+  if (technicalScopeSignals < 5) {
+    hints.push("Increase technical specificity in scope_in (backend/frontend/api/controller/service/repository/dto/validation/schema/tests).");
+  }
+  if (iterationScopedScopeIn < 3) {
+    hints.push("Ensure scope_in includes at least 3 iteration/sprint-scoped implementation slices.");
+  }
   if (req.acceptance.length < 10 || measurableAcceptance < 2) {
     hints.push("Add at least 10 acceptance criteria and include at least 2 measurable thresholds.");
+  }
+  if (iterationScopedAcceptance < 3) {
+    hints.push("Ensure acceptance criteria includes at least 3 iteration/sprint-scoped executable checks.");
   }
   if (req.constraints.length < 4) {
     hints.push("Add at least 4 concrete constraints (platform/runtime/process constraints).");
