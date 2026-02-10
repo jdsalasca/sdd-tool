@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ask, askProjectName } from "../ui/prompt";
-import { createProject, getProjectInfo, getWorkspaceInfo } from "../workspace/index";
+import { createProject, getProjectInfo, getWorkspaceInfo, updateProjectStatus } from "../workspace/index";
 import { loadTemplate, renderTemplate } from "../templates/render";
 import { formatList, parseList } from "../utils/list";
 import { checkRequirementGates } from "../validation/gates";
@@ -74,6 +74,10 @@ export async function runReqCreate(draft?: RequirementDraft, options?: ReqCreate
     return null;
   }
   const metadata = createProject(workspace, project.name, domain || "software");
+  if (metadata.status !== "backlog") {
+    updateProjectStatus(workspace, project.name, "backlog");
+    metadata.status = "backlog";
+  }
   const reqId = generateId();
   const status = "backlog";
 
