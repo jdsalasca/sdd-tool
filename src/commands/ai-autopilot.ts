@@ -349,6 +349,22 @@ function askProviderForJson(
     }
     return null;
   }
+  const looksLikeProviderFailure = (raw: string): boolean => {
+    const lower = raw.toLowerCase();
+    return (
+      lower.includes("terminalquotaerror") ||
+      lower.includes("you have exhausted your capacity") ||
+      lower.includes("error executing tool write_file") ||
+      lower.includes("tool \"write_file\" not found") ||
+      lower.includes("code: 429")
+    );
+  };
+  if (looksLikeProviderFailure(first.output ?? "")) {
+    if (debug) {
+      debug.errors.push("provider_output_failure_signature");
+    }
+    return null;
+  }
   const parsed = extractJsonObject(first.output);
   if (parsed) {
     return parsed;
@@ -357,11 +373,19 @@ function askProviderForJson(
   if (textFiles.length > 0) {
     return { files: textFiles };
   }
+  const repairSource = (() => {
+    const maxChars = 12000;
+    const output = first.output ?? "";
+    if (output.length <= maxChars) {
+      return output;
+    }
+    return `${output.slice(0, maxChars)}\n...[truncated by sdd-tool due size]`;
+  })();
   const repairPrompt = [
     "Convert the following response into valid JSON only.",
     "Keep the same information.",
     "No markdown fences, no explanations.",
-    first.output
+    repairSource
   ].join("\n");
   const second = providerExec(repairPrompt);
   if (debug) {

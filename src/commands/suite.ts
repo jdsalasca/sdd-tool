@@ -199,6 +199,51 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function loadModelFallbacks(baseModel?: string): string[] {
+  const raw = process.env.SDD_GEMINI_MODEL_FALLBACKS ?? "gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash";
+  const parsed = raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (baseModel && baseModel.trim()) {
+    if (!parsed.includes(baseModel.trim())) {
+      parsed.unshift(baseModel.trim());
+    }
+  }
+  return parsed.length > 0 ? parsed : [baseModel?.trim() || "gemini-2.5-flash-lite"];
+}
+
+function detectProviderQuotaIssue(projectName?: string): boolean {
+  const projectRoot = resolveProjectRoot(projectName);
+  if (!projectRoot) {
+    return false;
+  }
+  const debugMeta = path.join(projectRoot, "debug", "provider-prompts.metadata.jsonl");
+  const providerDebug = path.join(projectRoot, "generated-app", "provider-debug.md");
+  try {
+    if (fs.existsSync(debugMeta)) {
+      const lines = fs
+        .readFileSync(debugMeta, "utf-8")
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .slice(-40);
+      const hasQuota = lines.some((line) => /quota|capacity|terminalquotaerror|429/i.test(line));
+      if (hasQuota) {
+        return true;
+      }
+    }
+    if (fs.existsSync(providerDebug)) {
+      const text = fs.readFileSync(providerDebug, "utf-8");
+      if (/quota|capacity|terminalquotaerror|429/i.test(text)) {
+        return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 function inferAppType(text: string): SuiteContext["appType"] | undefined {
   const lower = text.toLowerCase();
   if (/\bdesktop\b|\bwindows\b|\belectron\b/.test(lower)) {
@@ -278,12 +323,13 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
   let cycleInput = input;
   let previousRank = 0;
   let stalledCycles = 0;
+  const fallbackModels = loadModelFallbacks(baseFlags.model);
+  let modelCursor = Math.max(0, fallbackModels.findIndex((item) => item === baseFlags.model));
   while (true) {
     cycle += 1;
     const elapsedMinutes = Math.floor((Date.now() - startedAt) / 60000);
     const iterationsThisCycle = Math.min(10, baseIterations + Math.max(0, cycle - 1));
-    const model =
-      (baseFlags.provider ?? "").toLowerCase() === "gemini" && cycle >= 4 ? "gemini-2.5-flash" : baseFlags.model;
+    let model = (baseFlags.provider ?? "").toLowerCase() === "gemini" ? fallbackModels[modelCursor] : baseFlags.model;
 
     let nextFromStep = chooseResumeStep(lastProject);
     const rankBefore = stageRank(lastProject);
@@ -368,6 +414,33 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     }
     cycleInput = `${input}. ${qualityRetryPrompt}`;
     lastProject = getFlags().project ?? lastProject;
+    if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && detectProviderQuotaIssue(lastProject)) {
+      const previousModel = model;
+      modelCursor = (modelCursor + 1) % fallbackModels.length;
+      model = fallbackModels[modelCursor];
+      console.log(`Suite provider recovery: detected quota/capacity issue. Switching model ${previousModel} -> ${model}.`);
+      const quotaRoot = resolveProjectRoot(lastProject);
+      if (quotaRoot) {
+        appendCampaignJournal(quotaRoot, "campaign.provider.recovery", `quota detected; model ${previousModel} -> ${model}`);
+        writeCampaignState(quotaRoot, {
+          cycle,
+          elapsedMinutes,
+          targetStage: policy.targetStage,
+          targetPassed: false,
+          qualityPassed: false,
+          releasePassed: false,
+          runtimePassed: false,
+          model,
+          nextFromStep,
+          autonomous: policy.autonomous,
+          stallCount: stalledCycles,
+          running: true,
+          suitePid: process.pid,
+          phase: "provider_quota_recovery",
+          lastError: `quota/capacity issue detected for ${previousModel}; switched to ${model}`
+        });
+      }
+    }
 
     const targetPassed = stagePassed(lastProject, policy.targetStage);
     const qualityPassed = stagePassed(lastProject, "quality_validation");
