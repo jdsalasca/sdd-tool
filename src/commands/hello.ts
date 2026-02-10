@@ -210,6 +210,15 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     if (normalized.includes("missing dependency '")) {
       hints.add("Synchronize package.json dependencies with all imports/requires used in source and tests.");
     }
+    if (normalized.includes("references missing file")) {
+      hints.add("Fix package scripts: every script must reference files that exist in generated-app (or remove stale scripts).");
+    }
+    if (normalized.includes("must not be 'sdd-cli'")) {
+      hints.add("Set generated app package name to a project-specific name; never reuse orchestrator package identity.");
+    }
+    if (normalized.includes("scripts/preinstall.js") || normalized.includes("scripts/autopilot-smoke.js")) {
+      hints.add("Remove inherited orchestrator scripts from generated app package.json unless matching files are created.");
+    }
     if (normalized.includes("typescript tests detected but ts-jest is not declared") || normalized.includes("jest config uses ts-jest preset")) {
       hints.add("For TS tests, add ts-jest + proper jest config, or convert tests to JS consistently.");
     }

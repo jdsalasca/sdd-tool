@@ -120,7 +120,22 @@ program
   .command("suite")
   .description("Run continuous SDD orchestration mode (asks only blocking decisions)")
   .argument("[input...]", "Optional initial goal")
-  .action((input: string[]) => runSuite(input.join(" ").trim()));
+  .option("--campaign-hours <n>", "Minimum campaign runtime in hours before suite can stop (0-24)", "0")
+  .option("--campaign-max-cycles <n>", "Maximum campaign cycles before stopping", "24")
+  .option("--campaign-sleep-seconds <n>", "Sleep interval between campaign cycles", "5")
+  .option(
+    "--campaign-target-stage <stage>",
+    "Delivery stage required for campaign success: discovery|functional_requirements|technical_backlog|implementation|quality_validation|role_review|release_candidate|final_release|runtime_start",
+    "runtime_start"
+  )
+  .action((input: string[], options) =>
+    runSuite(input.join(" ").trim(), {
+      campaignHours: options.campaignHours,
+      campaignMaxCycles: options.campaignMaxCycles,
+      campaignSleepSeconds: options.campaignSleepSeconds,
+      campaignTargetStage: options.campaignTargetStage
+    })
+  );
 
 program
   .command("list")

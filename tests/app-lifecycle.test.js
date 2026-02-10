@@ -335,3 +335,48 @@ test("runAppLifecycle preflight fails on nested generated-app duplication", () =
     assert.equal(result.qualityPassed, false);
     assert.equal(result.qualityDiagnostics.some((line) => /Nested generated-app\/package\.json detected/i.test(line)), true);
   }));
+
+test("runAppLifecycle preflight fails when package leaks sdd-cli identity and missing script files", () =>
+  withTempConfig((root) => {
+    const appDir = path.join(root, "generated-app");
+    fs.mkdirSync(path.join(appDir, "tests"), { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "README.md"),
+      ["# Demo", "## Features", "- x", "## Testing", "- npm test", "## Run", "- npm start"].join("\n"),
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- x\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- x\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "components.md"), "# Components\n- x\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "architecture.md"), "# Architecture\n- MVC\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- x\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");
+    fs.writeFileSync(
+      path.join(appDir, "tests", "a.test.js"),
+      "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});",
+      "utf-8"
+    );
+    fs.writeFileSync(
+      path.join(appDir, "package.json"),
+      JSON.stringify(
+        {
+          name: "sdd-cli",
+          scripts: {
+            preinstall: "node scripts/preinstall.js",
+            smoke: "node scripts/autopilot-smoke.js"
+          }
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    const result = runAppLifecycle(root, "autopilot-script-leak-20260210", {
+      goalText: "create parking registry app"
+    });
+
+    assert.equal(result.qualityPassed, false);
+    assert.equal(result.qualityDiagnostics.some((line) => /must not be 'sdd-cli'/i.test(line)), true);
+    assert.equal(result.qualityDiagnostics.some((line) => /references missing file/i.test(line)), true);
+  }));

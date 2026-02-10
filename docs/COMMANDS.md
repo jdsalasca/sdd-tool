@@ -150,3 +150,9 @@ This file defines the command set, intent, and expected behavior.
   - Starts continuous orchestration mode
   - Uses autopilot defaults and only asks blocker questions (for example app type or stack) when missing
   - Supports one-liner usage through direct input routing
+  - Campaign options for long-running delivery loops:
+    - `--campaign-hours <n>` minimum runtime target before suite can stop (`0..24`)
+    - `--campaign-max-cycles <n>` upper bound for cycle count before stopping
+    - `--campaign-sleep-seconds <n>` pause between cycles
+    - `--campaign-target-stage <stage>` required stage to treat campaign as successful (default `runtime_start`)
+  - Writes campaign cycle timeline to `<project>/suite-campaign-journal.jsonl`

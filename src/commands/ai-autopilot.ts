@@ -1561,6 +1561,8 @@ export function bootstrapProjectCode(
       '{"files":[{"path":"relative/path","content":"file content"}],"run_command":"...","deploy_steps":["..."],"publish_steps":["..."]}',
       "Use only relative file paths. Keep files concise and runnable.",
       "Use English for README/docs/messages/comments.",
+      "Do not use package name sdd-cli in generated package.json files; use project-specific names.",
+      "Every npm script you define must reference files that actually exist in the generated output.",
       "Never mention unavailable tools or ask the user to create files manually.",
       "Assume you can directly author repository files and return only the JSON payload.",
       `Project: ${projectName}`,

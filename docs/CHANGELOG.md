@@ -50,6 +50,13 @@
   - log every provider prompt/response pair with timestamp and duration at `<project>/debug/provider-prompts.jsonl`.
   - log orchestration timeline events at `<project>/orchestration-journal.jsonl` to support long-running runs and resume analysis.
 - Harden provider prompt contracts to reject "tool unavailable/manual steps" style responses and force direct JSON file payloads for generation/repair loops.
+- Add `suite` campaign controls for long-running orchestration:
+  - `--campaign-hours`, `--campaign-max-cycles`, `--campaign-sleep-seconds`, `--campaign-target-stage`.
+  - automatic cycle escalation (`iterations` increase per cycle, model escalation for Gemini after repeated failures).
+  - persistent campaign timeline at `<project>/suite-campaign-journal.jsonl`.
+- Harden preflight quality checks for generated apps:
+  - reject orchestrator package leakage (`package.json.name = sdd-cli`).
+  - reject npm scripts that reference missing files (for example stale `scripts/preinstall.js` / smoke scripts).
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

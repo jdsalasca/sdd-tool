@@ -182,13 +182,16 @@ function runIfScript(cwd: string, script: string): StepResult | null {
   }
 }
 
-function readPackageJson(cwd: string): { scripts?: Record<string, string>; dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null {
+function readPackageJson(
+  cwd: string
+): { name?: string; scripts?: Record<string, string>; dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null {
   const pkgPath = path.join(cwd, "package.json");
   if (!fs.existsSync(pkgPath)) {
     return null;
   }
   try {
     return JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
+      name?: string;
       scripts?: Record<string, string>;
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
@@ -270,7 +273,34 @@ function preflightQualityCheck(appDir: string): StepResult {
   }
 
   const pkg = readPackageJson(appDir);
+  if (typeof pkg?.name === "string" && pkg.name.trim().toLowerCase() === "sdd-cli") {
+    issues.push("Generated app package name must not be 'sdd-cli' (template leakage from orchestrator package).");
+  }
   if (pkg?.scripts) {
+    const scriptReferencesFile = (script: string): string | null => {
+      const normalized = script.replace(/\\/g, "/");
+      const nodeMatch = /\bnode\s+((?:\.\/)?[A-Za-z0-9._/-]+\.js)\b/.exec(normalized);
+      if (nodeMatch) {
+        return nodeMatch[1].replace(/^\.\//, "");
+      }
+      if (/\btsc\b/.test(normalized) && /\b-p\s+tsconfig\.json\b/.test(normalized)) {
+        return "tsconfig.json";
+      }
+      return null;
+    };
+    for (const [scriptName, scriptValue] of Object.entries(pkg.scripts)) {
+      if (typeof scriptValue !== "string") {
+        continue;
+      }
+      const fileRef = scriptReferencesFile(scriptValue);
+      if (!fileRef) {
+        continue;
+      }
+      const abs = path.join(appDir, fileRef);
+      if (!fs.existsSync(abs)) {
+        issues.push(`Script '${scriptName}' references missing file '${fileRef}'.`);
+      }
+    }
     for (const scriptName of ["smoke", "test:smoke", "e2e"]) {
       const script = pkg.scripts[scriptName];
       if (typeof script === "string" && /\.\//.test(script)) {
