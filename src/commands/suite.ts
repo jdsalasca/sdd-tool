@@ -974,7 +974,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
   const providerName = String(baseFlags.provider || "gemini").trim().toLowerCase();
   const providerResolution = resolveProvider(providerName);
   const modelChooser = providerResolution.ok ? providerResolution.provider.chooseModel : undefined;
-  const modelPoolSizeHint = providerName === "gemini" ? 5 : 3;
+  const modelPoolSizeHint = providerName === "gemini" ? 6 : 3;
   const triedModels: string[] = [];
   const selectModel = (reason: ModelSelectionReason, currentModel?: string): string | undefined => {
     if (!modelChooser) {
