@@ -63,7 +63,7 @@ function parseTargetStage(raw?: string): DeliveryStage {
 }
 
 function resolveCampaignPolicy(options?: SuiteRunOptions): CampaignPolicy {
-  const hoursInput = options?.campaignHours ?? process.env.SDD_SUITE_CAMPAIGN_HOURS ?? "0";
+  const hoursInput = options?.campaignHours ?? process.env.SDD_SUITE_CAMPAIGN_HOURS ?? "6";
   const cyclesInput = options?.campaignMaxCycles ?? process.env.SDD_SUITE_CAMPAIGN_MAX_CYCLES ?? "24";
   const sleepInput = options?.campaignSleepSeconds ?? process.env.SDD_SUITE_CAMPAIGN_SLEEP_SECONDS ?? "5";
   const stageInput = options?.campaignTargetStage ?? process.env.SDD_SUITE_CAMPAIGN_TARGET_STAGE ?? "runtime_start";
@@ -268,6 +268,10 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       `Suite campaign enabled: ${policy.minRuntimeMinutes} min minimum runtime, max ${policy.maxCycles} cycles, target stage ${policy.targetStage}, autonomous=${policy.autonomous}.`
     );
   }
+  if (policy.minRuntimeMinutes < 360) {
+    console.log("Suite policy notice: enforcing minimum 360 minutes for continuous campaign quality mode.");
+    policy.minRuntimeMinutes = 360;
+  }
 
   let cycle = 0;
   let lastProject = baseFlags.project;
@@ -387,7 +391,8 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
         stallCount: stalledCycles,
         running: true,
         suitePid: process.pid,
-        phase: "cycle_completed"
+        phase: "cycle_completed",
+        lastError: minimumRuntimeMet ? "" : `minimum runtime pending (${elapsedMinutes}/${policy.minRuntimeMinutes}m)`
       });
       appendCampaignJournal(
         projectRoot,
@@ -424,6 +429,35 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       return;
     }
     if (cycle >= policy.maxCycles) {
+      if (!minimumRuntimeMet) {
+        const contRoot = resolveProjectRoot(lastProject);
+        if (contRoot) {
+          writeCampaignState(contRoot, {
+            cycle,
+            elapsedMinutes,
+            targetStage: policy.targetStage,
+            targetPassed,
+            qualityPassed,
+            releasePassed,
+            runtimePassed,
+            model,
+            nextFromStep,
+            autonomous: policy.autonomous,
+            stallCount: stalledCycles,
+            running: true,
+            suitePid: process.pid,
+            phase: "runtime_enforced_continue",
+            lastError: `Reached configured max cycles before minimum runtime (${elapsedMinutes}/${policy.minRuntimeMinutes}m). Continuing.`
+          });
+        }
+        console.log(
+          `Suite campaign reached max cycles but minimum runtime is not met (${elapsedMinutes}/${policy.minRuntimeMinutes}m). Continuing autonomously.`
+        );
+        if (policy.sleepSeconds > 0) {
+          await sleep(policy.sleepSeconds * 1000);
+        }
+        continue;
+      }
       const maxRoot = resolveProjectRoot(lastProject);
       if (maxRoot) {
         writeCampaignState(maxRoot, {

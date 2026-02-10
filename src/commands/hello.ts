@@ -27,6 +27,7 @@ import {
   writeDigitalReviewReport,
   writeUserStoriesBacklog
 } from "./digital-reviewers";
+import type { DigitalReviewResult, UserStory } from "./digital-reviewers";
 import {
   AutopilotCheckpoint,
   AutopilotStep,
@@ -77,6 +78,18 @@ type IterationMetric = {
   diagnostics?: string[];
 };
 
+type LifeTrack = "users" | "stakeholders" | "design" | "marketing" | "quality";
+
+type LifeEntry = {
+  at: string;
+  round: number;
+  track: LifeTrack;
+  summary: string;
+  findings: string[];
+  actions: string[];
+  stage: string;
+};
+
 function appendIterationMetric(appDir: string, metric: IterationMetric): void {
   if (!fs.existsSync(appDir)) {
     return;
@@ -90,6 +103,134 @@ function appendIterationMetric(appDir: string, metric: IterationMetric): void {
   const metrics = Array.isArray(current.metrics) ? current.metrics : [];
   metrics.push(metric);
   fs.writeFileSync(file, JSON.stringify({ metrics }, null, 2), "utf-8");
+}
+
+function lifeDir(projectRoot: string): string {
+  return path.join(projectRoot, "life");
+}
+
+function appendLifeEntry(projectRoot: string, entry: LifeEntry): void {
+  const base = lifeDir(projectRoot);
+  fs.mkdirSync(base, { recursive: true });
+  const file = path.join(base, `${entry.track}-rounds.jsonl`);
+  fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, "utf-8");
+}
+
+function readLifeEntries(projectRoot: string, track: LifeTrack): LifeEntry[] {
+  const file = path.join(lifeDir(projectRoot), `${track}-rounds.jsonl`);
+  if (!fs.existsSync(file)) {
+    return [];
+  }
+  const lines = fs
+    .readFileSync(file, "utf-8")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const entries: LifeEntry[] = [];
+  for (const line of lines) {
+    try {
+      const parsed = JSON.parse(line) as LifeEntry;
+      entries.push(parsed);
+    } catch {
+      // skip malformed line
+    }
+  }
+  return entries;
+}
+
+function writeLifeSummary(projectRoot: string): void {
+  const tracks: LifeTrack[] = ["users", "stakeholders", "design", "marketing", "quality"];
+  const sections: string[] = ["# Life Summary", "", `Generated: ${new Date().toISOString()}`, ""];
+  for (const track of tracks) {
+    const entries = readLifeEntries(projectRoot, track);
+    const last = entries[entries.length - 1];
+    sections.push(`## ${track}`);
+    sections.push(`- Rounds: ${entries.length}`);
+    if (last) {
+      sections.push(`- Last summary: ${last.summary}`);
+      sections.push(`- Last stage: ${last.stage}`);
+      sections.push(`- Last at: ${last.at}`);
+    } else {
+      sections.push("- Last summary: n/a");
+    }
+    sections.push("");
+  }
+  fs.writeFileSync(path.join(lifeDir(projectRoot), "summary.md"), `${sections.join("\n")}\n`, "utf-8");
+}
+
+function topActions(stories: UserStory[], limit = 6): string[] {
+  return stories
+    .slice(0, limit)
+    .map((story) => `${story.id}(${story.priority}) ${story.story}`);
+}
+
+function appendLifeRoundArtifacts(
+  projectRoot: string,
+  round: number,
+  review: DigitalReviewResult,
+  stories: UserStory[],
+  stage: string
+): void {
+  const findings = review.diagnostics.slice(0, 12);
+  const actions = topActions(stories, 8);
+  const byReviewer = (tokens: string[]): string[] =>
+    findings.filter((line) => tokens.some((token) => line.toLowerCase().includes(token.toLowerCase())));
+
+  const userFindings = byReviewer(["ux_researcher", "support_agent", "accessibility_tester", "qa_engineer"]);
+  appendLifeEntry(projectRoot, {
+    at: new Date().toISOString(),
+    round,
+    track: "users",
+    summary: review.passed ? "Digital user validation passed." : "Digital user validation found friction points.",
+    findings: userFindings.length > 0 ? userFindings : findings,
+    actions,
+    stage
+  });
+
+  const stakeholderFindings = byReviewer(["program_manager", "release_manager", "business_analyst", "compliance_officer"]);
+  appendLifeEntry(projectRoot, {
+    at: new Date().toISOString(),
+    round,
+    track: "stakeholders",
+    summary: review.passed ? "Stakeholder round accepted current increment." : "Stakeholder round requested prioritization updates.",
+    findings: stakeholderFindings.length > 0 ? stakeholderFindings : findings,
+    actions,
+    stage
+  });
+
+  const designFindings = byReviewer(["ux_researcher", "design_reviewer", "accessibility_tester", "frontend_reviewer"]);
+  appendLifeEntry(projectRoot, {
+    at: new Date().toISOString(),
+    round,
+    track: "design",
+    summary: review.passed ? "Design review baseline accepted." : "Design review requires UX/accessibility improvements.",
+    findings: designFindings.length > 0 ? designFindings : findings,
+    actions,
+    stage
+  });
+
+  const marketingFindings = byReviewer(["program_manager", "business_analyst", "release_manager", "value_growth"]);
+  appendLifeEntry(projectRoot, {
+    at: new Date().toISOString(),
+    round,
+    track: "marketing",
+    summary: review.passed ? "Marketing narrative ready for release messaging." : "Marketing round requires clearer value proposition and release notes.",
+    findings: marketingFindings.length > 0 ? marketingFindings : findings,
+    actions,
+    stage
+  });
+
+  appendLifeEntry(projectRoot, {
+    at: new Date().toISOString(),
+    round,
+    track: "quality",
+    summary: review.summary,
+    findings,
+    actions,
+    stage
+  });
+
+  writeLifeSummary(projectRoot);
 }
 
 function appendQualityBacklog(
@@ -1256,6 +1397,16 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           diagnostics: lifecycle.qualityDiagnostics,
           hints: summarizeQualityDiagnostics(lifecycle.qualityDiagnostics)
         });
+        appendLifeEntry(projectRoot, {
+          at: new Date().toISOString(),
+          round: 0,
+          track: "quality",
+          summary: lifecycle.qualityPassed ? "Initial lifecycle validation passed." : "Initial lifecycle validation failed.",
+          findings: lifecycle.qualityDiagnostics.slice(0, 12),
+          actions: summarizeQualityDiagnostics(lifecycle.qualityDiagnostics),
+          stage: "quality_validation"
+        });
+        writeLifeSummary(projectRoot);
         writeRunStatus(projectRoot, {
           stageCurrent: "quality_validation",
           stages: loadStageSnapshot(projectRoot).stages,
@@ -1380,6 +1531,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             const reviewPath = writeDigitalReviewReport(appDir, review);
             const storiesPath = writeUserStoriesBacklog(appDir, stories);
             appendDigitalReviewRound(appDir, round, review, stories);
+            appendLifeRoundArtifacts(projectRoot, round, review, stories, "role_review");
             if (reviewPath) {
               printWhy(`Digital-review report: ${reviewPath}`);
             }
@@ -1421,6 +1573,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               storyDiagnostics = storiesToDiagnostics(stories);
               writeUserStoriesBacklog(appDir, stories);
               appendDigitalReviewRound(appDir, round, review, stories);
+              appendLifeRoundArtifacts(projectRoot, round, review, stories, "role_review");
               printWhy(
                 `Iteration ${round}: base quality approved (${review.summary}). Approval streak ${approvalStreak}/${requiredApprovalStreak}; executing value-growth stories.`
               );
@@ -1501,6 +1654,16 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
                 diagnostics: lifecycle.qualityDiagnostics,
                 hints: summarizeQualityDiagnostics(lifecycle.qualityDiagnostics)
               });
+              appendLifeEntry(projectRoot, {
+                at: new Date().toISOString(),
+                round,
+                track: "quality",
+                summary: "Lifecycle re-validation failed after implementing review stories.",
+                findings: lifecycle.qualityDiagnostics.slice(0, 12),
+                actions: summarizeQualityDiagnostics(lifecycle.qualityDiagnostics),
+                stage: "quality_validation"
+              });
+              writeLifeSummary(projectRoot);
               printWhy("Quality gates failed after story implementation. Applying one quality-repair pass.");
               const qualityRepair = improveGeneratedApp(
                 appDir,
@@ -1526,6 +1689,16 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
                 diagnostics: lifecycle.qualityDiagnostics,
                 hints: summarizeQualityDiagnostics(lifecycle.qualityDiagnostics)
               });
+              appendLifeEntry(projectRoot, {
+                at: new Date().toISOString(),
+                round,
+                track: "quality",
+                summary: "Lifecycle quality remained below threshold after repair pass.",
+                findings: lifecycle.qualityDiagnostics.slice(0, 12),
+                actions: summarizeQualityDiagnostics(lifecycle.qualityDiagnostics),
+                stage: "quality_validation"
+              });
+              writeLifeSummary(projectRoot);
               printWhy(`Iteration ${round}: lifecycle quality still failing.`);
               appendIterationMetric(appDir, {
                 at: new Date().toISOString(),
@@ -1581,6 +1754,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             writeDigitalReviewReport(appDir, review);
             writeUserStoriesBacklog(appDir, stories);
             appendDigitalReviewRound(appDir, round, review, stories);
+            appendLifeRoundArtifacts(projectRoot, round, review, stories, "role_review");
             if (review.passed) {
               approvalStreak += 1;
               if (round >= plannedRounds && approvalStreak >= requiredApprovalStreak) {
@@ -1599,6 +1773,16 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
                 diagnostics: review.diagnostics,
                 hints: storiesToDiagnostics(stories)
               });
+              appendLifeEntry(projectRoot, {
+                at: new Date().toISOString(),
+                round,
+                track: "stakeholders",
+                summary: "Stakeholder round blocked release due to unresolved reviewer findings.",
+                findings: review.diagnostics.slice(0, 12),
+                actions: storiesToDiagnostics(stories).slice(0, 12),
+                stage: "role_review"
+              });
+              writeLifeSummary(projectRoot);
               printWhy(`Iteration ${round}: additional improvements still required (${review.summary}).`);
             }
           }
@@ -1654,6 +1838,16 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             });
             printWhy("Final lifecycle verification failed after digital approval. Delivery blocked until all quality checks pass.");
             finalLifecycle.qualityDiagnostics.forEach((issue) => printWhy(`Final quality issue: ${issue}`));
+            appendLifeEntry(projectRoot, {
+              at: new Date().toISOString(),
+              round: Math.max(iterations, 1),
+              track: "quality",
+              summary: "Final lifecycle verification failed after review approval.",
+              findings: finalLifecycle.qualityDiagnostics.slice(0, 12),
+              actions: summarizeQualityDiagnostics(finalLifecycle.qualityDiagnostics),
+              stage: "quality_validation"
+            });
+            writeLifeSummary(projectRoot);
             printRecoveryNext(activeProject, "finish", text);
             return;
           }
@@ -1675,6 +1869,17 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             intentFlow: intent.flow
           });
           printWhy(`Publish after review: ${publish.summary}`);
+          appendLifeEntry(projectRoot, {
+            at: new Date().toISOString(),
+            round: Math.max(iterations, 1),
+            track: "marketing",
+            summary: publish.published
+              ? "Marketing/release communication round approved for published release."
+              : "Marketing round pending publish; release messaging prepared.",
+            findings: [publish.summary],
+            actions: ["Update release announcement with final changelog highlights.", "Share rollout notes with stakeholders."],
+            stage: "final_release"
+          });
           const finalRelease = gitPolicy.release_management_enabled
             ? createManagedRelease(projectRoot, activeProject, {
                 round: Math.max(iterations, 1),
@@ -1689,6 +1894,19 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               })
             : { created: false, version: "disabled", summary: "release management disabled by config" };
           printWhy(`Final release ${finalRelease.version}: ${finalRelease.summary}`);
+          appendLifeEntry(projectRoot, {
+            at: new Date().toISOString(),
+            round: Math.max(iterations, 1),
+            track: "stakeholders",
+            summary: finalRelease.created
+              ? "Stakeholder sign-off ready: final release generated."
+              : "Stakeholder sign-off blocked: final release creation failed.",
+            findings: [finalRelease.summary],
+            actions: finalRelease.created
+              ? ["Proceed with release governance checklist.", "Confirm production handoff and support ownership."]
+              : ["Resolve release blockers and regenerate final release artifacts."],
+            stage: "final_release"
+          });
           markStage(
             projectRoot,
             "final_release",
@@ -1709,6 +1927,20 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             ? startGeneratedApp(projectRoot, activeProject)
             : { started: false, processes: [], summary: "runtime auto-start disabled by config" };
           printWhy(`Runtime start: ${runtime.summary}`);
+          appendLifeEntry(projectRoot, {
+            at: new Date().toISOString(),
+            round: Math.max(iterations, 1),
+            track: "users",
+            summary: runtime.started
+              ? "User-acceptance simulation can proceed; runtime is available."
+              : "User-acceptance simulation blocked; runtime did not start.",
+            findings: [runtime.summary],
+            actions: runtime.started
+              ? ["Execute digital user acceptance checklist against running app.", "Capture feedback into next backlog cycle."]
+              : ["Fix startup/runtime issues and re-run final verification."],
+            stage: "runtime_start"
+          });
+          writeLifeSummary(projectRoot);
           markStage(projectRoot, "runtime_start", runtime.started ? "passed" : "failed", runtime.summary);
           appendOrchestrationJournal(projectRoot, "stage.runtime_start", runtime.summary);
           writeRunStatus(projectRoot, {
