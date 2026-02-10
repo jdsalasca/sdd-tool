@@ -303,6 +303,8 @@ test("runAppLifecycle defers publish when digital-review defer flag is enabled",
     fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- calc_entry\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "components.md"), "# Components\n- calc_engine\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "architecture.md"), "# Architecture\n- MVC: model/controller/view\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "mission.md"), "# Mission\n- deliver user value and reliable outcomes\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "vision.md"), "# Vision\n- future roadmap for growth and scale\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- local stubs\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- core paths\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "requirements.txt"), "fastapi==0.115.0\nuvicorn==0.30.6\n", "utf-8");

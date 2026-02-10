@@ -1026,6 +1026,42 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
         output: "Architecture docs contain placeholder/TODO content."
       };
     }
+    const missionDoc =
+      findFileRecursive(appDir, (rel) => rel === "mission.md" || rel.endsWith("/mission.md"), 8) ??
+      findFileRecursive(appDir, (rel) => rel.includes("mission") && rel.endsWith(".md"), 8);
+    if (!missionDoc) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing mission.md (required for product intent and value direction)."
+      };
+    }
+    const visionDoc =
+      findFileRecursive(appDir, (rel) => rel === "vision.md" || rel.endsWith("/vision.md"), 8) ??
+      findFileRecursive(appDir, (rel) => rel.includes("vision") && rel.endsWith(".md"), 8);
+    if (!visionDoc) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing vision.md (required for long-term roadmap direction)."
+      };
+    }
+    const missionText = normalizeText(fs.readFileSync(path.join(appDir, missionDoc), "utf-8"));
+    if (!/\bvalue\b|\boutcome\b|\buser\b|\bcustomer\b/.test(missionText) || hasPlaceholderContent(missionText)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "mission.md is incomplete or contains placeholder content."
+      };
+    }
+    const visionText = normalizeText(fs.readFileSync(path.join(appDir, visionDoc), "utf-8"));
+    if (!/\broadmap\b|\bfuture\b|\bscale\b|\bgrowth\b/.test(visionText) || hasPlaceholderContent(visionText)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "vision.md is incomplete or contains placeholder content."
+      };
+    }
   }
 
   const regressionEvidence =

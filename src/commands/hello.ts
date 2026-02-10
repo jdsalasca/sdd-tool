@@ -378,6 +378,12 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     if (normalized.includes("missing readme.md") || normalized.includes("readme missing sections")) {
       hints.add("Add production README with sections: Features, Run/Setup, Testing, Architecture summary.");
     }
+    if (normalized.includes("missing mission.md")) {
+      hints.add("Add mission.md describing product purpose, target users, and measurable value outcomes.");
+    }
+    if (normalized.includes("missing vision.md")) {
+      hints.add("Add vision.md describing roadmap direction, scale goals, and long-term product direction.");
+    }
     if (normalized.includes("missing java dto layer")) {
       hints.add("Add Java DTO package and DTO classes for request/response boundaries.");
     }
@@ -753,6 +759,26 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
     process.env.SDD_PROMPT_DEBUG_FILE = path.join(earlyProjectRoot, "debug", "provider-prompts.jsonl");
     printWhy(`Using project: ${activeProject}`);
     setFlags({ project: activeProject });
+    const bootstrapStep: AutopilotStep = fromStep ?? "create";
+    if (!dryRun) {
+      fs.mkdirSync(earlyProjectRoot, { recursive: true });
+      writeRunStatus(earlyProjectRoot, {
+        project: activeProject,
+        intent: intent.intent,
+        flow: intent.flow,
+        domain: intent.domain,
+        provider: provider || "gemini",
+        model: runtimeFlags.model || process.env.SDD_GEMINI_MODEL || "",
+        step: bootstrapStep,
+        stageCurrent: "discovery",
+        blockers: [],
+        recovery: {
+          fromStep: bootstrapStep,
+          hint: text,
+          command: `sdd-cli --provider ${provider || "gemini"} --project "${activeProject}" --from-step ${bootstrapStep} hello "${text}"`
+        }
+      });
+    }
     checkpoint = loadCheckpoint(activeProject);
     if (checkpoint && !fromStep) {
       const candidate = nextStep(checkpoint.lastCompleted);

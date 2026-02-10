@@ -539,6 +539,7 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   constraints.push("Do not generate proof-of-concept, MVP draft, or first-draft placeholders. Deliver production-ready baseline quality.");
   constraints.push("Default architecture style is MVC unless the user explicitly requests another pattern.");
   constraints.push("Use modular, extensible component blocks. Add components.md with responsibilities, contracts, and extension points.");
+  constraints.push("Add mission.md and vision.md with concrete product mission, business direction, and value outcomes.");
   constraints.push("Prefer clear OOP-oriented modules/classes with explicit interfaces and separation of concerns.");
   constraints.push("Always generate a root README.md at repository root (not only docs/README.md).");
   constraints.push("README.md must include sections for Features, Setup/Run, Testing, and Release/Artifacts.");
@@ -1607,6 +1608,7 @@ export function bootstrapProjectCode(
       `Domain profile: ${domain}.`,
       "Use MVC architecture by default (models/controllers/views or equivalent backend/frontend MVC layering).",
       "Add a component map file named components.md with component responsibilities and extension points.",
+      "Add mission.md and vision.md with concrete product mission and long-term direction.",
       "Use DummyLocal adapters for integrations (databases, external APIs, queues) so everything runs locally.",
       "Add a schema document named schemas.md with entities, fields, relations, and constraints.",
       "Add regression tests and regression notes/documentation.",
@@ -1634,7 +1636,7 @@ export function bootstrapProjectCode(
         "Return ONLY valid JSON. No markdown.",
         "Schema: {\"files\":[{\"path\":\"relative/path\",\"content\":\"...\"}]}",
         "Generate only essential production-ready files to run locally with quality-first defaults.",
-        "Must include: README.md, architecture.md, components.md, schemas.md, regression notes, and DummyLocal integration docs.",
+        "Must include: README.md, architecture.md, components.md, mission.md, vision.md, schemas.md, regression notes, and DummyLocal integration docs.",
         "Use MVC architecture by default and keep files in English.",
         "Never mention unavailable tools or ask the user to create files manually.",
         "Assume you can directly author repository files and return only the JSON payload.",
@@ -1671,6 +1673,8 @@ export function bootstrapProjectCode(
         "- README.md",
         "- components.md",
         "- architecture.md",
+        "- mission.md",
+        "- vision.md",
         "- schemas.md",
         "Also include: dummy-local.md, regression.md, schema.sql, LICENSE, and a smoke script in package.json.",
         "Use English only.",
@@ -1689,7 +1693,7 @@ export function bootstrapProjectCode(
         "Return ONLY valid JSON. No markdown.",
         'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
         "Generate ULTRA-COMPACT output with at most 12 files and concise content.",
-        "Must include: package.json, README.md, architecture.md, components.md, schemas.md, dummy-local.md, regression.md, LICENSE.",
+        "Must include: package.json, README.md, architecture.md, components.md, mission.md, vision.md, schemas.md, dummy-local.md, regression.md, LICENSE.",
         "Use MVC architecture by default and English-only content.",
         "Include one runnable app entrypoint and one smoke validation script command in package.json.",
         "Include at least one test file and keep dependencies aligned with imports.",
