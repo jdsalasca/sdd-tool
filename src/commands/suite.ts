@@ -199,6 +199,26 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function normalizeCampaignInput(baseInput: string, additions: string[]): string {
+  const chunks = [baseInput, ...additions]
+    .map((value) => String(value || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const merged = chunks.join(". ");
+  const segments = merged
+    .split(".")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const deduped: string[] = [];
+  for (const segment of segments) {
+    if (!deduped.includes(segment)) {
+      deduped.push(segment);
+    }
+  }
+  const normalized = deduped.join(". ");
+  const maxChars = 900;
+  return normalized.length > maxChars ? `${normalized.slice(0, maxChars)}...[truncated]` : normalized;
+}
+
 function loadModelFallbacks(baseModel?: string): string[] {
   const raw = process.env.SDD_GEMINI_MODEL_FALLBACKS ?? "gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash";
   const parsed = raw
@@ -320,7 +340,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
 
   let cycle = 0;
   let lastProject = baseFlags.project;
-  let cycleInput = input;
+  let cycleInput = normalizeCampaignInput(input, []);
   let previousRank = 0;
   let stalledCycles = 0;
   const fallbackModels = loadModelFallbacks(baseFlags.model);
@@ -341,7 +361,9 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     previousRank = rankBefore;
     if (stalledCycles >= policy.stallCycles) {
       nextFromStep = "create";
-      cycleInput = `${input}. Force deep recovery: rebuild from a clean requirement and regenerate production-ready project structure.`;
+      cycleInput = normalizeCampaignInput(input, [
+        "Force deep recovery: rebuild from a clean requirement and regenerate production-ready project structure."
+      ]);
       if (lastProject) {
         clearCheckpoint(lastProject);
       }
@@ -412,7 +434,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       }
       throw error;
     }
-    cycleInput = `${input}. ${qualityRetryPrompt}`;
+    cycleInput = normalizeCampaignInput(input, [qualityRetryPrompt]);
     lastProject = getFlags().project ?? lastProject;
     if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && detectProviderQuotaIssue(lastProject)) {
       const previousModel = model;
