@@ -324,6 +324,15 @@ function askProviderForJson(
   prompt: string,
   debug?: { attempts: string[]; errors: string[] }
 ): Record<string, unknown> | null {
+  const buildDirectJsonRetryPrompt = (rawOutput: string): string =>
+    [
+      "Return ONLY valid JSON. No markdown. No explanations.",
+      "Do not call tools or mention tools (for example write_file/read_file).",
+      'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
+      "You must provide direct file contents in JSON.",
+      "If previous output included tool limitations, ignore them and return the JSON payload now.",
+      rawOutput.length > 10000 ? `${rawOutput.slice(0, 10000)}\n...[truncated]` : rawOutput
+    ].join("\n");
   const looksLikeRefusal = (raw: string): boolean => {
     const lower = raw.toLowerCase();
     return (
@@ -332,7 +341,10 @@ function askProviderForJson(
       lower.includes("cannot create files directly") ||
       lower.includes("you can create them manually") ||
       lower.includes("i can provide the content") ||
-      lower.includes("i cannot fulfill the request to generate the project files directly")
+      lower.includes("i cannot fulfill the request to generate the project files directly") ||
+      lower.includes("tool \"write_file\" not found") ||
+      lower.includes("write_file tool") ||
+      lower.includes("unable to activate any skills at this time")
     );
   };
   const first = providerExec(prompt);
@@ -346,6 +358,21 @@ function askProviderForJson(
   if (looksLikeRefusal(first.output ?? "")) {
     if (debug) {
       debug.errors.push("provider_refused_file_generation");
+    }
+    const forced = providerExec(buildDirectJsonRetryPrompt(first.output ?? ""));
+    if (debug) {
+      debug.attempts.push(forced.output?.slice(0, 1000) ?? "");
+      if (forced.error) debug.errors.push(forced.error);
+    }
+    if (forced.ok) {
+      const forcedParsed = extractJsonObject(forced.output);
+      if (forcedParsed) {
+        return forcedParsed;
+      }
+      const forcedTextFiles = parseFilesFromRawText(forced.output);
+      if (forcedTextFiles.length > 0) {
+        return { files: forcedTextFiles };
+      }
     }
     return null;
   }
@@ -385,6 +412,7 @@ function askProviderForJson(
     "Convert the following response into valid JSON only.",
     "Keep the same information.",
     "No markdown fences, no explanations.",
+    "Do not call tools. Return direct file JSON payload.",
     repairSource
   ].join("\n");
   const second = providerExec(repairPrompt);
@@ -572,6 +600,7 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   }
   constraints.push("Folder structure must be clean, scalable, and easy to evolve.");
   constraints.push("Generate real production code modules; do not deliver docs/tests-only repositories.");
+  constraints.push("Do not rely on tool-calling output (for example write_file/read_file); return direct file JSON payload only.");
   constraints.push("Avoid placeholder text (TODO, FIXME, coming soon, lorem ipsum) in README, architecture.md, and components.md.");
   constraints.push("Include local runtime verification with a smoke script (npm run smoke or test:smoke or e2e).");
   constraints.push("Smoke script must be cross-platform (Node/npm command), avoid bash-only commands like ./smoke.sh.");
