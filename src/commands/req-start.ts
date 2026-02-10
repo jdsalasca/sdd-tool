@@ -68,6 +68,25 @@ function findRequirementDir(projectRoot: string, reqId: string): string | null {
   return null;
 }
 
+function moveDirWithFallback(sourceDir: string, targetDir: string): { ok: boolean; mode: "rename" | "copy"; error?: string } {
+  try {
+    fs.renameSync(sourceDir, targetDir);
+    return { ok: true, mode: "rename" };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? "";
+    if (code !== "EPERM" && code !== "EXDEV") {
+      return { ok: false, mode: "rename", error: (error as Error).message };
+    }
+    try {
+      fs.cpSync(sourceDir, targetDir, { recursive: true, force: true });
+      fs.rmSync(sourceDir, { recursive: true, force: true });
+      return { ok: true, mode: "copy" };
+    } catch (copyError) {
+      return { ok: false, mode: "copy", error: (copyError as Error).message };
+    }
+  }
+}
+
 function defaultSeed(seedText?: string): string {
   const text = (seedText ?? "").trim();
   return text.length > 0 ? text : "initial delivery";
@@ -123,7 +142,11 @@ export async function runReqStart(options?: ReqStartOptions): Promise<ReqStartRe
   const inProgressDir = path.join(project.root, "requirements", "in-progress", reqId);
   if (!requirementDir.includes(path.join("requirements", "in-progress"))) {
     fs.mkdirSync(path.dirname(inProgressDir), { recursive: true });
-    fs.renameSync(requirementDir, inProgressDir);
+    const move = moveDirWithFallback(requirementDir, inProgressDir);
+    if (!move.ok) {
+      printError("SDD-1227", `Failed to start requirement: ${move.error || "unknown move failure"}`);
+      return null;
+    }
     updateProjectStatus(workspace, project.name, "in-progress");
     requirementDir = inProgressDir;
   }

@@ -16,6 +16,25 @@ function findRequirementDir(projectRoot: string, reqId: string): string | null {
   return null;
 }
 
+function moveDirWithFallback(sourceDir: string, targetDir: string): { ok: boolean; mode: "rename" | "copy"; error?: string } {
+  try {
+    fs.renameSync(sourceDir, targetDir);
+    return { ok: true, mode: "rename" };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? "";
+    if (code !== "EPERM" && code !== "EXDEV") {
+      return { ok: false, mode: "rename", error: (error as Error).message };
+    }
+    try {
+      fs.cpSync(sourceDir, targetDir, { recursive: true, force: true });
+      fs.rmSync(sourceDir, { recursive: true, force: true });
+      return { ok: true, mode: "copy" };
+    } catch (copyError) {
+      return { ok: false, mode: "copy", error: (copyError as Error).message };
+    }
+  }
+}
+
 export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinishResult | null> {
   const auto = Boolean(options?.autofill);
   const projectName = options?.projectName ?? (await askProjectName());
@@ -105,10 +124,15 @@ export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinis
   const doneDir = path.join(project.root, "requirements", "done", reqId);
   const projectRoot = project.root;
   let moved = false;
+  let moveMode: "rename" | "copy" = "rename";
   try {
     if (sourceDir !== doneDir) {
       fs.mkdirSync(path.dirname(doneDir), { recursive: true });
-      fs.renameSync(sourceDir, doneDir);
+      const move = moveDirWithFallback(sourceDir, doneDir);
+      if (!move.ok) {
+        throw new Error(`move requirement directory failed: ${move.error || "unknown move failure"}`);
+      }
+      moveMode = move.mode;
       moved = true;
     }
     updateProjectStatus(workspace, project.name, "done");
@@ -144,7 +168,12 @@ export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinis
     fs.appendFileSync(changelog, changeEntry, "utf-8");
   } catch (error) {
     if (moved && fs.existsSync(doneDir) && !fs.existsSync(sourceDir)) {
-      fs.renameSync(doneDir, sourceDir);
+      const rollback = moveDirWithFallback(doneDir, sourceDir);
+      if (!rollback.ok) {
+        printError("SDD-1236", `Rollback warning: could not restore requirement directory (${rollback.error || "unknown rollback failure"}).`);
+      } else {
+        printError("SDD-1236", `Rollback applied using ${rollback.mode} mode after failure.`);
+      }
     }
     if (sourceStatus && sourceStatus !== "done") {
       updateProjectStatus(workspace, project.name, sourceStatus);
@@ -153,7 +182,7 @@ export async function runReqFinish(options?: ReqFinishOptions): Promise<ReqFinis
     return null;
   }
 
-  console.log(`Moved requirement to ${doneDir}`);
+  console.log(`Moved requirement to ${doneDir} (${moveMode})`);
   return { reqId, doneDir };
 }
 
