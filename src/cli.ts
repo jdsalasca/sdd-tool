@@ -9,6 +9,7 @@ import { runDoctor } from "./commands/doctor";
 import { runQuickstart } from "./commands/quickstart";
 import { runStatusWithOptions } from "./commands/status";
 import { runSuite } from "./commands/suite";
+import { runRecover } from "./commands/recover";
 import { runImportIssue } from "./commands/import-issue";
 import { runImportJira } from "./commands/import-jira";
 import { runImportLinear } from "./commands/import-linear";
@@ -138,6 +139,29 @@ program
       campaignTargetStage: options.campaignTargetStage,
       campaignStallCycles: options.campaignStallCycles,
       campaignAutonomous: Boolean(options.campaignAutonomous)
+    })
+  );
+
+program
+  .command("recover")
+  .description("Recover/resume a project campaign autonomously (headless-safe)")
+  .argument("[input...]", "Optional recovery objective override")
+  .option("--foreground", "Run recovery in current process instead of background")
+  .option("--campaign-hours <n>", "Minimum campaign runtime in hours before suite can stop (0-24)")
+  .option("--campaign-max-cycles <n>", "Maximum campaign cycles before stopping")
+  .option("--campaign-sleep-seconds <n>", "Sleep interval between campaign cycles")
+  .option(
+    "--campaign-target-stage <stage>",
+    "Delivery stage required for campaign success: discovery|functional_requirements|technical_backlog|implementation|quality_validation|role_review|release_candidate|final_release|runtime_start"
+  )
+  .action((input: string[], options) =>
+    runRecover(input.join(" ").trim(), {
+      foreground: Boolean(options.foreground),
+      campaignHours: options.campaignHours,
+      campaignMaxCycles: options.campaignMaxCycles,
+      campaignSleepSeconds: options.campaignSleepSeconds,
+      campaignTargetStage: options.campaignTargetStage,
+      campaignAutonomous: true
     })
   );
 

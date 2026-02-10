@@ -99,6 +99,9 @@ function appendCampaignJournal(projectRoot: string, event: string, details?: str
       details: details ?? ""
     };
     fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, "utf-8");
+    const lifeRoot = path.join(projectRoot, "life");
+    fs.mkdirSync(lifeRoot, { recursive: true });
+    fs.appendFileSync(path.join(lifeRoot, "recovery-events.jsonl"), `${JSON.stringify(entry)}\n`, "utf-8");
   } catch {
     // best effort
   }
