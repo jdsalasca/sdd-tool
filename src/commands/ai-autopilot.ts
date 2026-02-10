@@ -517,6 +517,8 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   constraints.push("Default architecture style is MVC unless the user explicitly requests another pattern.");
   constraints.push("Use modular, extensible component blocks. Add components.md with responsibilities, contracts, and extension points.");
   constraints.push("Prefer clear OOP-oriented modules/classes with explicit interfaces and separation of concerns.");
+  constraints.push("Always generate a root README.md at repository root (not only docs/README.md).");
+  constraints.push("README.md must include sections for Features, Setup/Run, Testing, and Release/Artifacts.");
   if (!intentExplicitlyRequestsTypeScript(intent)) {
     constraints.push("Default to JavaScript implementation and JavaScript tests unless the user explicitly requests TypeScript.");
   }
@@ -529,6 +531,7 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   constraints.push("Do not lint transpiled output folders (dist/build/out); lint source directories only.");
   constraints.push("Ensure every imported/required third-party package is declared in package.json dependencies/devDependencies.");
   constraints.push("If tests are written in TypeScript, configure Jest for TypeScript (ts-jest or equivalent) and include required test type packages.");
+  constraints.push("Keep module format consistent between source and tests: CommonJS with require/module.exports or ESM with import/export + matching Jest config.");
   constraints.push("Do not place TypeScript-only syntax inside .js files. Keep smoke scripts valid for the selected runtime.");
   constraints.push("Avoid non-existent package versions. Use currently available npm versions for dependencies and type packages.");
   constraints.push("All automated tests must pass; fix failing assertions before delivery.");
@@ -541,6 +544,7 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   if (/\bwindows\b|\bdesktop\b|\binstaller\b|\bexe\b|\belectron\b/.test(normalizeIntentText(intent))) {
     constraints.push("For Windows desktop goals, include executable packaging strategy (Electron/Forge/Builder) with scripts like package:win/dist:win.");
     constraints.push("Provide packaging config file (electron-builder.yml/json or forge.config.js) and document EXE artifact generation path in README.");
+    constraints.push("Ensure icon assets for packaging are valid formats and readable by the selected packaging tool.");
   }
   if (intentRequiresJavaReactFullstack(intent)) {
     constraints.push("Use split structure: backend/ (Java Spring Boot) and frontend/ (React + Vite).");

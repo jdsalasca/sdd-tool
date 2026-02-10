@@ -235,8 +235,14 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     ) {
       hints.add("Fix Jest TypeScript support: configure ts-jest/babel for .ts tests or convert tests to plain JS.");
     }
+    if (normalized.includes("unexpected token 'export'")) {
+      hints.add("Fix module compatibility: use ESM imports in tests or convert source exports to CommonJS for current Jest setup.");
+    }
     if (normalized.includes("cannot use import statement outside a module")) {
       hints.add("Align test/module system: configure Jest ESM/TS transform or switch tests to CommonJS consistently.");
+    }
+    if (normalized.includes("shas unknown format") || (normalized.includes("icon") && normalized.includes("electron-builder"))) {
+      hints.add("Fix packaging icon assets with valid .ico/.icns/.png files compatible with electron-builder targets.");
     }
     if (normalized.includes("cannot find module") && normalized.includes("dist/smoke.js")) {
       hints.add("Fix smoke flow: ensure build emits smoke artifact before smoke script or point smoke script to source entry.");
