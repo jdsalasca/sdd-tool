@@ -68,6 +68,8 @@
 - Strengthen AI repair guidance for recurring quality failures:
   - add targeted remediation hints for ESLint typed-lint dist scope errors, missing smoke scripts, RBAC authorization failures, and low coverage patterns.
   - enforce stronger generation constraints on script/file consistency and lint scope (source-only, no dist/build linting).
+- Add compact AI interaction metadata log per run:
+  - `<project>/debug/provider-prompts.metadata.jsonl` with timestamped, truncated prompt/response previews for auditability.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

@@ -116,6 +116,9 @@ This file defines the command set, intent, and expected behavior.
 - `hello` writes a per-run prompt debug stream to:
   - `<project>/debug/provider-prompts.jsonl`
   - each entry includes timestamp, stage, provider, prompt, output, and duration.
+- `hello` also writes a compact prompt metadata stream to:
+  - `<project>/debug/provider-prompts.metadata.jsonl`
+  - each entry includes timestamp, stage, provider, duration, and truncated prompt/output previews.
 - `hello` writes orchestration timeline events to:
   - `<project>/orchestration-journal.jsonl`
   - useful for long-running runs (hours/days) with resume checkpoints.

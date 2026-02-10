@@ -47,6 +47,22 @@ function appendPromptDebug(
       output: payload.output
     };
     fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, "utf-8");
+    const metadataFile = file.replace(/provider-prompts\.jsonl$/i, "provider-prompts.metadata.jsonl");
+    const snippet = (value: string): string => {
+      const clean = value.replace(/\s+/g, " ").trim();
+      return clean.length > 320 ? `${clean.slice(0, 320)}...[truncated]` : clean;
+    };
+    const metaEntry = {
+      at: entry.at,
+      provider: context.providerId,
+      stage: context.stage,
+      durationMs: payload.durationMs,
+      ok: payload.ok,
+      error: payload.error || "",
+      promptPreview: snippet(payload.prompt),
+      outputPreview: snippet(payload.output)
+    };
+    fs.appendFileSync(metadataFile, `${JSON.stringify(metaEntry)}\n`, "utf-8");
   } catch {
     // best effort
   }
