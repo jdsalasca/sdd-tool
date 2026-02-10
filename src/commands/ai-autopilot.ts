@@ -401,7 +401,8 @@ function askProviderForJson(
     return { files: textFiles };
   }
   const repairSource = (() => {
-    const maxChars = 12000;
+    // Keep this payload compact to avoid Windows command-line overflow in provider wrappers.
+    const maxChars = 3500;
     const output = first.output ?? "";
     if (output.length <= maxChars) {
       return output;

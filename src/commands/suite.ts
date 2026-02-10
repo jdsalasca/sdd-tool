@@ -209,12 +209,22 @@ function normalizeCampaignInput(baseInput: string, additions: string[]): string 
     .map((part) => part.trim())
     .filter(Boolean);
   const deduped: string[] = [];
+  const seen = new Set<string>();
   for (const segment of segments) {
-    if (!deduped.includes(segment)) {
+    const key = segment.toLowerCase();
+    if (!seen.has(key)) {
       deduped.push(segment);
+      seen.add(key);
     }
   }
-  const normalized = deduped.join(". ");
+  const filtered = deduped.filter((segment) => {
+    const lower = segment.toLowerCase();
+    if (lower.startsWith("build target:")) return false;
+    if (lower.startsWith("preferred stack:")) return false;
+    if (lower.startsWith("finish complete delivery")) return false;
+    return true;
+  });
+  const normalized = filtered.join(". ");
   const maxChars = 900;
   return normalized.length > maxChars ? `${normalized.slice(0, maxChars)}...[truncated]` : normalized;
 }
