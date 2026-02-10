@@ -33,6 +33,7 @@ type CampaignPolicy = {
 };
 
 type ProviderIssueType = "none" | "unusable" | "quota";
+type SuiteLockHandle = { lockPath: string; pid: number };
 
 function clampInt(input: number, fallback: number, min: number, max: number): number {
   if (!Number.isFinite(input)) {
@@ -199,6 +200,60 @@ function stageRank(projectName: string | undefined): number {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isPidRunning(pid: number): boolean {
+  if (!Number.isFinite(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function acquireSuiteLock(workspaceRoot: string): SuiteLockHandle {
+  const lockPath = path.join(workspaceRoot, ".sdd-suite-lock.json");
+  try {
+    if (fs.existsSync(lockPath)) {
+      const raw = JSON.parse(fs.readFileSync(lockPath, "utf-8")) as { pid?: number; startedAt?: string };
+      const existingPid = Number(raw?.pid ?? 0);
+      if (existingPid > 0 && existingPid !== process.pid && isPidRunning(existingPid)) {
+        throw new Error(
+          `Another suite process is already running (pid=${existingPid}, startedAt=${raw?.startedAt || "unknown"}).`
+        );
+      }
+    }
+    fs.writeFileSync(
+      lockPath,
+      JSON.stringify(
+        {
+          pid: process.pid,
+          startedAt: new Date().toISOString()
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+    return { lockPath, pid: process.pid };
+  } catch (error) {
+    throw new Error(`Failed to acquire suite lock: ${(error as Error).message}`);
+  }
+}
+
+function releaseSuiteLock(handle: SuiteLockHandle | null): void {
+  if (!handle) return;
+  try {
+    if (!fs.existsSync(handle.lockPath)) return;
+    const raw = JSON.parse(fs.readFileSync(handle.lockPath, "utf-8")) as { pid?: number };
+    if (Number(raw?.pid ?? 0) !== handle.pid) {
+      return;
+    }
+    fs.rmSync(handle.lockPath, { force: true });
+  } catch {
+    // best effort
+  }
 }
 
 function normalizeCampaignInput(baseInput: string, additions: string[]): string {
@@ -502,6 +557,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
   let previousRank = 0;
   let stalledCycles = 0;
   let providerFailureStreak = 0;
+  let qualityFailureStreak = 0;
   const fallbackModels = loadModelFallbacks(baseFlags.model);
   let modelCursor = Math.max(0, fallbackModels.findIndex((item) => item === baseFlags.model));
   while (true) {
@@ -614,6 +670,14 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
           "Keep output concise and ensure files include runnable code, tests, and required delivery docs."
         ]);
       }
+      if (providerFailureStreak >= 2) {
+        const compactChars = providerFailureStreak >= 4 ? "3200" : "4500";
+        process.env.SDD_GEMINI_PROMPT_MAX_CHARS = compactChars;
+        cycleInput = normalizeCampaignInput(cycleInput, [
+          "Compact recovery mode active: concise production edits only, avoid oversized responses."
+        ]);
+        console.log(`Suite provider recovery: compact prompt mode enabled (max ${compactChars} chars).`);
+      }
       const quotaRoot = resolveProjectRoot(lastProject);
       if (quotaRoot) {
         appendCampaignJournal(quotaRoot, "campaign.provider.recovery", `${issueLabel} detected; model ${previousModel} -> ${model}`);
@@ -638,7 +702,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       if (providerFailureStreak >= Math.max(3, fallbackModels.length)) {
         const backoffSecondsRaw = Number.parseInt(process.env.SDD_PROVIDER_BACKOFF_SECONDS ?? "", 10);
         const backoffSeconds = Number.isFinite(backoffSecondsRaw) && backoffSecondsRaw > 0 ? Math.min(900, backoffSecondsRaw) : 90;
-        const msg = `Provider delivery blocked: repeated quota/capacity failures across models (${providerFailureStreak} cycles). Backing off ${backoffSeconds}s before next attempt.`;
+        const msg = `Provider delivery blocked: repeated ${issueLabel} failures across models (${providerFailureStreak} cycles). Backing off ${backoffSeconds}s before next attempt.`;
         console.log(`Suite provider backoff: ${msg}`);
         if (quotaRoot) {
           appendCampaignJournal(quotaRoot, "campaign.provider.blocked", msg);
@@ -664,6 +728,9 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       }
     } else {
       providerFailureStreak = 0;
+      if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && !process.env.SDD_GEMINI_PROMPT_MAX_CHARS) {
+        // keep default
+      }
     }
 
     const targetPassed = stagePassed(lastProject, policy.targetStage);
@@ -701,6 +768,17 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     const runtimeRequired = config.git.run_after_finalize;
     const deliveryAccepted =
       qualityPassed && releasePassed && targetPassed && (!runtimeRequired || runtimePassed || policy.targetStage !== "runtime_start");
+
+    if (!qualityPassed) {
+      qualityFailureStreak += 1;
+      if (qualityFailureStreak >= 2) {
+        cycleInput = normalizeCampaignInput(cycleInput, [
+          "Quality escalation mode: resolve failing lifecycle gates first (lint/test/build/smoke), then enforce docs/architecture/review artifacts."
+        ]);
+      }
+    } else {
+      qualityFailureStreak = 0;
+    }
 
     if (deliveryAccepted && minimumRuntimeMet) {
       const doneRoot = resolveProjectRoot(lastProject);
@@ -786,29 +864,40 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
 export async function runSuite(initialInput?: string, options?: SuiteRunOptions): Promise<void> {
   const startedNonInteractive = getFlags().nonInteractive;
   console.log("SDD Suite started. Type 'exit' to close.");
+  const workspace = getWorkspaceInfo();
+  let lock: SuiteLockHandle | null = null;
+  try {
+    lock = acquireSuiteLock(workspace.root);
+  } catch (error) {
+    console.log((error as Error).message);
+    return;
+  }
 
-  let current = (initialInput ?? "").trim();
-  while (true) {
-    if (!current) {
-      if (startedNonInteractive) {
+  try {
+    let current = (initialInput ?? "").trim();
+    while (true) {
+      if (!current) {
+        if (startedNonInteractive) {
+          console.log("Suite finished.");
+          return;
+        }
+        current = (await ask("suite> ")).trim();
+      }
+      if (!current) {
+        continue;
+      }
+      if (current.toLowerCase() === "exit" || current.toLowerCase() === "quit") {
         console.log("Suite finished.");
         return;
       }
-      current = (await ask("suite> ")).trim();
+      const context = await resolveBlockers(current);
+      const enriched = enrichIntent(current, context);
+      await runCampaign(enriched, options);
+      console.log("Suite task completed. Enter next instruction or 'exit'.");
+      current = "";
     }
-    if (!current) {
-      continue;
-    }
-    if (current.toLowerCase() === "exit" || current.toLowerCase() === "quit") {
-      console.log("Suite finished.");
-      return;
-    }
-
-    const context = await resolveBlockers(current);
-    const enriched = enrichIntent(current, context);
-    await runCampaign(enriched, options);
-    console.log("Suite task completed. Enter next instruction or 'exit'.");
-    current = "";
+  } finally {
+    releaseSuiteLock(lock);
   }
 }
 
