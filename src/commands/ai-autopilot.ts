@@ -594,6 +594,8 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
     constraints.push("For Windows desktop goals, include executable packaging strategy (Electron/Forge/Builder) with scripts like package:win/dist:win.");
     constraints.push("Provide packaging config file (electron-builder.yml/json or forge.config.js) and document EXE artifact generation path in README.");
     constraints.push("Ensure icon assets for packaging are valid formats and readable by the selected packaging tool.");
+    constraints.push("Desktop test/smoke commands must be non-GUI and CI-safe; do not require launching visible desktop windows.");
+    constraints.push("Avoid fragile spawn-based Electron smoke tests in unit test suite; keep automated tests deterministic in headless environments.");
   }
   if (intentRequiresJavaReactFullstack(intent)) {
     constraints.push("Use split structure: backend/ (Java Spring Boot) and frontend/ (React + Vite).");
