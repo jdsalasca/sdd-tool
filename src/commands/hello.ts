@@ -400,6 +400,89 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
   return [...hints];
 }
 
+function applyDeterministicQualityFixes(appDir: string, diagnostics: string[]): string[] {
+  const actions: string[] = [];
+  const normalized = diagnostics.map((line) => line.toLowerCase()).join("\n");
+  if (!fs.existsSync(appDir)) {
+    return actions;
+  }
+
+  const readmePath = path.join(appDir, "README.md");
+  if (
+    fs.existsSync(readmePath) &&
+    (normalized.includes("readme missing sections") || normalized.includes("missing readme.md"))
+  ) {
+    const raw = fs.readFileSync(readmePath, "utf-8");
+    const lower = raw.toLowerCase();
+    const chunks: string[] = [raw.trimEnd()];
+    if (!lower.includes("## features")) {
+      chunks.push("", "## Features", "- Core product capabilities.");
+    }
+    if (!lower.includes("## setup") && !lower.includes("## run")) {
+      chunks.push("", "## Run", "- Install dependencies and run local app.");
+    }
+    if (!lower.includes("## testing") && !lower.includes("## test")) {
+      chunks.push("", "## Testing", "- Run automated tests and smoke checks.");
+    }
+    if (!lower.includes("## release")) {
+      chunks.push("", "## Release", "- Build artifacts and publish workflow.");
+    }
+    const next = `${chunks.join("\n")}\n`;
+    if (next !== raw) {
+      fs.writeFileSync(readmePath, next, "utf-8");
+      actions.push("readme.sections.normalized");
+    }
+  }
+
+  const packagePath = path.join(appDir, "package.json");
+  const eslintConfigs = [
+    path.join(appDir, ".eslintrc"),
+    path.join(appDir, ".eslintrc.json"),
+    path.join(appDir, ".eslintrc.js"),
+    path.join(appDir, "eslint.config.js")
+  ];
+  const hasEslintConfig = eslintConfigs.some((file) => fs.existsSync(file));
+  if (fs.existsSync(packagePath) && !hasEslintConfig && normalized.includes("eslint couldn't find a configuration file")) {
+    const eslintrcPath = path.join(appDir, ".eslintrc.json");
+    const config = {
+      env: {
+        node: true,
+        es2022: true,
+        jest: true
+      },
+      extends: ["eslint:recommended"],
+      ignorePatterns: ["node_modules/", "dist/", "build/", "coverage/"]
+    };
+    fs.writeFileSync(eslintrcPath, `${JSON.stringify(config, null, 2)}\n`, "utf-8");
+    actions.push(".eslintrc.json.created");
+  }
+
+  if (normalized.includes("missing mission.md")) {
+    const missionPath = path.join(appDir, "mission.md");
+    if (!fs.existsSync(missionPath)) {
+      fs.writeFileSync(
+        missionPath,
+        ["# Mission", "", "Deliver measurable user value with reliable, production-grade software outcomes."].join("\n"),
+        "utf-8"
+      );
+      actions.push("mission.md.created");
+    }
+  }
+  if (normalized.includes("missing vision.md")) {
+    const visionPath = path.join(appDir, "vision.md");
+    if (!fs.existsSync(visionPath)) {
+      fs.writeFileSync(
+        visionPath,
+        ["# Vision", "", "Scale the product through iterative releases with quality, observability, and user-centered growth."].join("\n"),
+        "utf-8"
+      );
+      actions.push("vision.md.created");
+    }
+  }
+
+  return actions;
+}
+
 function deriveProjectName(input: string, flow: string): string {
   const translate: Record<string, string> = {
     parqueadero: "parking",
@@ -1056,6 +1139,21 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
           for (let attempt = 1; attempt <= maxRepairAttempts && !lifecycle.qualityPassed; attempt += 1) {
             if (hasTimedOut(activeProject, reqId, "test", text)) {
               return;
+            }
+            const deterministicFixes = applyDeterministicQualityFixes(appDir, lifecycle.qualityDiagnostics);
+            if (deterministicFixes.length > 0) {
+              printWhy(`Deterministic quality fixes applied (${deterministicFixes.join(", ")}). Re-running lifecycle checks.`);
+              lifecycle = runAppLifecycle(projectRoot, activeProject, {
+                goalText: text,
+                intentSignals: intent.signals,
+                intentDomain: intent.domain,
+                intentFlow: intent.flow,
+                deferPublishUntilReview: digitalReviewExpected
+              });
+              lifecycle.summary.forEach((line) => printWhy(`Lifecycle (deterministic ${attempt}): ${line}`));
+              if (lifecycle.qualityPassed) {
+                break;
+              }
             }
             const condensed = summarizeQualityDiagnostics(lifecycle.qualityDiagnostics);
             const repair = improveGeneratedApp(

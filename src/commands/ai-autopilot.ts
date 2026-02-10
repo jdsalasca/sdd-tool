@@ -552,6 +552,7 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   constraints.push("Include local runtime verification with a smoke script (npm run smoke or test:smoke or e2e).");
   constraints.push("Smoke script must be cross-platform (Node/npm command), avoid bash-only commands like ./smoke.sh.");
   constraints.push("Smoke/test/build scripts in package.json must reference files that exist in the repository.");
+  constraints.push("If lint script uses eslint, include a valid eslint config file (.eslintrc.* or eslint.config.js).");
   constraints.push("Do not lint transpiled output folders (dist/build/out); lint source directories only.");
   constraints.push("Ensure every imported/required third-party package is declared in package.json dependencies/devDependencies.");
   constraints.push("If tests are written in TypeScript, configure Jest for TypeScript (ts-jest or equivalent) and include required test type packages.");
