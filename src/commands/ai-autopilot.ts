@@ -443,6 +443,8 @@ function askProviderForJson(
   const looksLikeProviderFailure = (raw: string): boolean => {
     const lower = raw.toLowerCase();
     return (
+      lower.trim() === "" ||
+      lower.includes("ready for your command") ||
       lower.includes("terminalquotaerror") ||
       lower.includes("you have exhausted your capacity") ||
       lower.includes("error executing tool write_file") ||

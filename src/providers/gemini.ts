@@ -173,7 +173,11 @@ export function geminiExec(prompt: string): GeminiResult {
   let last = attempts[0].run();
   let executed = 1;
   if (last.status === 0) {
-    return { ok: true, output: String(last.stdout || "").trim() };
+    const out = String(last.stdout || "").trim();
+    if (!out) {
+      return { ok: false, output: "", error: "gemini returned empty output" };
+    }
+    return { ok: true, output: out };
   }
   let lastError = normalizeFailure(last, "gemini exec failed");
   if (looksUnrecoverableProviderFailure(lastError)) {
@@ -187,7 +191,11 @@ export function geminiExec(prompt: string): GeminiResult {
     last = attempts[i].run();
     executed += 1;
     if (last.status === 0) {
-      return { ok: true, output: String(last.stdout || "").trim() };
+      const out = String(last.stdout || "").trim();
+      if (!out) {
+        return { ok: false, output: "", error: "gemini returned empty output" };
+      }
+      return { ok: true, output: out };
     }
     lastError = normalizeFailure(last, "gemini exec failed");
     if (looksUnrecoverableProviderFailure(lastError)) {
