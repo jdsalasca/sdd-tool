@@ -8,8 +8,10 @@ export function formatList(input: string): string {
 }
 
 export function parseList(input: string): string[] {
-  return String(input || "")
-    .split(/[\n,;|]+/g)
+  const source = String(input || "");
+  const separator = /[\n;|]+/.test(source) ? /[\n;|]+/g : /,/g;
+  return source
+    .split(separator)
     .map((item) => item.replace(/^\s*[-*]\s*/, "").trim())
     .filter((item) => item.length > 0);
 }

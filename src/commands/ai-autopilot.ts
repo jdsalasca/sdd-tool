@@ -261,7 +261,7 @@ function asText(value: unknown, fallback: string): string {
       .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
       .filter(Boolean);
     if (parts.length > 0) {
-      return parts.join(", ");
+      return parts.join("; ");
     }
     return fallback;
   }
@@ -270,7 +270,7 @@ function asText(value: unknown, fallback: string): string {
       .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
       .filter(Boolean);
     if (entries.length > 0) {
-      return entries.join(", ");
+      return entries.join("; ");
     }
   }
   return fallback;
@@ -1635,7 +1635,7 @@ export function enrichDraftWithAI(
     "objective, actors, scope_in, scope_out, acceptance_criteria, nfr_security, nfr_performance, nfr_availability, constraints, risks.",
     "No markdown. No explanation.",
     "Do not mention tool limits or inability; provide the JSON payload directly.",
-    "Each key must be a plain string. For list-like fields, return comma-separated items (not arrays).",
+    "Each key must be a plain string. For list-like fields, return semicolon-separated items (not arrays).",
     "Quality bar:",
     "- objective: clear business value and user impact.",
     "- actors: at least 3 specific roles.",
@@ -1670,7 +1670,7 @@ export function enrichDraftWithAI(
       "Refine the following requirement draft to production-grade quality.",
       "Return ONLY valid JSON with the same keys:",
       "objective, actors, scope_in, scope_out, acceptance_criteria, nfr_security, nfr_performance, nfr_availability, constraints, risks.",
-      "Output plain strings only. Use comma-separated lists where applicable.",
+      "Output plain strings only. Use semicolon-separated lists where applicable.",
       "Do not use placeholders, generic wording, or MVP-first language.",
       "Guarantee: actors>=3, scope_in>=6, acceptance_criteria>=8 (measurable), constraints>=3, risks>=3.",
       `Intent: ${input}`,
