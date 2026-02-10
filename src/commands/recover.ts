@@ -68,9 +68,14 @@ function loadRecoveryHint(projectRoot: string): { fromStep: string; hint: string
   return { fromStep, hint };
 }
 
-function lockPid(workspaceRoot: string): number {
-  const lock = readJson<{ pid?: number }>(path.join(workspaceRoot, ".sdd-suite-lock.json"));
-  return Number(lock?.pid || 0);
+function lockPid(workspaceRoot: string, projectName?: string): number {
+  const project = String(projectName || "").trim();
+  if (project) {
+    const projectLock = readJson<{ pid?: number }>(path.join(workspaceRoot, project, ".sdd-suite-lock.json"));
+    return Number(projectLock?.pid || 0);
+  }
+  const workspaceLock = readJson<{ pid?: number }>(path.join(workspaceRoot, ".sdd-suite-lock.json"));
+  return Number(workspaceLock?.pid || 0);
 }
 
 function buildRecoverCommand(
@@ -109,7 +114,7 @@ export async function runRecover(input: string, options?: RecoverOptions): Promi
     return;
   }
 
-  const existingPid = lockPid(workspace.root);
+  const existingPid = lockPid(workspace.root, project.name);
   if (existingPid > 0 && isPidRunning(existingPid)) {
     console.log(`Recovery skipped: suite already running (pid=${existingPid}).`);
     appendRecoveryEvent(project.root, "recover.skipped.already_running", { pid: existingPid });

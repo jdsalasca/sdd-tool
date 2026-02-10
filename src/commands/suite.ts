@@ -429,15 +429,25 @@ function isPidRunning(pid: number): boolean {
   }
 }
 
-function acquireSuiteLock(workspaceRoot: string): SuiteLockHandle {
-  const lockPath = path.join(workspaceRoot, ".sdd-suite-lock.json");
+function resolveSuiteLockPath(workspaceRoot: string, projectName?: string): string {
+  const cleanProject = String(projectName || "").trim();
+  if (!cleanProject) {
+    return path.join(workspaceRoot, ".sdd-suite-lock.json");
+  }
+  return path.join(workspaceRoot, cleanProject, ".sdd-suite-lock.json");
+}
+
+function acquireSuiteLock(workspaceRoot: string, projectName?: string): SuiteLockHandle {
+  const lockPath = resolveSuiteLockPath(workspaceRoot, projectName);
   try {
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
     if (fs.existsSync(lockPath)) {
       const raw = JSON.parse(fs.readFileSync(lockPath, "utf-8")) as { pid?: number; startedAt?: string };
       const existingPid = Number(raw?.pid ?? 0);
       if (existingPid > 0 && existingPid !== process.pid && isPidRunning(existingPid)) {
+        const scope = projectName ? `project=${projectName}` : "workspace";
         throw new Error(
-          `Another suite process is already running (pid=${existingPid}, startedAt=${raw?.startedAt || "unknown"}).`
+          `Another suite process is already running (${scope}, pid=${existingPid}, startedAt=${raw?.startedAt || "unknown"}).`
         );
       }
     }
@@ -1402,11 +1412,12 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
 
 export async function runSuite(initialInput?: string, options?: SuiteRunOptions): Promise<void> {
   const startedNonInteractive = getFlags().nonInteractive;
+  const runtimeFlags = getFlags();
   console.log("SDD Suite started. Type 'exit' to close.");
   const workspace = getWorkspaceInfo();
   let lock: SuiteLockHandle | null = null;
   try {
-    lock = acquireSuiteLock(workspace.root);
+    lock = acquireSuiteLock(workspace.root, runtimeFlags.project);
   } catch (error) {
     console.log((error as Error).message);
     return;
