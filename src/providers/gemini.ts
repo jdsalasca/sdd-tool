@@ -1,9 +1,57 @@
 import { execSync, spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
-import { AIProvider, ProviderResult } from "./types";
+import { AIProvider, ModelSelectionContext, ProviderResult } from "./types";
 
 export type GeminiResult = ProviderResult;
+
+const GEMINI_MODEL_PRIORITY = [
+  "gemini-3-pro-preview",
+  "gemini-2.5-pro",
+  "gemini-3-flash-preview",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite"
+];
+
+function uniqueModels(items: string[]): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const item of items) {
+    const clean = item.trim();
+    if (!clean || seen.has(clean)) {
+      continue;
+    }
+    seen.add(clean);
+    output.push(clean);
+  }
+  return output;
+}
+
+function geminiModelOrder(configuredModel?: string): string[] {
+  const extraRaw = process.env.SDD_GEMINI_MODEL_FALLBACKS ?? "";
+  const extra = extraRaw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const configured = configuredModel?.trim() ? [configuredModel.trim()] : [];
+  return uniqueModels([...GEMINI_MODEL_PRIORITY, ...configured, ...extra]);
+}
+
+function chooseGeminiModel(context: ModelSelectionContext): string | undefined {
+  const order = geminiModelOrder(context.configuredModel);
+  if (order.length === 0) {
+    return context.currentModel || context.configuredModel;
+  }
+  if (context.reason === "provider_command_too_long") {
+    return context.currentModel || order[0];
+  }
+  const tried = new Set(context.triedModels.filter(Boolean));
+  if (context.currentModel) {
+    tried.add(context.currentModel);
+  }
+  const next = order.find((model) => !tried.has(model));
+  return next || order[order.length - 1];
+}
 
 function parseTimeoutMs(envName: string, fallback: number): number {
   const raw = Number.parseInt(process.env[envName] ?? "", 10);
@@ -212,5 +260,6 @@ export const geminiProvider: AIProvider = {
   id: "gemini",
   label: "Gemini",
   version: geminiVersion,
-  exec: geminiExec
+  exec: geminiExec,
+  chooseModel: chooseGeminiModel
 };

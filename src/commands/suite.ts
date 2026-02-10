@@ -8,6 +8,8 @@ import { runHello } from "./hello";
 import { getProjectInfo, getWorkspaceInfo, pruneMissingProjects } from "../workspace";
 import { clearCheckpoint, loadCheckpoint, nextStep } from "./autopilot-checkpoint";
 import { DeliveryStage, loadStageSnapshot } from "./stage-machine";
+import { resolveProvider } from "../providers";
+import type { ModelSelectionReason } from "../providers/types";
 
 type SuiteContext = {
   appType?: "web" | "desktop";
@@ -821,20 +823,6 @@ function requirementQualityFeedback(projectName?: string): string[] {
   return hints.slice(0, 6);
 }
 
-function loadModelFallbacks(baseModel?: string): string[] {
-  const raw = process.env.SDD_GEMINI_MODEL_FALLBACKS ?? "gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash";
-  const parsed = raw
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (baseModel && baseModel.trim()) {
-    if (!parsed.includes(baseModel.trim())) {
-      parsed.unshift(baseModel.trim());
-    }
-  }
-  return parsed.length > 0 ? parsed : [baseModel?.trim() || "gemini-2.5-flash-lite"];
-}
-
 function detectProviderIssueType(projectName?: string): ProviderIssueType {
   const projectRoot = resolveProjectRoot(projectName);
   if (!projectRoot) {
@@ -983,13 +971,33 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
   let emergencyBaselineEnabled = false;
   let forceCreateNextCycle = false;
   const previousTemplateFallbackSetting = process.env.SDD_ALLOW_TEMPLATE_FALLBACK;
-  const fallbackModels = loadModelFallbacks(baseFlags.model);
-  let modelCursor = Math.max(0, fallbackModels.findIndex((item) => item === baseFlags.model));
+  const providerName = String(baseFlags.provider || "gemini").trim().toLowerCase();
+  const providerResolution = resolveProvider(providerName);
+  const modelChooser = providerResolution.ok ? providerResolution.provider.chooseModel : undefined;
+  const modelPoolSizeHint = providerName === "gemini" ? 5 : 3;
+  const triedModels: string[] = [];
+  const selectModel = (reason: ModelSelectionReason, currentModel?: string): string | undefined => {
+    if (!modelChooser) {
+      return currentModel || baseFlags.model;
+    }
+    const next = modelChooser({
+      configuredModel: baseFlags.model,
+      currentModel,
+      reason,
+      failureStreak: providerFailureStreak,
+      triedModels: [...triedModels]
+    });
+    if (next && !triedModels.includes(next)) {
+      triedModels.push(next);
+    }
+    return next || currentModel || baseFlags.model;
+  };
+  let activeModel = selectModel("initial");
   while (true) {
     cycle += 1;
     const elapsedMinutes = Math.floor((Date.now() - startedAt) / 60000);
     const iterationsThisCycle = Math.min(10, baseIterations + Math.max(0, cycle - 1));
-    let model = (baseFlags.provider ?? "").toLowerCase() === "gemini" ? fallbackModels[modelCursor] : baseFlags.model;
+    let model = activeModel || baseFlags.model;
 
     let nextFromStep = chooseResumeStep(lastProject);
     if (forceCreateNextCycle) {
@@ -1133,8 +1141,8 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
       blockingFailureStreak = 0;
     }
 
-    const providerIssue = (baseFlags.provider ?? "").toLowerCase() === "gemini" ? detectProviderIssueType(lastProject) : "none";
-    if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && providerIssue !== "none") {
+    const providerIssue = providerName === "gemini" ? detectProviderIssueType(lastProject) : "none";
+    if (providerName === "gemini" && providerIssue !== "none") {
       providerFailureStreak += 1;
       const previousModel = model;
       const issueLabel =
@@ -1151,8 +1159,9 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
         ]);
         console.log(`Suite provider recovery: detected ${issueLabel}. Keeping model ${previousModel} and shrinking prompt budget.`);
       } else {
-        modelCursor = (modelCursor + 1) % fallbackModels.length;
-        model = fallbackModels[modelCursor];
+        const reason: ModelSelectionReason = providerIssue === "quota" ? "provider_quota" : "provider_unusable";
+        model = selectModel(reason, previousModel) || previousModel;
+        activeModel = model;
         console.log(`Suite provider recovery: detected ${issueLabel}. Switching model ${previousModel} -> ${model}.`);
       }
       if (providerIssue === "unusable") {
@@ -1212,7 +1221,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
           elapsedMinutes
         });
       }
-      if (providerFailureStreak >= Math.max(3, fallbackModels.length)) {
+      if (providerFailureStreak >= Math.max(3, modelPoolSizeHint)) {
         const backoffSecondsRaw = Number.parseInt(process.env.SDD_PROVIDER_BACKOFF_SECONDS ?? "", 10);
         const backoffSeconds = Number.isFinite(backoffSecondsRaw) && backoffSecondsRaw > 0 ? Math.min(900, backoffSecondsRaw) : 90;
         const msg = `Provider delivery blocked: repeated ${issueLabel} failures across models (${providerFailureStreak} cycles). Backing off ${backoffSeconds}s before next attempt.`;

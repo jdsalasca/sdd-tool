@@ -1,7 +1,11 @@
 import { spawnSync } from "child_process";
-import { AIProvider, ProviderResult } from "./types";
+import { AIProvider, ModelSelectionContext, ProviderResult } from "./types";
 
 export type CodexResult = ProviderResult;
+
+function chooseCodexModel(context: ModelSelectionContext): string | undefined {
+  return context.currentModel || context.configuredModel;
+}
 
 function parseTimeoutMs(envName: string, fallback: number): number {
   const raw = Number.parseInt(process.env[envName] ?? "", 10);
@@ -62,5 +66,6 @@ export const codexProvider: AIProvider = {
   id: "codex",
   label: "Codex",
   version: codexVersion,
-  exec: codexExec
+  exec: codexExec,
+  chooseModel: chooseCodexModel
 };
