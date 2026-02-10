@@ -5,7 +5,7 @@ import { getFlags } from "../context/flags";
 import { ensureConfig } from "../config";
 import { setFlags } from "../context/flags";
 import { runHello } from "./hello";
-import { getProjectInfo, getWorkspaceInfo } from "../workspace";
+import { getProjectInfo, getWorkspaceInfo, pruneMissingProjects } from "../workspace";
 import { clearCheckpoint, loadCheckpoint, nextStep } from "./autopilot-checkpoint";
 import { DeliveryStage, loadStageSnapshot } from "./stage-machine";
 
@@ -254,7 +254,14 @@ function readBlockingSignals(projectName?: string): BlockingSignals {
     };
   }
   const runStatus = readJsonFile<{ blockers?: string[] }>(path.join(projectRoot, "sdd-run-status.json"));
-  const blockers = Array.isArray(runStatus?.blockers) ? runStatus.blockers.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  const isTransientProviderSignal = (value: string): boolean =>
+    /provider temporarily unavailable|terminalquotaerror|quota|capacity|429|timed out|etimedout/i.test(value);
+  const blockers = Array.isArray(runStatus?.blockers)
+    ? runStatus.blockers
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+        .filter((value) => !isTransientProviderSignal(value))
+    : [];
   const lifecycle = readJsonFile<{ steps?: Array<{ ok?: boolean }> }>(
     path.join(projectRoot, "generated-app", "deploy", "lifecycle-report.json")
   );
@@ -1362,6 +1369,10 @@ export async function runSuite(initialInput?: string, options?: SuiteRunOptions)
     return;
   }
   sanitizeStaleCampaignStates(workspace.root);
+  const pruned = pruneMissingProjects(workspace);
+  if (pruned > 0) {
+    console.log(`Suite workspace index sanitized: removed ${pruned} missing project entries.`);
+  }
 
   try {
     let current = (initialInput ?? "").trim();

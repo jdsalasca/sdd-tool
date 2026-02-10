@@ -155,11 +155,13 @@ program
   .option("--next", "Print exact next command to run")
   .option("--all", "Show quality/status overview for all workspace projects")
   .option("--quality", "Include quality and stage diagnostics for selected project")
+  .option("--prune-missing", "When used with --all, remove index entries whose project folders no longer exist")
   .option("--watch <seconds>", "Refresh status continuously every N seconds")
   .action((options) =>
     runStatusWithOptions(Boolean(options.next), {
       all: Boolean(options.all),
       quality: Boolean(options.quality),
+      pruneMissing: Boolean(options.pruneMissing),
       watchSeconds:
         typeof options.watch === "string" && options.watch.trim().length > 0
           ? Number.parseInt(options.watch, 10)

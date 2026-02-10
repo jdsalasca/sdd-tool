@@ -33,6 +33,7 @@ type StatusOptions = {
   all?: boolean;
   quality?: boolean;
   watchSeconds?: number;
+  pruneMissing?: boolean;
 };
 
 type QualitySnapshot = {
@@ -190,10 +191,10 @@ function printQuality(projectRoot: string): void {
   console.log(`- campaign: ${q.campaignStatus}`);
 }
 
-function printAllProjectsQuality(showQualitySummary: boolean): void {
+function printAllProjectsQuality(showQualitySummary: boolean, pruneMissing: boolean): void {
   const workspace = getWorkspaceInfo();
   ensureWorkspace(workspace);
-  const projects = listProjects(workspace);
+  const projects = listProjects(workspace, { pruneMissing });
   console.log(`Workspace: ${workspace.root}`);
   if (projects.length === 0) {
     console.log("No projects found.");
@@ -253,7 +254,7 @@ function sleep(seconds: number): void {
 
 function runStatusOnce(showNext: boolean | undefined, options: StatusOptions): void {
   if (options.all) {
-    printAllProjectsQuality(Boolean(options.quality));
+    printAllProjectsQuality(Boolean(options.quality), Boolean(options.pruneMissing));
     return;
   }
 

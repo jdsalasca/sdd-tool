@@ -230,6 +230,18 @@ export function listProjects(workspace: WorkspaceInfo, options?: ListProjectsOpt
   });
 }
 
+export function pruneMissingProjects(workspace: WorkspaceInfo): number {
+  ensureWorkspace(workspace);
+  return withWorkspaceIndexLock(workspace, () => {
+    const index = readWorkspaceIndex(workspace);
+    const before = Array.isArray(index.projects) ? index.projects.length : 0;
+    const pruned = pruneWorkspaceIndex(workspace, index);
+    const after = Array.isArray(pruned.projects) ? pruned.projects.length : 0;
+    fs.writeFileSync(workspace.indexPath, JSON.stringify(pruned, null, 2), "utf-8");
+    return Math.max(0, before - after);
+  });
+}
+
 export function ensureProject(workspace: WorkspaceInfo, name: string, domain: string): ProjectMetadata {
   ensureWorkspace(workspace);
   const project = getProjectInfo(workspace, name);
