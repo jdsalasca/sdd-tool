@@ -593,6 +593,18 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     if (normalized.includes("missing backend telemetry config")) {
       hints.add("Add Spring Actuator/Prometheus telemetry config in application.yml/properties.");
     }
+    if (normalized.includes("layered monorepo required") || normalized.includes("expected separate backend/ and frontend/")) {
+      hints.add("Restructure generated app into layered monorepo: independent backend/ and frontend/ subprojects.");
+    }
+    if (normalized.includes("layered monorepo backend is incomplete")) {
+      hints.add("Add backend runtime manifest (pom.xml/package.json/requirements.txt) and backend run/test scripts.");
+    }
+    if (normalized.includes("layered monorepo frontend is incomplete")) {
+      hints.add("Add frontend/package.json with frontend run/test/build scripts.");
+    }
+    if (normalized.includes("architecture.md must describe backend/frontend separation")) {
+      hints.add("Update architecture.md with backend/frontend boundaries and API contract ownership.");
+    }
   }
   return [...hints];
 }
@@ -1023,14 +1035,25 @@ function buildAutopilotDraft(input: string, flow: string, domain: string): Requi
     objective.length >= 80
       ? objective
       : `Deliver a production-ready ${safeDomain} product from "${objective}" with measurable outcomes, quality gates, and release readiness.`;
+  const layeredScopeDefault =
+    "Iteration 1: scaffold monorepo with backend/ and frontend/ subprojects; Iteration 1: define API contracts and DTO validation boundaries in backend; Iteration 1: implement frontend feature module consuming backend APIs; Iteration 1: persist domain data with schema and repository/service layers; Iteration 1: add smoke/build/test scripts for backend and frontend; Iteration 1: document architecture/components/schemas and DummyLocal; Iteration 1: capture regression checks for core flows; Iteration 1: prepare release candidate documentation with quality evidence";
+  const layeredAcceptanceDefault =
+    "Iteration 1: backend build/test pass for contract and validation boundaries; Iteration 1: frontend build/test pass for core user journey with API calls; Iteration 1: smoke checks pass on local runtime for backend/frontend integration; At least 10 acceptance checks are documented and traceable; p95 response time remains under 300 ms for baseline load; Release notes and deployment docs are complete; No blocker findings remain after role review";
+  const scopeInDefault =
+    safeDomain === "software" || safeDomain === "generic"
+      ? layeredScopeDefault
+      : `${scopeByFlow[safeFlow]}; production deployment readiness; automated quality gates; release documentation`;
+  const acceptanceDefault =
+    safeDomain === "software" || safeDomain === "generic"
+      ? layeredAcceptanceDefault
+      : "Core workflows pass lint, test, build, and smoke locally; At least 10 acceptance checks are documented and traceable; p95 response time remains under 300 ms for baseline load; Release notes and deployment docs are complete; No blocker findings remain after role review";
   return {
     domain: safeDomain === "generic" ? "software" : safeDomain,
     actors: `${actorByDomain[safeDomain]}; qa engineer; operations engineer`,
     objective: baseObjective,
-    scope_in: `${scopeByFlow[safeFlow]}; production deployment readiness; automated quality gates; release documentation`,
+    scope_in: scopeInDefault,
     scope_out: `${outByFlow[safeFlow]}; non-essential integrations; roadmap-only enhancements`,
-    acceptance_criteria:
-      "Core workflows pass lint, test, build, and smoke locally; At least 10 acceptance checks are documented and traceable; p95 response time remains under 300 ms for baseline load; Release notes and deployment docs are complete; No blocker findings remain after role review",
+    acceptance_criteria: acceptanceDefault,
     nfr_security: "Enforce secure defaults, input validation, least-privilege access, and traceable audit paths.",
     nfr_performance: "Meet baseline performance budget with measurable thresholds and stable runtime behavior.",
     nfr_availability: "Ensure local runtime startup reliability and graceful error handling for critical flows.",

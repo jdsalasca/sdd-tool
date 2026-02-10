@@ -30,6 +30,7 @@ type GoalProfile = {
   relationalDataApp: boolean;
   apiLikeApp: boolean;
   desktopWindowsExe: boolean;
+  layeredMonorepoPreferred: boolean;
 };
 
 type DomainQualityProfile = "software" | "legal" | "business" | "humanities" | "learning" | "design" | "data_science" | "generic";
@@ -259,6 +260,8 @@ function parseGoalProfile(context?: LifecycleContext): GoalProfile {
   const goal = normalizeText(context?.goalText ?? "");
   const hasJava = /\bjava\b/.test(goal);
   const hasReact = /\breact\b/.test(goal);
+  const hasFrontendSignal = /\bfrontend\b|\bui\b|\bux\b|\bweb\b|\breact\b|\bclient\b/.test(goal);
+  const hasBackendSignal = /\bbackend\b|\bapi\b|\bserver\b|\bservice\b|\bpersistence\b|\bdatabase\b|\bdb\b/.test(goal);
   const apiLikeApp = /\bapi\b|\bbackend\b|\brest\b|\bserver\b|\bmicroservice\b|\bfastapi\b|\bexpress\b|\bspring\b/.test(goal);
   const desktopWindowsExe =
     (/\bdesktop\b|\bwindows\b|\bwin32\b/.test(goal) && /\bapp\b|\bapplication\b|\bcalculator\b|\btool\b/.test(goal)) ||
@@ -287,11 +290,14 @@ function parseGoalProfile(context?: LifecycleContext): GoalProfile {
     "management"
   ];
   const relationalDataApp = relationalHints.some((hint) => goal.includes(hint));
+  const layeredMonorepoPreferred =
+    hasJava && hasReact ? true : (hasFrontendSignal && hasBackendSignal) || relationalDataApp || apiLikeApp;
   return {
     javaReactFullstack: hasJava && hasReact,
     relationalDataApp,
     apiLikeApp,
-    desktopWindowsExe
+    desktopWindowsExe,
+    layeredMonorepoPreferred
   };
 }
 
@@ -716,6 +722,53 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
         ok: false,
         command: "advanced-quality-check",
         output: `Insufficient production code depth (found ${metrics.sourceFiles} source files / ${metrics.sourceLines} non-trivial lines; expected at least 4 files and 120 lines).`
+      };
+    }
+  }
+  if (softwareExecutableExpected && profile.layeredMonorepoPreferred) {
+    const backendDir = path.join(appDir, "backend");
+    const frontendDir = path.join(appDir, "frontend");
+    if (!fs.existsSync(backendDir) || !fs.existsSync(frontendDir)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Layered monorepo required: expected separate backend/ and frontend/ directories."
+      };
+    }
+    const hasBackendRuntimeManifest =
+      fs.existsSync(path.join(backendDir, "pom.xml")) ||
+      fs.existsSync(path.join(backendDir, "package.json")) ||
+      fs.existsSync(path.join(backendDir, "requirements.txt"));
+    if (!hasBackendRuntimeManifest) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Layered monorepo backend is incomplete: expected backend runtime manifest (pom.xml/package.json/requirements.txt)."
+      };
+    }
+    if (!fs.existsSync(path.join(frontendDir, "package.json"))) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Layered monorepo frontend is incomplete: expected frontend/package.json."
+      };
+    }
+    const architectureDocForLayers =
+      findFileRecursive(appDir, (rel) => rel === "architecture.md" || rel.endsWith("/architecture.md"), 8) ??
+      findFileRecursive(appDir, (rel) => rel.includes("architecture") && rel.endsWith(".md"), 8);
+    if (!architectureDocForLayers) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Layered monorepo requires architecture.md describing backend/frontend boundaries."
+      };
+    }
+    const architectureText = normalizeText(fs.readFileSync(path.join(appDir, architectureDocForLayers), "utf-8"));
+    if (!/\bbackend\b/.test(architectureText) || !/\bfrontend\b/.test(architectureText) || !/\bapi\b|\bcontract\b/.test(architectureText)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "architecture.md must describe backend/frontend separation and API contract boundaries."
       };
     }
   }

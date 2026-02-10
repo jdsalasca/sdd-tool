@@ -605,6 +605,18 @@ function qualityHintsFromDiagnostics(diagnostics: string[]): string[] {
     if (lower.includes("missing backend telemetry config")) {
       hints.add("Add backend telemetry config (metrics/health endpoint and documentation).");
     }
+    if (lower.includes("layered monorepo required") || lower.includes("expected separate backend/ and frontend/")) {
+      hints.add("Restructure project into layered monorepo with independent backend/ and frontend/ subprojects.");
+    }
+    if (lower.includes("layered monorepo backend is incomplete")) {
+      hints.add("Add backend runtime manifest (backend/pom.xml, backend/package.json, or backend/requirements.txt) and runnable scripts.");
+    }
+    if (lower.includes("layered monorepo frontend is incomplete")) {
+      hints.add("Add frontend/package.json and runnable frontend scripts for independent execution.");
+    }
+    if (lower.includes("architecture.md must describe backend/frontend separation")) {
+      hints.add("Update architecture.md with backend/frontend boundaries and explicit API contract ownership.");
+    }
     if (lower.includes("missing bean validation")) {
       hints.add("Use javax/jakarta validation annotations on DTO/request models.");
     }
@@ -754,6 +766,8 @@ function requirementQualityFeedback(projectName?: string): string[] {
   const technicalScopeSignals = req.scopeIn.filter((item) =>
     /\b(backend|frontend|api|controller|service|repository|dto|validation|schema|database|component|test|smoke|ci|build)\b/i.test(item)
   ).length;
+  const backendScopeSignals = req.scopeIn.filter((item) => /\b(backend|api|controller|service|repository|dto|validation|schema|database)\b/i.test(item)).length;
+  const frontendScopeSignals = req.scopeIn.filter((item) => /\b(frontend|ui|react|component|hooks?|client)\b/i.test(item)).length;
   const hints: string[] = [];
   if (req.objective.trim().length < 80) {
     hints.push("Expand objective with explicit business value, target users, and measurable success outcomes.");
@@ -770,6 +784,9 @@ function requirementQualityFeedback(projectName?: string): string[] {
   if (technicalScopeSignals < 5) {
     hints.push("Increase technical specificity in scope_in (backend/frontend/api/controller/service/repository/dto/validation/schema/tests).");
   }
+  if (backendScopeSignals < 2 || frontendScopeSignals < 2) {
+    hints.push("Define layered implementation slices in scope_in with explicit backend and frontend deliverables per iteration.");
+  }
   if (iterationScopedScopeIn < 3) {
     hints.push("Ensure scope_in includes at least 3 iteration/sprint-scoped implementation slices.");
   }
@@ -778,6 +795,12 @@ function requirementQualityFeedback(projectName?: string): string[] {
   }
   if (iterationScopedAcceptance < 3) {
     hints.push("Ensure acceptance criteria includes at least 3 iteration/sprint-scoped executable checks.");
+  }
+  if (backendScopeSignals >= 1 && frontendScopeSignals >= 1) {
+    const architectureSignals = req.scopeIn.filter((item) => /\b(contract|boundary|integration|monorepo|backend\/|frontend\/)\b/i.test(item)).length;
+    if (architectureSignals < 2) {
+      hints.push("Add explicit architecture contract slices (backend/frontend boundaries, API contracts, monorepo folder ownership).");
+    }
   }
   if (req.constraints.length < 4) {
     hints.push("Add at least 4 concrete constraints (platform/runtime/process constraints).");

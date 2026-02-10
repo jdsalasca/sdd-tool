@@ -367,6 +367,8 @@ function requirementsNeedRefinement(draft: RequirementDraft): boolean {
   if (scopeIn.length < 8 || containsGenericOnly(scopeIn)) return true;
   if (countTechnicalScopeSignals(scopeIn) < 5) return true;
   if (countIterationSliceSignals(scopeIn) < 3) return true;
+  const layeredHint = intentPrefersLayeredMonorepo(`${draft.objective ?? ""} ${scopeIn.join(" ")}`);
+  if (layeredHint && !scopeHasLayeredSignals(scopeIn)) return true;
   if (scopeOut.length < 3) return true;
   if (acceptance.length < 10 || containsGenericOnly(acceptance)) return true;
   if (countIterationSliceSignals(acceptance) < 3) return true;
@@ -765,6 +767,22 @@ function intentSuggestsRelationalDataDomain(intent: string): boolean {
   ].some((token) => lower.includes(token));
 }
 
+function intentPrefersLayeredMonorepo(intent: string): boolean {
+  const lower = normalizeIntentText(intent);
+  const frontendSignal = /\bfrontend\b|\bui\b|\bux\b|\bweb\b|\breact\b|\bclient\b/.test(lower);
+  const backendSignal = /\bbackend\b|\bapi\b|\bserver\b|\bservice\b|\bpersistence\b|\bdatabase\b|\bdb\b/.test(lower);
+  if (intentRequiresJavaReactFullstack(intent)) return true;
+  if (intentSuggestsRelationalDataDomain(intent)) return true;
+  return frontendSignal && backendSignal;
+}
+
+function scopeHasLayeredSignals(items: string[]): boolean {
+  const all = items.join(" ").toLowerCase();
+  const hasBackend = /\bbackend\b|\bapi\b|\bcontroller\b|\bservice\b|\brepository\b/.test(all);
+  const hasFrontend = /\bfrontend\b|\bui\b|\breact\b|\bcomponent\b|\bhooks?\b/.test(all);
+  return hasBackend && hasFrontend;
+}
+
 type AutopilotDomain = "software" | "legal" | "business" | "humanities" | "learning" | "design" | "data_science" | "generic";
 
 function detectAutopilotDomain(intent: string, domainHint?: string): AutopilotDomain {
@@ -877,6 +895,11 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   constraints.push("If coverage tooling exists, target at least 80% statement coverage for core modules.");
   constraints.push("If API/backend exists, include curl-based local endpoint checks in smoke docs/scripts.");
   constraints.push("Target minimum automated test depth of 8 tests across critical flows.");
+  if (intentPrefersLayeredMonorepo(intent)) {
+    constraints.push("Use a split monorepo structure by default: backend/ and frontend/ as independent subprojects.");
+    constraints.push("Backend and frontend must evolve independently with clear API contracts between them.");
+    constraints.push("Document backend/frontend boundaries and integration contracts in architecture.md.");
+  }
   if (/\brbac\b|\brole[-\s]?based\b|\bauth\b|\bauthorization\b|\baccess control\b/.test(normalizeIntentText(intent))) {
     constraints.push("Implement strict RBAC middleware/guards and include negative authorization tests that assert 403 for unauthorized roles.");
   }
