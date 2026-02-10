@@ -412,6 +412,82 @@ function collectQualityFeedback(projectName?: string): string[] {
   );
 }
 
+function readLatestRequirementJson(projectRoot: string): {
+  id: string;
+  objective: string;
+  actors: string[];
+  scopeIn: string[];
+  acceptance: string[];
+  constraints: string[];
+  risks: string[];
+} | null {
+  try {
+    const doneRoot = path.join(projectRoot, "requirements", "done");
+    if (!fs.existsSync(doneRoot)) return null;
+    const reqDirs = fs
+      .readdirSync(doneRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort()
+      .reverse();
+    for (const reqId of reqDirs) {
+      const file = path.join(doneRoot, reqId, "requirement.json");
+      if (!fs.existsSync(file)) continue;
+      const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as {
+        id?: string;
+        objective?: string;
+        actors?: string[];
+        scope?: { in?: string[] };
+        acceptanceCriteria?: string[];
+        constraints?: string[];
+        risks?: string[];
+      };
+      return {
+        id: String(parsed.id || reqId),
+        objective: String(parsed.objective || ""),
+        actors: Array.isArray(parsed.actors) ? parsed.actors.map((v) => String(v)) : [],
+        scopeIn: Array.isArray(parsed.scope?.in) ? parsed.scope.in.map((v) => String(v)) : [],
+        acceptance: Array.isArray(parsed.acceptanceCriteria) ? parsed.acceptanceCriteria.map((v) => String(v)) : [],
+        constraints: Array.isArray(parsed.constraints) ? parsed.constraints.map((v) => String(v)) : [],
+        risks: Array.isArray(parsed.risks) ? parsed.risks.map((v) => String(v)) : []
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function requirementQualityFeedback(projectName?: string): string[] {
+  const projectRoot = resolveProjectRoot(projectName);
+  if (!projectRoot) return [];
+  const req = readLatestRequirementJson(projectRoot);
+  if (!req) return [];
+  const measurableAcceptance = req.acceptance.filter((item) =>
+    /(\d+%|\d+\s*(ms|s|sec|seconds|min|minutes)|p95|p99|under\s+\d+|>=?\s*\d+|<=?\s*\d+)/i.test(item)
+  ).length;
+  const hints: string[] = [];
+  if (req.objective.trim().length < 80) {
+    hints.push("Expand objective with explicit business value, target users, and measurable success outcomes.");
+  }
+  if (req.actors.length < 4) {
+    hints.push("Increase actors to at least 4 concrete roles (user, product, QA, operations/security).");
+  }
+  if (req.scopeIn.length < 8) {
+    hints.push("Expand scope_in to at least 8 concrete capabilities tied to product value.");
+  }
+  if (req.acceptance.length < 10 || measurableAcceptance < 2) {
+    hints.push("Add at least 10 acceptance criteria and include at least 2 measurable thresholds.");
+  }
+  if (req.constraints.length < 4) {
+    hints.push("Add at least 4 concrete constraints (platform/runtime/process constraints).");
+  }
+  if (req.risks.length < 4) {
+    hints.push("Add at least 4 concrete delivery risks with mitigation intent.");
+  }
+  return hints.slice(0, 6);
+}
+
 function loadModelFallbacks(baseModel?: string): string[] {
   const raw = process.env.SDD_GEMINI_MODEL_FALLBACKS ?? "gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash";
   const parsed = raw
@@ -652,10 +728,16 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       throw error;
     }
     const qualityFeedback = collectQualityFeedback(lastProject);
-    cycleInput = normalizeCampaignInput(input, [qualityRetryPrompt, ...qualityFeedback]);
+    const reqFeedback = requirementQualityFeedback(lastProject);
+    cycleInput = normalizeCampaignInput(input, [qualityRetryPrompt, ...qualityFeedback, ...reqFeedback]);
     const feedbackRoot = resolveProjectRoot(lastProject);
-    if (feedbackRoot && qualityFeedback.length > 0) {
-      appendCampaignJournal(feedbackRoot, "campaign.quality.feedback", qualityFeedback.join(" | "));
+    if (feedbackRoot && (qualityFeedback.length > 0 || reqFeedback.length > 0)) {
+      if (qualityFeedback.length > 0) {
+        appendCampaignJournal(feedbackRoot, "campaign.quality.feedback", qualityFeedback.join(" | "));
+      }
+      if (reqFeedback.length > 0) {
+        appendCampaignJournal(feedbackRoot, "campaign.requirements.feedback", reqFeedback.join(" | "));
+      }
     }
     lastProject = getFlags().project ?? lastProject;
     const providerIssue = (baseFlags.provider ?? "").toLowerCase() === "gemini" ? detectProviderIssueType(lastProject) : "none";
