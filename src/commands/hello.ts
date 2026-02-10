@@ -2122,7 +2122,12 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             blockers: finalRelease.created ? [] : [finalRelease.summary]
           });
           const runtime = gitPolicy.run_after_finalize
-            ? startGeneratedApp(projectRoot, activeProject)
+            ? startGeneratedApp(projectRoot, activeProject, {
+                goalText: text,
+                intentSignals: intent.signals,
+                intentDomain: intent.domain,
+                intentFlow: intent.flow
+              })
             : { started: false, processes: [], summary: "runtime auto-start disabled by config" };
           printWhy(`Runtime start: ${runtime.summary}`);
           appendLifeEntry(projectRoot, {

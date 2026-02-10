@@ -1,0 +1,30 @@
+{
+  "name": "runtime-visual-probe",
+  "version": "0.1.0",
+  "description": "Cross-platform runtime screenshot capture and blank-screen heuristic for autonomous app validation.",
+  "tools": [
+    {
+      "name": "capture_runtime_visual",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_root": { "type": "string" },
+          "app_dir": { "type": "string" },
+          "wait_ms": { "type": "integer", "minimum": 0, "maximum": 20000 }
+        },
+        "required": ["project_root", "app_dir"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "captured": { "type": "boolean" },
+          "blankLikely": { "type": "boolean" },
+          "summary": { "type": "string" },
+          "screenshotPath": { "type": "string" }
+        }
+      }
+    }
+  ]
+}
+

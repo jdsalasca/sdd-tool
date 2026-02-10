@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { spawn, spawnSync } from "child_process";
 import { ensureConfig } from "../config";
+import { runRuntimeVisualProbe } from "../toolkit/runtime-visual-probe";
 
 type StepResult = {
   ok: boolean;
@@ -1547,6 +1548,14 @@ export type RuntimeStartOutcome = {
   started: boolean;
   processes: Array<{ command: string; cwd: string; pid: number }>;
   summary: string;
+  visualProbe?: {
+    attempted: boolean;
+    ok: boolean;
+    captured: boolean;
+    blankLikely: boolean;
+    summary: string;
+    screenshotPath: string;
+  };
 };
 
 export function runAppLifecycle(projectRoot: string, projectName: string, context?: LifecycleContext): AppLifecycleResult {
@@ -1879,7 +1888,7 @@ function resolveStartScripts(appDir: string): Array<{ cwd: string; script: strin
   return scripts.slice(0, 2);
 }
 
-export function startGeneratedApp(projectRoot: string, _projectName: string): RuntimeStartOutcome {
+export function startGeneratedApp(projectRoot: string, _projectName: string, context?: LifecycleContext): RuntimeStartOutcome {
   const appDir = path.join(projectRoot, "generated-app");
   if (!fs.existsSync(appDir)) {
     return { started: false, processes: [], summary: "generated-app directory missing" };
@@ -1924,9 +1933,55 @@ export function startGeneratedApp(projectRoot: string, _projectName: string): Ru
   if (processes.length === 0) {
     return { started: false, processes: [], summary: "Failed to spawn runtime process." };
   }
+  const profile = parseGoalProfile(context);
+  const desktopVisualRequired = profile.desktopWindowsExe;
+  const visualProbe = runRuntimeVisualProbe(projectRoot, appDir);
+  fs.writeFileSync(
+    runtimeFile,
+    JSON.stringify(
+      {
+        startedAt: new Date().toISOString(),
+        processes,
+        visualProbe: {
+          attempted: visualProbe.attempted,
+          ok: visualProbe.ok,
+          captured: visualProbe.captured,
+          blankLikely: visualProbe.blankLikely,
+          summary: visualProbe.summary,
+          screenshotPath: path.relative(appDir, visualProbe.screenshotPath).replace(/\\/g, "/")
+        }
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+  if (desktopVisualRequired && (!visualProbe.ok || !visualProbe.captured || visualProbe.blankLikely)) {
+    return {
+      started: false,
+      processes,
+      summary: `Runtime visual probe failed desktop quality gate: ${visualProbe.summary}`,
+      visualProbe: {
+        attempted: visualProbe.attempted,
+        ok: visualProbe.ok,
+        captured: visualProbe.captured,
+        blankLikely: visualProbe.blankLikely,
+        summary: visualProbe.summary,
+        screenshotPath: visualProbe.screenshotPath
+      }
+    };
+  }
   return {
     started: true,
     processes,
-    summary: `Started ${processes.length} runtime process(es); details: ${runtimeFile}`
+    summary: `Started ${processes.length} runtime process(es); details: ${runtimeFile}`,
+    visualProbe: {
+      attempted: visualProbe.attempted,
+      ok: visualProbe.ok,
+      captured: visualProbe.captured,
+      blankLikely: visualProbe.blankLikely,
+      summary: visualProbe.summary,
+      screenshotPath: visualProbe.screenshotPath
+    }
   };
 }
