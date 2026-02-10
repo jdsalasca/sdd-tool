@@ -1938,6 +1938,31 @@ function readRuntimeVisualProbeContext(appDir: string): string | null {
   }
 }
 
+function readSoftwareDiagnosticContext(appDir: string): string | null {
+  try {
+    const file = path.join(appDir, "deploy", "software-diagnostic-report.json");
+    if (!fs.existsSync(file)) return null;
+    const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as {
+      summary?: string;
+      blockingIssues?: string[];
+      http?: { status?: string; reachableUrl?: string };
+      interaction?: { status?: string; clickableCount?: number; clicksPerformed?: number; blankLikely?: boolean };
+    };
+    return JSON.stringify(
+      {
+        summary: String(parsed.summary || ""),
+        blockingIssues: Array.isArray(parsed.blockingIssues) ? parsed.blockingIssues.slice(0, 8) : [],
+        http: parsed.http ?? {},
+        interaction: parsed.interaction ?? {}
+      },
+      null,
+      0
+    );
+  } catch {
+    return null;
+  }
+}
+
 function templateFallbackAllowed(): boolean {
   return process.env.SDD_ALLOW_TEMPLATE_FALLBACK === "1" || process.env.SDD_DISABLE_AI_AUTOPILOT === "1";
 }
@@ -2260,6 +2285,7 @@ export function improveGeneratedApp(
   const constraints = extraPromptConstraints(intent, domainHint);
   const compactIntent = compactIntentForPrompt(intent, 700);
   const runtimeProbeContext = readRuntimeVisualProbeContext(appDir);
+  const softwareDiagnosticContext = readSoftwareDiagnosticContext(appDir);
   const prompt = clampPromptSize([
     "Improve this generated app to production-grade, release-ready quality.",
     "Do not return prototype or first-draft quality.",
@@ -2285,6 +2311,7 @@ export function improveGeneratedApp(
     `Intent: ${compactIntent}`,
     `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
     `Runtime visual probe context: ${runtimeProbeContext ?? "not available"}`,
+    `Software diagnostic toolkit context: ${softwareDiagnosticContext ?? "not available"}`,
     `Current file names: ${JSON.stringify(currentFileNames)}`,
     `Sample files JSON: ${JSON.stringify(currentFiles)}`
   ].join("\n"));
@@ -2306,6 +2333,7 @@ export function improveGeneratedApp(
       `Intent: ${compactIntent}`,
       `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
       `Runtime visual probe context: ${runtimeProbeContext ?? "not available"}`,
+      `Software diagnostic toolkit context: ${softwareDiagnosticContext ?? "not available"}`,
       `Current file names: ${JSON.stringify(currentFileNames)}`
     ].join("\n"));
     parsed = askProviderForJson(providerExec, targetedPrompt, providerDebug);
@@ -2325,6 +2353,7 @@ export function improveGeneratedApp(
       `Intent: ${compactIntent}`,
       `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`,
       `Runtime visual probe context: ${runtimeProbeContext ?? "not available"}`,
+      `Software diagnostic toolkit context: ${softwareDiagnosticContext ?? "not available"}`,
       `Current file names: ${JSON.stringify(currentFileNames.slice(0, 40))}`
     ].join("\n"));
     parsed = askProviderForJson(providerExec, minimalPrompt, providerDebug);

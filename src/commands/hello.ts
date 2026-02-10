@@ -2122,7 +2122,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             blockers: finalRelease.created ? [] : [finalRelease.summary]
           });
           const runtime = gitPolicy.run_after_finalize
-            ? startGeneratedApp(projectRoot, activeProject, {
+            ? await startGeneratedApp(projectRoot, activeProject, {
                 goalText: text,
                 intentSignals: intent.signals,
                 intentDomain: intent.domain,

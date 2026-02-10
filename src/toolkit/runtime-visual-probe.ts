@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { spawnSync } from "child_process";
 import { PNG } from "pngjs";
+import { createHash } from "crypto";
 
 type PixelStats = {
   width: number;
@@ -108,9 +109,8 @@ function parsePngStats(file: string): PixelStats | null {
 function hashFileSha1(file: string): string {
   if (!fs.existsSync(file)) return "";
   try {
-    const crypto = require("crypto") as typeof import("crypto");
     const raw = fs.readFileSync(file);
-    return crypto.createHash("sha1").update(raw).digest("hex");
+    return createHash("sha1").update(raw).digest("hex");
   } catch {
     return "";
   }

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { spawn, spawnSync } from "child_process";
 import { ensureConfig } from "../config";
-import { runRuntimeVisualProbe } from "../toolkit/runtime-visual-probe";
+import { runSoftwareDiagnosticToolkit } from "../toolkit/software-diagnostic-toolkit";
 
 type StepResult = {
   ok: boolean;
@@ -1553,8 +1553,16 @@ export type RuntimeStartOutcome = {
     ok: boolean;
     captured: boolean;
     blankLikely: boolean;
+    staticLikely: boolean;
     summary: string;
     screenshotPath: string;
+  };
+  diagnostics?: {
+    summary: string;
+    blockingIssues: string[];
+    httpStatus: string;
+    reachableUrl: string;
+    interactionStatus: string;
   };
 };
 
@@ -1892,7 +1900,7 @@ function resolveStartScripts(appDir: string): Array<{ cwd: string; script: strin
  * Starts generated runtime processes and validates desktop visual readiness via toolkit probe.
  * For desktop-targeted goals, a blank/static visual probe is treated as blocking.
  */
-export function startGeneratedApp(projectRoot: string, _projectName: string, context?: LifecycleContext): RuntimeStartOutcome {
+export async function startGeneratedApp(projectRoot: string, _projectName: string, context?: LifecycleContext): Promise<RuntimeStartOutcome> {
   const appDir = path.join(projectRoot, "generated-app");
   if (!fs.existsSync(appDir)) {
     return { started: false, processes: [], summary: "generated-app directory missing" };
@@ -1939,7 +1947,12 @@ export function startGeneratedApp(projectRoot: string, _projectName: string, con
   }
   const profile = parseGoalProfile(context);
   const desktopVisualRequired = profile.desktopWindowsExe;
-  const visualProbe = runRuntimeVisualProbe(projectRoot, appDir);
+  const diagnosticsReport = await runSoftwareDiagnosticToolkit({
+    projectRoot,
+    appDir,
+    goalText: context?.goalText
+  });
+  const visualProbe = diagnosticsReport.visual;
   fs.writeFileSync(
     runtimeFile,
     JSON.stringify(
@@ -1951,8 +1964,16 @@ export function startGeneratedApp(projectRoot: string, _projectName: string, con
           ok: visualProbe.ok,
           captured: visualProbe.captured,
           blankLikely: visualProbe.blankLikely,
+          staticLikely: visualProbe.staticLikely,
           summary: visualProbe.summary,
           screenshotPath: path.relative(appDir, visualProbe.screenshotPath).replace(/\\/g, "/")
+        },
+        diagnostics: {
+          summary: diagnosticsReport.summary,
+          blockingIssues: diagnosticsReport.blockingIssues,
+          httpStatus: diagnosticsReport.http.status,
+          reachableUrl: diagnosticsReport.http.reachableUrl,
+          interactionStatus: diagnosticsReport.interaction.status
         }
       },
       null,
@@ -1960,7 +1981,10 @@ export function startGeneratedApp(projectRoot: string, _projectName: string, con
     ),
     "utf-8"
   );
-  if (desktopVisualRequired && (!visualProbe.ok || !visualProbe.captured || visualProbe.blankLikely)) {
+  if (
+    desktopVisualRequired &&
+    (!visualProbe.ok || !visualProbe.captured || visualProbe.blankLikely || visualProbe.staticLikely)
+  ) {
     return {
       started: false,
       processes,
@@ -1970,8 +1994,39 @@ export function startGeneratedApp(projectRoot: string, _projectName: string, con
         ok: visualProbe.ok,
         captured: visualProbe.captured,
         blankLikely: visualProbe.blankLikely,
+        staticLikely: visualProbe.staticLikely,
         summary: visualProbe.summary,
         screenshotPath: visualProbe.screenshotPath
+      },
+      diagnostics: {
+        summary: diagnosticsReport.summary,
+        blockingIssues: diagnosticsReport.blockingIssues,
+        httpStatus: diagnosticsReport.http.status,
+        reachableUrl: diagnosticsReport.http.reachableUrl,
+        interactionStatus: diagnosticsReport.interaction.status
+      }
+    };
+  }
+  if (diagnosticsReport.blockingIssues.length > 0) {
+    return {
+      started: false,
+      processes,
+      summary: `Software diagnostic toolkit blocked runtime acceptance: ${diagnosticsReport.blockingIssues[0]}`,
+      visualProbe: {
+        attempted: visualProbe.attempted,
+        ok: visualProbe.ok,
+        captured: visualProbe.captured,
+        blankLikely: visualProbe.blankLikely,
+        staticLikely: visualProbe.staticLikely,
+        summary: visualProbe.summary,
+        screenshotPath: visualProbe.screenshotPath
+      },
+      diagnostics: {
+        summary: diagnosticsReport.summary,
+        blockingIssues: diagnosticsReport.blockingIssues,
+        httpStatus: diagnosticsReport.http.status,
+        reachableUrl: diagnosticsReport.http.reachableUrl,
+        interactionStatus: diagnosticsReport.interaction.status
       }
     };
   }
@@ -1984,8 +2039,16 @@ export function startGeneratedApp(projectRoot: string, _projectName: string, con
       ok: visualProbe.ok,
       captured: visualProbe.captured,
       blankLikely: visualProbe.blankLikely,
+      staticLikely: visualProbe.staticLikely,
       summary: visualProbe.summary,
       screenshotPath: visualProbe.screenshotPath
+    },
+    diagnostics: {
+      summary: diagnosticsReport.summary,
+      blockingIssues: diagnosticsReport.blockingIssues,
+      httpStatus: diagnosticsReport.http.status,
+      reachableUrl: diagnosticsReport.http.reachableUrl,
+      interactionStatus: diagnosticsReport.interaction.status
     }
   };
 }
