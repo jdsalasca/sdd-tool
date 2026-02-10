@@ -913,9 +913,12 @@ test("hello creates lifecycle artifacts when lifecycle is enabled", () => {
   assert.equal(result.status, 0);
   const projects = fs.readdirSync(workspaceRoot).filter((entry) => entry !== "workspaces.json");
   assert.equal(projects.length > 0, true);
-  const appDir = path.join(workspaceRoot, projects[0], "generated-app");
+  const projectRoot = path.join(workspaceRoot, projects[0]);
+  const appDir = path.join(projectRoot, "generated-app");
   assert.equal(fs.existsSync(path.join(appDir, "deploy", "deployment.md")), true);
   assert.equal(fs.existsSync(path.join(appDir, "deploy", "lifecycle-report.md")), true);
+  assert.equal(fs.existsSync(path.join(appDir, "deploy", "lifecycle-report.json")), true);
+  assert.equal(fs.existsSync(path.join(projectRoot, "sdd-run-status.json")), true);
 });
 
 test("ai status uses selected gemini provider when available", () => {
