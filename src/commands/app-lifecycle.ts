@@ -27,6 +27,7 @@ type GoalProfile = {
   javaReactFullstack: boolean;
   relationalDataApp: boolean;
   apiLikeApp: boolean;
+  desktopWindowsExe: boolean;
 };
 
 type DomainQualityProfile = "software" | "legal" | "business" | "humanities" | "learning" | "design" | "data_science" | "generic";
@@ -65,6 +66,48 @@ function countJsTsTests(root: string, maxDepth = 8): number {
     count += (raw.match(/\b(test|it)\s*\(/g) || []).length;
   }
   return count;
+}
+
+type SourceMetrics = {
+  sourceFiles: number;
+  sourceLines: number;
+};
+
+function collectSourceMetrics(root: string, maxDepth = 10): SourceMetrics {
+  const files = collectFilesRecursive(root, maxDepth).filter((rel) => /\.(js|jsx|ts|tsx|py|java|kt|go|rb|cs|php)$/i.test(rel));
+  let sourceFiles = 0;
+  let sourceLines = 0;
+  for (const rel of files) {
+    const lowered = rel.toLowerCase();
+    if (
+      /\.test\.|\.spec\.|__tests__\//i.test(lowered) ||
+      lowered.includes("/test/") ||
+      lowered.includes("/tests/")
+    ) {
+      continue;
+    }
+    const raw = fs.readFileSync(path.join(root, rel), "utf-8");
+    const nonTrivialLines = raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith("//") && !line.startsWith("#") && line !== "{" && line !== "}").length;
+    sourceFiles += 1;
+    sourceLines += nonTrivialLines;
+  }
+  return { sourceFiles, sourceLines };
+}
+
+function hasPlaceholderContent(raw: string): boolean {
+  const normalized = normalizeText(raw);
+  return /\blorem ipsum\b|\btodo\b|\bfixme\b|\bcoming soon\b|\bplaceholder\b|\bdummy text\b/.test(normalized);
+}
+
+function hasStartOrDevScript(cwd: string): boolean {
+  const pkg = readPackageJson(cwd);
+  if (!pkg?.scripts) {
+    return false;
+  }
+  return typeof pkg.scripts.start === "string" || typeof pkg.scripts.dev === "string";
 }
 
 function fileExistsAny(root: string, candidates: string[]): string | null {
@@ -215,6 +258,9 @@ function parseGoalProfile(context?: LifecycleContext): GoalProfile {
   const hasJava = /\bjava\b/.test(goal);
   const hasReact = /\breact\b/.test(goal);
   const apiLikeApp = /\bapi\b|\bbackend\b|\brest\b|\bserver\b|\bmicroservice\b|\bfastapi\b|\bexpress\b|\bspring\b/.test(goal);
+  const desktopWindowsExe =
+    (/\bdesktop\b|\bwindows\b|\bwin32\b/.test(goal) && /\bapp\b|\bapplication\b|\bcalculator\b|\btool\b/.test(goal)) ||
+    /\binstaller\b|\bexe\b|\belectron\b/.test(goal);
   const relationalHints = [
     "library",
     "biblioteca",
@@ -242,8 +288,20 @@ function parseGoalProfile(context?: LifecycleContext): GoalProfile {
   return {
     javaReactFullstack: hasJava && hasReact,
     relationalDataApp,
-    apiLikeApp
+    apiLikeApp,
+    desktopWindowsExe
   };
+}
+
+function expectsSoftwareExecutableDelivery(
+  context: LifecycleContext | undefined,
+  profile: GoalProfile,
+  domainProfile: DomainQualityProfile,
+  hasRuntimeManifest: boolean
+): boolean {
+  const flow = normalizeText(context?.intentFlow ?? "");
+  const flowSuggestsSoftware = /\bsoftware\b|\bfeature\b|\bbug_fix\b|\bimplementation\b/.test(flow);
+  return domainProfile === "software" || flowSuggestsSoftware || profile.apiLikeApp || profile.javaReactFullstack || hasRuntimeManifest;
 }
 
 function hasSmokeScript(cwd: string): string | null {
@@ -400,7 +458,7 @@ function parseDomainProfile(context?: LifecycleContext): DomainQualityProfile {
   if (/\bmodel\b|\bdataset\b|\bprediction\b|\bmachine learning\b|\bml\b|\bai\b/.test(goal)) {
     return "data_science";
   }
-  if (/\bapi\b|\bbackend\b|\bfrontend\b|\bapp\b|\bweb\b|\bdesktop\b|\bmobile\b|\breact\b|\bjava\b/.test(goal)) {
+  if (/\bapi\b|\bbackend\b|\bfrontend\b|\bapp\b|\bapplication\b|\bsoftware\b|\bweb\b|\bdesktop\b|\bmobile\b|\breact\b|\bjava\b/.test(goal)) {
     return "software";
   }
   return "generic";
@@ -544,6 +602,9 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
   const files = fs.readdirSync(appDir);
   const hasPackage = files.includes("package.json");
   const hasRequirements = files.includes("requirements.txt");
+  const hasBackendPom = fs.existsSync(path.join(appDir, "backend", "pom.xml"));
+  const hasFrontendPkg = fs.existsSync(path.join(appDir, "frontend", "package.json"));
+  const hasRuntimeManifest = hasPackage || hasRequirements || hasBackendPom || hasFrontendPkg;
   if (hasPackage && hasRequirements) {
     return {
       ok: false,
@@ -561,6 +622,13 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
     };
   }
   const readme = fs.readFileSync(readmePath, "utf-8").toLowerCase();
+  if (hasPlaceholderContent(readme)) {
+    return {
+      ok: false,
+      command: "advanced-quality-check",
+      output: "README contains placeholder/TODO content. Delivery must include concrete, production-ready documentation."
+    };
+  }
   const nonProductionPatterns = [
     /\bproof[-\s]?of[-\s]?concept\b/,
     /\bpoc\b/,
@@ -605,7 +673,32 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
   }
   const profile = parseGoalProfile(context);
   const domainProfile = parseDomainProfile(context);
-  if ((domainProfile === "software" || domainProfile === "generic") && hasPackage) {
+  const softwareExecutableExpected = expectsSoftwareExecutableDelivery(context, profile, domainProfile, hasRuntimeManifest);
+  if (softwareExecutableExpected && !hasRuntimeManifest) {
+    return {
+      ok: false,
+      command: "advanced-quality-check",
+      output: "Software delivery missing runtime manifest (expected package.json, requirements.txt, backend/pom.xml, or frontend/package.json)."
+    };
+  }
+  if (softwareExecutableExpected) {
+    const metrics = collectSourceMetrics(appDir);
+    if (metrics.sourceFiles < 4 || metrics.sourceLines < 120) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: `Insufficient production code depth (found ${metrics.sourceFiles} source files / ${metrics.sourceLines} non-trivial lines; expected at least 4 files and 120 lines).`
+      };
+    }
+  }
+  if (softwareExecutableExpected && hasPackage) {
+    if (!hasStartOrDevScript(appDir)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Missing start/dev script in root package.json for runnable software delivery."
+      };
+    }
     const rootSmoke = hasSmokeScript(appDir);
     const frontendSmoke = hasSmokeScript(path.join(appDir, "frontend"));
     if (!rootSmoke && !frontendSmoke) {
@@ -648,10 +741,48 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
       output: "API-like app requires curl/local endpoint verification evidence in docs/scripts."
     };
   }
+  if (profile.desktopWindowsExe) {
+    const rootPkg = readPackageJson(appDir);
+    const scripts = rootPkg?.scripts ?? {};
+    const hasWindowsPackagingScript = Object.entries(scripts).some(([name, value]) => {
+      if (typeof value !== "string") return false;
+      const key = name.toLowerCase();
+      const cmd = value.toLowerCase();
+      return (
+        key.includes("win") ||
+        key.includes("package") ||
+        key.includes("dist") ||
+        /\belectron-builder\b/.test(cmd) ||
+        /\b--win\b/.test(cmd)
+      );
+    });
+    if (!hasWindowsPackagingScript) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Windows desktop goal requires installer packaging script (for example package:win/dist:win using electron-builder --win)."
+      };
+    }
+    const hasPackagingConfig =
+      fileExistsAny(appDir, ["electron-builder.yml", "electron-builder.yaml", "electron-builder.json", "forge.config.js", "forge.config.cjs"]) ??
+      findFileRecursive(appDir, (rel) => rel.includes("electron-builder") && (rel.endsWith(".yml") || rel.endsWith(".yaml") || rel.endsWith(".json") || rel.endsWith(".js")), 6);
+    if (!hasPackagingConfig) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Windows desktop goal requires installer packaging config (electron-builder/forge config file)."
+      };
+    }
+    if (!/\bexe\b|\binstaller\b/.test(readme)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "README must document how to build or locate the Windows EXE installer artifact."
+      };
+    }
+  }
 
   if (profile.javaReactFullstack) {
-    const hasBackendPom = fs.existsSync(path.join(appDir, "backend", "pom.xml"));
-    const hasFrontendPkg = fs.existsSync(path.join(appDir, "frontend", "package.json"));
     if (!hasBackendPom || !hasFrontendPkg) {
       return {
         ok: false,
@@ -838,6 +969,14 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
         output: "Missing architecture documentation markdown (expected architecture.md)"
       };
     }
+    const deepMetrics = collectSourceMetrics(appDir);
+    if (deepMetrics.sourceFiles < 10 || deepMetrics.sourceLines < 260) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: `Java+React profile requires deeper implementation (found ${deepMetrics.sourceFiles} source files / ${deepMetrics.sourceLines} non-trivial lines; expected at least 10 files and 260 lines).`
+      };
+    }
   }
 
   const dummyLocalDoc =
@@ -861,7 +1000,7 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
       output: "Missing components.md (required for extensible component-oriented delivery)"
     };
   }
-  if (domainProfile === "software" || domainProfile === "generic") {
+  if (softwareExecutableExpected) {
     const architectureDoc =
       findFileRecursive(appDir, (rel) => rel === "architecture.md" || rel.endsWith("/architecture.md"), 8) ??
       findFileRecursive(appDir, (rel) => rel.includes("architecture") && rel.endsWith(".md"), 8);
@@ -880,6 +1019,13 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
         output: "Architecture docs must describe MVC layering (model/controller/view or equivalent)."
       };
     }
+    if (hasPlaceholderContent(architectureText)) {
+      return {
+        ok: false,
+        command: "advanced-quality-check",
+        output: "Architecture docs contain placeholder/TODO content."
+      };
+    }
   }
 
   const regressionEvidence =
@@ -890,6 +1036,14 @@ function advancedQualityCheck(appDir: string, context?: LifecycleContext): StepR
       ok: false,
       command: "advanced-quality-check",
       output: "Missing regression testing evidence (regression doc or tests)"
+    };
+  }
+  const componentsRaw = fs.readFileSync(path.join(appDir, componentsDoc), "utf-8");
+  if (hasPlaceholderContent(componentsRaw)) {
+    return {
+      ok: false,
+      command: "advanced-quality-check",
+      output: "components.md contains placeholder/TODO content."
     };
   }
 

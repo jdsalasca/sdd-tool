@@ -244,6 +244,21 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     if (normalized.includes("missing smoke/e2e npm script")) {
       hints.add("Add a real cross-platform smoke script (npm run smoke/test:smoke/e2e) that executes against running app endpoints.");
     }
+    if (normalized.includes("missing runtime manifest")) {
+      hints.add("Add a runtime manifest for the selected stack (package.json, requirements.txt, backend/pom.xml, or frontend/package.json).");
+    }
+    if (normalized.includes("missing start/dev script")) {
+      hints.add("Add runnable start/dev scripts in package.json so the app can be started locally.");
+    }
+    if (normalized.includes("insufficient production code depth")) {
+      hints.add("Increase real implementation depth: add production source modules/classes and business logic (not only docs/tests).");
+    }
+    if (normalized.includes("requires deeper implementation")) {
+      hints.add("Expand Java+React implementation with complete backend/frontend layers, controllers/services/repositories/hooks/components.");
+    }
+    if (normalized.includes("contains placeholder/todo content")) {
+      hints.add("Replace placeholder/TODO text in docs with concrete production-ready details and decisions.");
+    }
     if (normalized.includes("expected: 403") && normalized.includes("received: 200")) {
       hints.add("Fix authorization guards and RBAC middleware so protected routes return 403 for unauthorized roles.");
     }
@@ -258,6 +273,15 @@ function summarizeQualityDiagnostics(diagnostics: string[]): string[] {
     }
     if (normalized.includes("missing sql schema file")) {
       hints.add("Add schema.sql with tables, keys, indexes, and constraints for relational domain.");
+    }
+    if (normalized.includes("windows desktop goal requires installer packaging script")) {
+      hints.add("Add package:win or dist:win script using electron-builder/forge and ensure script command is runnable.");
+    }
+    if (normalized.includes("requires installer packaging config")) {
+      hints.add("Add electron-builder.yml/json or forge.config.js with Windows target configuration.");
+    }
+    if (normalized.includes("readme must document how to build or locate the windows exe installer artifact")) {
+      hints.add("Update README with exact commands and output path for Windows EXE installer artifact.");
     }
     if (normalized.includes("missing readme.md") || normalized.includes("readme missing sections")) {
       hints.add("Add production README with sections: Features, Run/Setup, Testing, Architecture summary.");

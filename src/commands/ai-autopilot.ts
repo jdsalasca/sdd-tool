@@ -521,6 +521,8 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
     constraints.push("Default to JavaScript implementation and JavaScript tests unless the user explicitly requests TypeScript.");
   }
   constraints.push("Folder structure must be clean, scalable, and easy to evolve.");
+  constraints.push("Generate real production code modules; do not deliver docs/tests-only repositories.");
+  constraints.push("Avoid placeholder text (TODO, FIXME, coming soon, lorem ipsum) in README, architecture.md, and components.md.");
   constraints.push("Include local runtime verification with a smoke script (npm run smoke or test:smoke or e2e).");
   constraints.push("Smoke script must be cross-platform (Node/npm command), avoid bash-only commands like ./smoke.sh.");
   constraints.push("Smoke/test/build scripts in package.json must reference files that exist in the repository.");
@@ -535,6 +537,10 @@ function extraPromptConstraints(intent: string, domainHint?: string): string[] {
   constraints.push("Target minimum automated test depth of 8 tests across critical flows.");
   if (/\brbac\b|\brole[-\s]?based\b|\bauth\b|\bauthorization\b|\baccess control\b/.test(normalizeIntentText(intent))) {
     constraints.push("Implement strict RBAC middleware/guards and include negative authorization tests that assert 403 for unauthorized roles.");
+  }
+  if (/\bwindows\b|\bdesktop\b|\binstaller\b|\bexe\b|\belectron\b/.test(normalizeIntentText(intent))) {
+    constraints.push("For Windows desktop goals, include executable packaging strategy (Electron/Forge/Builder) with scripts like package:win/dist:win.");
+    constraints.push("Provide packaging config file (electron-builder.yml/json or forge.config.js) and document EXE artifact generation path in README.");
   }
   if (intentRequiresJavaReactFullstack(intent)) {
     constraints.push("Use split structure: backend/ (Java Spring Boot) and frontend/ (React + Vite).");

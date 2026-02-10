@@ -22,6 +22,19 @@ function withTempConfig(fn) {
   }
 }
 
+function buildSourceModule(name, count) {
+  const lines = [`function ${name}Base(input) {`, "  const value = Number(input || 0);", "  return Number.isFinite(value) ? value : 0;", "}", ""];
+  for (let i = 0; i < count; i += 1) {
+    lines.push(`export function ${name}Feature${i}(left, right) {`);
+    lines.push("  const a = " + `${name}Base(left);`);
+    lines.push("  const b = " + `${name}Base(right);`);
+    lines.push(`  return a + b + ${i};`);
+    lines.push("}");
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
 test("deriveRepoMetadata prefers project/goal over generated README title", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-meta-"));
   const appDir = path.join(root, "generated-app");
@@ -292,7 +305,13 @@ test("runAppLifecycle defers publish when digital-review defer flag is enabled",
     fs.writeFileSync(path.join(appDir, "architecture.md"), "# Architecture\n- MVC: model/controller/view\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- local stubs\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- core paths\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "requirements.txt"), "fastapi==0.115.0\nuvicorn==0.30.6\n", "utf-8");
     fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");
+    fs.mkdirSync(path.join(appDir, "src"), { recursive: true });
+    fs.writeFileSync(path.join(appDir, "src", "calculator.js"), buildSourceModule("calculator", 9), "utf-8");
+    fs.writeFileSync(path.join(appDir, "src", "memory.js"), buildSourceModule("memory", 9), "utf-8");
+    fs.writeFileSync(path.join(appDir, "src", "history.js"), buildSourceModule("history", 9), "utf-8");
+    fs.writeFileSync(path.join(appDir, "src", "parser.js"), buildSourceModule("parser", 9), "utf-8");
     fs.writeFileSync(
       path.join(appDir, "tests", "core.test.js"),
       "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});",
@@ -307,6 +326,72 @@ test("runAppLifecycle defers publish when digital-review defer flag is enabled",
     assert.equal(result.qualityPassed, true);
     assert.equal(result.githubPublished, false);
     assert.equal(result.summary.some((line) => /deferred until digital review approval/i.test(line)), true);
+  }));
+
+test("runAppLifecycle fails software delivery when runtime manifest is missing", () =>
+  withTempConfig((root) => {
+    const appDir = path.join(root, "generated-app");
+    fs.mkdirSync(path.join(appDir, "src"), { recursive: true });
+    fs.mkdirSync(path.join(appDir, "tests"), { recursive: true });
+    fs.writeFileSync(
+      path.join(appDir, "README.md"),
+      ["# Inventory Platform", "## Features", "- inventory operations", "## Testing", "- npm test", "## Run", "- npm start"].join("\n"),
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- inventory_item\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "components.md"), "# Components\n- inventory_service\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "architecture.md"), "# Architecture\n- MVC: model/controller/view\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- local storage adapter\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- inventory smoke\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");
+    fs.writeFileSync(path.join(appDir, "src", "inventory.js"), buildSourceModule("inventory", 10), "utf-8");
+    fs.writeFileSync(
+      path.join(appDir, "tests", "core.test.js"),
+      "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});",
+      "utf-8"
+    );
+
+    const result = runAppLifecycle(root, "autopilot-inventory-20260210", {
+      goalText: "create inventory software for stores"
+    });
+
+    assert.equal(result.qualityPassed, false);
+    assert.equal(result.qualityDiagnostics.some((line) => /missing runtime manifest/i.test(line)), true);
+  }));
+
+test("runAppLifecycle fails when README or components contain placeholder content", () =>
+  withTempConfig((root) => {
+    const appDir = path.join(root, "generated-app");
+    fs.mkdirSync(path.join(appDir, "src"), { recursive: true });
+    fs.mkdirSync(path.join(appDir, "tests"), { recursive: true });
+    fs.writeFileSync(path.join(appDir, "requirements.txt"), "flask==3.0.3\n", "utf-8");
+    fs.writeFileSync(
+      path.join(appDir, "README.md"),
+      ["# Billing Suite", "## Features", "- TODO complete features", "## Testing", "- pytest", "## Run", "- flask run"].join("\n"),
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(appDir, "schemas.md"), "# Schemas\n- invoice\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "components.md"), "# Components\n- TODO list components\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "architecture.md"), "# Architecture\n- MVC: model/controller/view\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "dummy-local.md"), "# DummyLocal\n- sqlite adapter\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "regression.md"), "# Regression\n- billing smoke\n", "utf-8");
+    fs.writeFileSync(path.join(appDir, "LICENSE"), "MIT License", "utf-8");
+    fs.writeFileSync(path.join(appDir, "src", "billing.js"), buildSourceModule("billing", 10), "utf-8");
+    fs.writeFileSync(path.join(appDir, "src", "tax.js"), buildSourceModule("tax", 10), "utf-8");
+    fs.writeFileSync(path.join(appDir, "src", "ledger.js"), buildSourceModule("ledger", 10), "utf-8");
+    fs.writeFileSync(path.join(appDir, "src", "audit.js"), buildSourceModule("audit", 10), "utf-8");
+    fs.writeFileSync(
+      path.join(appDir, "tests", "core.test.js"),
+      "test('a',()=>{});test('b',()=>{});test('c',()=>{});test('d',()=>{});test('e',()=>{});test('f',()=>{});test('g',()=>{});test('h',()=>{});",
+      "utf-8"
+    );
+
+    const result = runAppLifecycle(root, "autopilot-billing-20260210", {
+      goalText: "create billing management software"
+    });
+
+    assert.equal(result.qualityPassed, false);
+    assert.equal(result.qualityDiagnostics.some((line) => /placeholder\/todo/i.test(line)), true);
   }));
 
 test("runAppLifecycle preflight fails on nested generated-app duplication", () =>
