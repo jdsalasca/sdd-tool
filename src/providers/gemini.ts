@@ -1,4 +1,6 @@
 import { spawnSync } from "child_process";
+import fs from "fs";
+import path from "path";
 import { AIProvider, ProviderResult } from "./types";
 
 export type GeminiResult = ProviderResult;
@@ -23,13 +25,41 @@ function resolveCommand(input: string): string {
   return input;
 }
 
-export function geminiVersion(): GeminiResult {
+type GeminiRunner = {
+  command: string;
+  prefixArgs: string[];
+  useShell: boolean;
+};
+
+function resolveGeminiRunner(): GeminiRunner {
   const command = resolveCommand(process.env.SDD_GEMINI_BIN?.trim() || "gemini");
   const useShell = process.platform === "win32" && command.toLowerCase().endsWith(".cmd");
+  if (process.platform !== "win32" || !useShell) {
+    return { command, prefixArgs: [], useShell };
+  }
+
+  const explicitNode = process.env.SDD_GEMINI_NODE?.trim();
+  const nodeCommand = explicitNode && explicitNode.length > 0 ? explicitNode : process.execPath;
+  const normalizedCommand = command.replace(/"/g, "").trim();
+  const cmdDir = path.dirname(normalizedCommand);
+  const directScript = path.resolve(cmdDir, "node_modules", "@google", "gemini-cli", "dist", "index.js");
+  if (fs.existsSync(directScript)) {
+    return {
+      command: nodeCommand,
+      prefixArgs: [directScript],
+      useShell: false
+    };
+  }
+
+  return { command, prefixArgs: [], useShell: true };
+}
+
+export function geminiVersion(): GeminiResult {
+  const runner = resolveGeminiRunner();
   const timeout = parseTimeoutMs("SDD_AI_VERSION_TIMEOUT_MS", 15000);
-  const result = spawnSync(command, ["--version"], {
+  const result = spawnSync(runner.command, [...runner.prefixArgs, "--version"], {
     encoding: "utf-8",
-    shell: useShell,
+    shell: runner.useShell,
     timeout
   });
   if (result.status !== 0) {
@@ -39,9 +69,8 @@ export function geminiVersion(): GeminiResult {
 }
 
 export function geminiExec(prompt: string): GeminiResult {
-  const command = resolveCommand(process.env.SDD_GEMINI_BIN?.trim() || "gemini");
+  const runner = resolveGeminiRunner();
   const model = process.env.SDD_GEMINI_MODEL?.trim();
-  const useShell = process.platform === "win32" && command.toLowerCase().endsWith(".cmd");
   const normalizedPrompt = prompt.replace(/\r?\n/g, "\\n");
   const env = {
     ...process.env,
@@ -49,10 +78,21 @@ export function geminiExec(prompt: string): GeminiResult {
   };
   const timeout = parseTimeoutMs("SDD_AI_EXEC_TIMEOUT_MS", 180000);
   const modelArgs = model ? ["-m", model] : [];
+  const buildArgs = (withModel: boolean, withOutput: boolean): string[] => {
+    const args: string[] = [...runner.prefixArgs];
+    if (withModel) {
+      args.push(...modelArgs);
+    }
+    args.push("--prompt", normalizedPrompt);
+    if (withOutput) {
+      args.push("--output-format", "json");
+    }
+    return args;
+  };
   const runPrimary = (withModel: boolean) =>
-    useShell
+    runner.useShell
       ? spawnSync(
-          `${command} ${withModel && model ? `-m "${model.replace(/"/g, "\"\"")}" ` : ""}--prompt "${normalizedPrompt.replace(/"/g, "\"\"")}" --output-format json`,
+          `${runner.command} ${withModel && model ? `-m "${model.replace(/"/g, "\"\"")}" ` : ""}--prompt "${normalizedPrompt.replace(/"/g, "\"\"")}" --output-format json`,
           {
             encoding: "utf-8",
             shell: true,
@@ -60,16 +100,16 @@ export function geminiExec(prompt: string): GeminiResult {
             timeout
           }
         )
-      : spawnSync(command, [...(withModel ? modelArgs : []), "--prompt", normalizedPrompt, "--output-format", "json"], {
+      : spawnSync(runner.command, buildArgs(withModel, true), {
           encoding: "utf-8",
           shell: false,
           env,
           timeout
         });
   const runFallback = (withModel: boolean) =>
-    useShell
+    runner.useShell
       ? spawnSync(
-          `${command} ${withModel && model ? `-m "${model.replace(/"/g, "\"\"")}" ` : ""}--prompt "${normalizedPrompt.replace(/"/g, "\"\"")}"`,
+          `${runner.command} ${withModel && model ? `-m "${model.replace(/"/g, "\"\"")}" ` : ""}--prompt "${normalizedPrompt.replace(/"/g, "\"\"")}"`,
           {
             encoding: "utf-8",
             shell: true,
@@ -77,7 +117,7 @@ export function geminiExec(prompt: string): GeminiResult {
             timeout
           }
         )
-      : spawnSync(command, [...(withModel ? modelArgs : []), "--prompt", normalizedPrompt], {
+      : spawnSync(runner.command, buildArgs(withModel, false), {
           encoding: "utf-8",
           shell: false,
           env,
