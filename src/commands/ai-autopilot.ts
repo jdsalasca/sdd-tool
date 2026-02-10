@@ -505,6 +505,33 @@ function askProviderForJson(
   return null;
 }
 
+function hasUnrecoverableProviderError(errors: string[]): boolean {
+  const joined = errors.join("\n").toLowerCase();
+  if (!joined) return false;
+  return (
+    joined.includes("terminalquotaerror") ||
+    joined.includes("exhausted your capacity") ||
+    joined.includes("code: 429") ||
+    joined.includes(" 429") ||
+    joined.includes("timed out") ||
+    joined.includes("etimedout") ||
+    joined.includes("the command line is too long") ||
+    joined.includes("linea de comandos es demasiado larga") ||
+    joined.includes("la línea de comandos es demasiado larga")
+  );
+}
+
+function lastProviderError(errors: string[]): string {
+  const line = errors
+    .map((value) => String(value || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .at(-1);
+  if (!line) {
+    return "";
+  }
+  return line.length > 220 ? `${line.slice(0, 220)}...[truncated]` : line;
+}
+
 function detectBaselineKind(intent: string): "notes" | "user_news" | "generic" {
   const lower = intent.toLowerCase();
   if (/\bnotes?\b|\bnotas?\b/.test(lower)) {
@@ -1789,7 +1816,8 @@ export function bootstrapProjectCode(
     if (parsed) {
       files.push(...extractFilesFromParsed(parsed));
     }
-    if (files.length === 0) {
+    const providerHardFailure = hasUnrecoverableProviderError(providerDebug.errors);
+    if (files.length === 0 && !providerHardFailure) {
       const fallbackConstraints = extraPromptConstraints(intent, domainHint);
       const fallbackPrompt = [
         "Return ONLY valid JSON. No markdown.",
@@ -1809,7 +1837,7 @@ export function bootstrapProjectCode(
         files.push(...extractFilesFromParsed(parsedFallback));
       }
     }
-    if (files.length === 0 && intentRequiresJavaReactFullstack(intent)) {
+    if (files.length === 0 && !hasUnrecoverableProviderError(providerDebug.errors) && intentRequiresJavaReactFullstack(intent)) {
       const compactPrompt = [
         "Return ONLY valid JSON. No markdown.",
         'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
@@ -1847,7 +1875,7 @@ export function bootstrapProjectCode(
         files.push(...extractFilesFromParsed(parsedCompact));
       }
     }
-    if (files.length === 0) {
+    if (files.length === 0 && !hasUnrecoverableProviderError(providerDebug.errors)) {
       const ultraCompactPrompt = [
         "Return ONLY valid JSON. No markdown.",
         'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
@@ -1896,7 +1924,11 @@ export function bootstrapProjectCode(
         generated: false,
         outputDir,
         fileCount: 0,
-        reason: resolution.ok ? "provider response unusable (see generated-app/provider-debug.md)" : "provider unavailable"
+        reason: resolution.ok
+          ? hasUnrecoverableProviderError(providerDebug.errors)
+            ? `provider temporarily unavailable: ${lastProviderError(providerDebug.errors) || "hard provider failure"}`
+            : "provider response unusable (see generated-app/provider-debug.md)"
+          : "provider unavailable"
       };
     }
   }
@@ -2013,6 +2045,7 @@ export function improveGeneratedApp(
     stage: "repair_iteration",
     filePath: path.join(path.dirname(appDir), "debug", "provider-prompts.jsonl")
   });
+  const providerDebug = { attempts: [] as string[], errors: [] as string[] };
 
   const collectedFiles = collectProjectFiles(appDir);
   const currentFiles = compactFilesForPrompt(collectedFiles);
@@ -2052,8 +2085,12 @@ export function improveGeneratedApp(
     `Sample files JSON: ${JSON.stringify(currentFiles)}`
   ].join("\n"));
 
-  let parsed = askProviderForJson(providerExec, prompt);
-  if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0 && compactDiagnostics.length > 0) {
+  let parsed = askProviderForJson(providerExec, prompt, providerDebug);
+  if (
+    flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0 &&
+    compactDiagnostics.length > 0 &&
+    !hasUnrecoverableProviderError(providerDebug.errors)
+  ) {
     const targetedPrompt = clampPromptSize([
       "Return ONLY valid JSON. No markdown.",
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
@@ -2066,9 +2103,12 @@ export function improveGeneratedApp(
       `Quality diagnostics: ${JSON.stringify(compactDiagnostics)}`,
       `Current file names: ${JSON.stringify(currentFileNames)}`
     ].join("\n"));
-    parsed = askProviderForJson(providerExec, targetedPrompt);
+    parsed = askProviderForJson(providerExec, targetedPrompt, providerDebug);
   }
-  if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0) {
+  if (
+    flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0 &&
+    !hasUnrecoverableProviderError(providerDebug.errors)
+  ) {
     const minimalPrompt = clampPromptSize([
       "Return ONLY valid JSON. No markdown.",
       'Schema: {"files":[{"path":"relative/path","content":"..."}]}',
@@ -2081,10 +2121,17 @@ export function improveGeneratedApp(
       `Top quality diagnostics: ${JSON.stringify(compactDiagnostics.slice(0, 2))}`,
       `Current file names: ${JSON.stringify(currentFileNames.slice(0, 40))}`
     ].join("\n"));
-    parsed = askProviderForJson(providerExec, minimalPrompt);
+    parsed = askProviderForJson(providerExec, minimalPrompt, providerDebug);
   }
   if (flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).length === 0) {
-    return { attempted: true, applied: false, fileCount: 0, reason: "provider response unusable" };
+    return {
+      attempted: true,
+      applied: false,
+      fileCount: 0,
+      reason: hasUnrecoverableProviderError(providerDebug.errors)
+        ? `provider temporarily unavailable: ${lastProviderError(providerDebug.errors) || "hard provider failure"}`
+        : "provider response unusable"
+    };
   }
 
   const updates = flattenSingleTopFolder(extractFilesFromParsed(parsed), path.basename(appDir)).filter((file) => {

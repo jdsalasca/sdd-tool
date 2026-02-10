@@ -473,6 +473,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
   let cycleInput = normalizeCampaignInput(input, []);
   let previousRank = 0;
   let stalledCycles = 0;
+  let providerFailureStreak = 0;
   const fallbackModels = loadModelFallbacks(baseFlags.model);
   let modelCursor = Math.max(0, fallbackModels.findIndex((item) => item === baseFlags.model));
   while (true) {
@@ -572,6 +573,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     }
     lastProject = getFlags().project ?? lastProject;
     if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && detectProviderQuotaIssue(lastProject)) {
+      providerFailureStreak += 1;
       const previousModel = model;
       modelCursor = (modelCursor + 1) % fallbackModels.length;
       model = fallbackModels[modelCursor];
@@ -597,6 +599,35 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
           lastError: `quota/capacity issue detected for ${previousModel}; switched to ${model}`
         });
       }
+      if (providerFailureStreak >= Math.max(3, fallbackModels.length)) {
+        const backoffSecondsRaw = Number.parseInt(process.env.SDD_PROVIDER_BACKOFF_SECONDS ?? "", 10);
+        const backoffSeconds = Number.isFinite(backoffSecondsRaw) && backoffSecondsRaw > 0 ? Math.min(900, backoffSecondsRaw) : 90;
+        const msg = `Provider delivery blocked: repeated quota/capacity failures across models (${providerFailureStreak} cycles). Backing off ${backoffSeconds}s before next attempt.`;
+        console.log(`Suite provider backoff: ${msg}`);
+        if (quotaRoot) {
+          appendCampaignJournal(quotaRoot, "campaign.provider.blocked", msg);
+          writeCampaignState(quotaRoot, {
+            cycle,
+            elapsedMinutes,
+            targetStage: policy.targetStage,
+            targetPassed: false,
+            qualityPassed: false,
+            releasePassed: false,
+            runtimePassed: false,
+            model,
+            nextFromStep,
+            autonomous: policy.autonomous,
+            stallCount: stalledCycles,
+            running: true,
+            suitePid: process.pid,
+            phase: "provider_backoff",
+            lastError: msg
+          });
+        }
+        await sleep(backoffSeconds * 1000);
+      }
+    } else {
+      providerFailureStreak = 0;
     }
 
     const targetPassed = stagePassed(lastProject, policy.targetStage);

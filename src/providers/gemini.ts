@@ -13,6 +13,46 @@ function parseTimeoutMs(envName: string, fallback: number): number {
   return raw;
 }
 
+function parseMaxAttempts(): number {
+  const raw = Number.parseInt(process.env.SDD_GEMINI_MAX_ATTEMPTS ?? "", 10);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return 2;
+  }
+  return Math.max(1, Math.min(4, raw));
+}
+
+function clampPrompt(prompt: string): string {
+  const maxCharsRaw = Number.parseInt(process.env.SDD_GEMINI_PROMPT_MAX_CHARS ?? "", 10);
+  const maxChars = Number.isFinite(maxCharsRaw) && maxCharsRaw > 1000 ? maxCharsRaw : 7000;
+  if (prompt.length <= maxChars) {
+    return prompt;
+  }
+  return `${prompt.slice(0, maxChars)}\n...[truncated by sdd-tool due command length limits]`;
+}
+
+function looksUnrecoverableProviderFailure(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("terminalquotaerror") ||
+    lower.includes("exhausted your capacity") ||
+    lower.includes("code: 429") ||
+    lower.includes("429") ||
+    lower.includes("la linea de comandos es demasiado larga") ||
+    lower.includes("linea de comandos es demasiado larga") ||
+    lower.includes("the command line is too long")
+  );
+}
+
+function normalizeFailure(result: ReturnType<typeof spawnSync>, fallback: string): string {
+  const chunks = [result.error?.message || "", result.stderr || "", result.stdout || ""]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean);
+  if (chunks.length === 0) {
+    return fallback;
+  }
+  return chunks.join("\n");
+}
+
 function resolveCommand(input: string): string {
   if (process.platform !== "win32") {
     return input;
@@ -71,12 +111,13 @@ export function geminiVersion(): GeminiResult {
 export function geminiExec(prompt: string): GeminiResult {
   const runner = resolveGeminiRunner();
   const model = process.env.SDD_GEMINI_MODEL?.trim();
-  const normalizedPrompt = prompt.replace(/\r?\n/g, "\\n");
+  const normalizedPrompt = clampPrompt(prompt.replace(/\r?\n/g, "\\n"));
   const env = {
     ...process.env,
     NO_COLOR: "1"
   };
-  const timeout = parseTimeoutMs("SDD_AI_EXEC_TIMEOUT_MS", 180000);
+  const timeout = parseTimeoutMs("SDD_AI_EXEC_TIMEOUT_MS", 120000);
+  const maxAttempts = parseMaxAttempts();
   const modelArgs = model ? ["-m", model] : [];
   const buildArgs = (withModel: boolean, withOutput: boolean): string[] => {
     const args: string[] = [...runner.prefixArgs];
@@ -123,20 +164,37 @@ export function geminiExec(prompt: string): GeminiResult {
           env,
           timeout
         });
-  let result = runPrimary(true);
-  if (result.status !== 0 && model) {
-    result = runPrimary(false);
+  const attempts: Array<{ name: string; run: () => ReturnType<typeof spawnSync> }> = [
+    { name: "primary_model_json", run: () => runPrimary(true) },
+    { name: "primary_plain_json", run: () => runPrimary(false) },
+    { name: "fallback_model_text", run: () => runFallback(true) },
+    { name: "fallback_plain_text", run: () => runFallback(false) }
+  ];
+  let last = attempts[0].run();
+  let executed = 1;
+  if (last.status === 0) {
+    return { ok: true, output: String(last.stdout || "").trim() };
   }
-  if (result.status !== 0) {
-    result = runFallback(true);
+  let lastError = normalizeFailure(last, "gemini exec failed");
+  if (looksUnrecoverableProviderFailure(lastError)) {
+    return { ok: false, output: String(last.stdout || ""), error: lastError };
   }
-  if (result.status !== 0 && model) {
-    result = runFallback(false);
+  for (let i = 1; i < attempts.length && executed < maxAttempts; i += 1) {
+    // Skip model retries when model override is not set.
+    if (!model && /model/i.test(attempts[i].name)) {
+      continue;
+    }
+    last = attempts[i].run();
+    executed += 1;
+    if (last.status === 0) {
+      return { ok: true, output: String(last.stdout || "").trim() };
+    }
+    lastError = normalizeFailure(last, "gemini exec failed");
+    if (looksUnrecoverableProviderFailure(lastError)) {
+      return { ok: false, output: String(last.stdout || ""), error: lastError };
+    }
   }
-  if (result.status !== 0) {
-    return { ok: false, output: result.stdout || "", error: result.error?.message || result.stderr || "gemini exec failed" };
-  }
-  return { ok: true, output: result.stdout.trim() };
+  return { ok: false, output: String(last.stdout || ""), error: lastError };
 }
 
 export const geminiProvider: AIProvider = {
