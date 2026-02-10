@@ -33,7 +33,14 @@ type CampaignPolicy = {
 };
 
 type ProviderIssueType = "none" | "unusable" | "quota";
+type RecoveryTier = "none" | "tier1" | "tier2" | "tier3" | "tier4";
 type SuiteLockHandle = { lockPath: string; pid: number };
+type BlockingSignals = {
+  blocking: boolean;
+  blockers: string[];
+  lifecycleFailCount: number;
+  stageFailures: string[];
+};
 
 function clampInt(input: number, fallback: number, min: number, max: number): number {
   if (!Number.isFinite(input)) {
@@ -97,6 +104,31 @@ function appendCampaignJournal(projectRoot: string, event: string, details?: str
   }
 }
 
+function appendRecoveryAudit(
+  projectRoot: string,
+  entry: {
+    cycle: number;
+    tier: RecoveryTier;
+    action: string;
+    outcome: string;
+    blockingSignals: string[];
+    lifecycleFailCount: number;
+    stageFailures: string[];
+  }
+): void {
+  try {
+    fs.mkdirSync(projectRoot, { recursive: true });
+    const file = path.join(projectRoot, "autonomous-recovery-audit.jsonl");
+    const payload = {
+      at: new Date().toISOString(),
+      ...entry
+    };
+    fs.appendFileSync(file, `${JSON.stringify(payload)}\n`, "utf-8");
+  } catch {
+    // best effort
+  }
+}
+
 function writeCampaignState(
   projectRoot: string,
   state: {
@@ -115,6 +147,9 @@ function writeCampaignState(
     suitePid?: number;
     phase?: string;
     lastError?: string;
+    recoveryActive?: boolean;
+    recoveryTier?: RecoveryTier;
+    lastRecoveryAction?: string;
   }
 ): void {
   try {
@@ -123,6 +158,95 @@ function writeCampaignState(
   } catch {
     // best effort
   }
+}
+
+function readBlockingSignals(projectName?: string): BlockingSignals {
+  const projectRoot = resolveProjectRoot(projectName);
+  if (!projectRoot) {
+    return {
+      blocking: false,
+      blockers: [],
+      lifecycleFailCount: 0,
+      stageFailures: []
+    };
+  }
+  const runStatus = readJsonFile<{ blockers?: string[] }>(path.join(projectRoot, "sdd-run-status.json"));
+  const blockers = Array.isArray(runStatus?.blockers) ? runStatus.blockers.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  const lifecycle = readJsonFile<{ steps?: Array<{ ok?: boolean }> }>(
+    path.join(projectRoot, "generated-app", "deploy", "lifecycle-report.json")
+  );
+  const lifecycleFailCount = Array.isArray(lifecycle?.steps) ? lifecycle.steps.filter((step) => !step?.ok).length : 0;
+  const stageSnapshot = loadStageSnapshot(projectRoot);
+  const stageFailures = Object.entries(stageSnapshot.stages || {})
+    .filter(([, value]) => value === "failed")
+    .map(([name]) => name);
+  return {
+    blocking: blockers.length > 0 || lifecycleFailCount > 0 || stageFailures.length > 0,
+    blockers: blockers.slice(0, 12),
+    lifecycleFailCount,
+    stageFailures
+  };
+}
+
+function resolveRecoveryTier(streak: number, stalledCycles: number): RecoveryTier {
+  if (streak >= 5 || stalledCycles >= 4) return "tier4";
+  if (streak >= 4 || stalledCycles >= 3) return "tier3";
+  if (streak >= 2 || stalledCycles >= 2) return "tier2";
+  if (streak >= 1) return "tier1";
+  return "none";
+}
+
+function buildRecoveryPlan(tier: RecoveryTier, signals: BlockingSignals): {
+  additions: string[];
+  action: string;
+  forceCreateNextCycle: boolean;
+  enableCompactMode: boolean;
+} {
+  const baseHints = signals.blockers.slice(0, 5).join(" | ");
+  if (tier === "tier4") {
+    return {
+      additions: [
+        "Autonomous recovery tier4: perform deep rebuild with strict stage gate enforcement and regenerate artifacts before coding.",
+        "Resolve blockers from lifecycle/run-status first, then continue toward release with full quality evidence."
+      ],
+      action: `tier4 deep recovery + forced create. blockers=${baseHints || "none"}`,
+      forceCreateNextCycle: true,
+      enableCompactMode: true
+    };
+  }
+  if (tier === "tier3") {
+    return {
+      additions: [
+        "Autonomous recovery tier3: convert unresolved blockers into prioritized P0/P1 stories and implement all P0 immediately.",
+        "Re-run quality gates after each fix and provide strict JSON-only file payload."
+      ],
+      action: `tier3 strict remediation. blockers=${baseHints || "none"}`,
+      forceCreateNextCycle: false,
+      enableCompactMode: true
+    };
+  }
+  if (tier === "tier2") {
+    return {
+      additions: [
+        "Autonomous recovery tier2: focus only on failing gates and missing artifacts, avoid scope expansion.",
+        "Deliver minimal high-confidence edits that close blockers."
+      ],
+      action: `tier2 gate-focused remediation. blockers=${baseHints || "none"}`,
+      forceCreateNextCycle: false,
+      enableCompactMode: true
+    };
+  }
+  if (tier === "tier1") {
+    return {
+      additions: [
+        "Autonomous recovery tier1: fix blocking failures first and keep release path aligned with mandatory stages."
+      ],
+      action: `tier1 recovery prompt boost. blockers=${baseHints || "none"}`,
+      forceCreateNextCycle: false,
+      enableCompactMode: false
+    };
+  }
+  return { additions: [], action: "no-op", forceCreateNextCycle: false, enableCompactMode: false };
 }
 
 function resolveProjectRoot(projectName?: string): string | null {
@@ -633,8 +757,10 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
   let previousRank = 0;
   let stalledCycles = 0;
   let providerFailureStreak = 0;
+  let blockingFailureStreak = 0;
   let qualityFailureStreak = 0;
   let emergencyBaselineEnabled = false;
+  let forceCreateNextCycle = false;
   const previousTemplateFallbackSetting = process.env.SDD_ALLOW_TEMPLATE_FALLBACK;
   const fallbackModels = loadModelFallbacks(baseFlags.model);
   let modelCursor = Math.max(0, fallbackModels.findIndex((item) => item === baseFlags.model));
@@ -645,6 +771,13 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
     let model = (baseFlags.provider ?? "").toLowerCase() === "gemini" ? fallbackModels[modelCursor] : baseFlags.model;
 
     let nextFromStep = chooseResumeStep(lastProject);
+    if (forceCreateNextCycle) {
+      nextFromStep = "create";
+      if (lastProject) {
+        clearCheckpoint(lastProject);
+      }
+      forceCreateNextCycle = false;
+    }
     const rankBefore = stageRank(lastProject);
     if (rankBefore <= previousRank) {
       stalledCycles += 1;
@@ -698,7 +831,10 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
         stallCount: stalledCycles,
         running: true,
         suitePid: process.pid,
-        phase: "cycle_start"
+        phase: "cycle_start",
+        recoveryActive: false,
+        recoveryTier: "none",
+        lastRecoveryAction: ""
       });
     }
     try {
@@ -740,6 +876,42 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       }
     }
     lastProject = getFlags().project ?? lastProject;
+    let recoveryActive = false;
+    let recoveryTier: RecoveryTier = "none";
+    let recoveryAction = "";
+    const blockingSignals = readBlockingSignals(lastProject);
+    if (blockingSignals.blocking) {
+      blockingFailureStreak += 1;
+      recoveryTier = resolveRecoveryTier(blockingFailureStreak, stalledCycles);
+      const plan = buildRecoveryPlan(recoveryTier, blockingSignals);
+      if (plan.additions.length > 0) {
+        cycleInput = normalizeCampaignInput(cycleInput, plan.additions);
+      }
+      if (plan.enableCompactMode && !process.env.SDD_GEMINI_PROMPT_MAX_CHARS) {
+        process.env.SDD_GEMINI_PROMPT_MAX_CHARS = "4200";
+      }
+      if (plan.forceCreateNextCycle) {
+        forceCreateNextCycle = true;
+      }
+      recoveryActive = recoveryTier !== "none";
+      recoveryAction = plan.action;
+      const recoveryRoot = resolveProjectRoot(lastProject);
+      if (recoveryRoot && recoveryActive) {
+        appendCampaignJournal(recoveryRoot, "campaign.recovery.autonomous", recoveryAction);
+        appendRecoveryAudit(recoveryRoot, {
+          cycle,
+          tier: recoveryTier,
+          action: recoveryAction,
+          outcome: "applied",
+          blockingSignals: blockingSignals.blockers,
+          lifecycleFailCount: blockingSignals.lifecycleFailCount,
+          stageFailures: blockingSignals.stageFailures
+        });
+      }
+    } else {
+      blockingFailureStreak = 0;
+    }
+
     const providerIssue = (baseFlags.provider ?? "").toLowerCase() === "gemini" ? detectProviderIssueType(lastProject) : "none";
     if ((baseFlags.provider ?? "").toLowerCase() === "gemini" && providerIssue !== "none") {
       providerFailureStreak += 1;
@@ -780,7 +952,19 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
           running: true,
           suitePid: process.pid,
           phase: "provider_quota_recovery",
-          lastError: `${issueLabel} detected for ${previousModel}; switched to ${model}`
+          lastError: `${issueLabel} detected for ${previousModel}; switched to ${model}`,
+          recoveryActive: true,
+          recoveryTier: recoveryTier === "none" ? "tier2" : recoveryTier,
+          lastRecoveryAction: recoveryAction || `provider recovery ${previousModel} -> ${model}`
+        });
+        appendRecoveryAudit(quotaRoot, {
+          cycle,
+          tier: recoveryTier === "none" ? "tier2" : recoveryTier,
+          action: recoveryAction || `provider recovery ${previousModel} -> ${model}`,
+          outcome: "provider-rotation",
+          blockingSignals: blockingSignals.blockers,
+          lifecycleFailCount: blockingSignals.lifecycleFailCount,
+          stageFailures: blockingSignals.stageFailures
         });
       }
       if (providerFailureStreak >= Math.max(3, fallbackModels.length)) {
@@ -863,7 +1047,10 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
         running: true,
         suitePid: process.pid,
         phase: "cycle_completed",
-        lastError: minimumRuntimeMet ? "" : `minimum runtime pending (${elapsedMinutes}/${policy.minRuntimeMinutes}m)`
+        lastError: minimumRuntimeMet ? "" : `minimum runtime pending (${elapsedMinutes}/${policy.minRuntimeMinutes}m)`,
+        recoveryActive,
+        recoveryTier,
+        lastRecoveryAction: recoveryAction
       });
       appendCampaignJournal(
         projectRoot,
