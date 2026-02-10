@@ -917,6 +917,24 @@ function applyDeterministicQualityFixes(appDir: string, diagnostics: string[]): 
   return actions;
 }
 
+function restoreRequirementForRetry(projectRoot: string, reqId: string): boolean {
+  try {
+    const inProgressDir = path.join(projectRoot, "requirements", "in-progress", reqId);
+    if (fs.existsSync(inProgressDir)) {
+      return true;
+    }
+    const doneDir = path.join(projectRoot, "requirements", "done", reqId);
+    if (!fs.existsSync(doneDir)) {
+      return false;
+    }
+    fs.mkdirSync(path.dirname(inProgressDir), { recursive: true });
+    fs.cpSync(doneDir, inProgressDir, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function deriveProjectName(input: string, flow: string): string {
   const translate: Record<string, string> = {
     parqueadero: "parking",
@@ -1507,6 +1525,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
         }
         const codeBootstrap = bootstrapProjectCode(projectRoot, activeProject, text, provider, intent.domain);
         if (!codeBootstrap.generated) {
+          const reqRestored = restoreRequirementForRetry(projectRoot, reqId);
           saveCheckpoint(activeProject, {
             project: activeProject,
             reqId,
@@ -1530,6 +1549,9 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             }
           });
           printWhy(`Code generation blocked: ${codeBootstrap.reason || "provider did not return valid files"}.`);
+          if (reqRestored) {
+            printWhy(`Recovery prepared: requirement ${reqId} restored to in-progress for finish retry.`);
+          }
           printWhy("No template fallback was applied. Re-run with clearer prompt or improve provider response contract.");
           printRecoveryNext(activeProject, "finish", text);
           return;
