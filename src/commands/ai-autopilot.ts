@@ -252,11 +252,75 @@ function parseFilesFromRawText(raw: string): Array<{ path: string; content: stri
 }
 
 function asText(value: unknown, fallback: string): string {
-  if (typeof value !== "string") {
+  if (typeof value === "string") {
+    const clean = value.trim();
+    return clean.length > 0 ? clean : fallback;
+  }
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+    if (parts.length > 0) {
+      return parts.join(", ");
+    }
     return fallback;
   }
-  const clean = value.trim();
-  return clean.length > 0 ? clean : fallback;
+  if (value && typeof value === "object") {
+    const entries = Object.values(value as Record<string, unknown>)
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+    if (entries.length > 0) {
+      return entries.join(", ");
+    }
+  }
+  return fallback;
+}
+
+function parseCsvLikeItems(input: string): string[] {
+  return String(input || "")
+    .split(/[\n,;|]+/g)
+    .map((item) => item.replace(/^\s*[-*]\s*/, "").trim())
+    .filter(Boolean);
+}
+
+function containsGenericOnly(items: string[]): boolean {
+  const genericTokens = [
+    "baseline",
+    "first iteration",
+    "refinement",
+    "tbd",
+    "n/a",
+    "best practices",
+    "simple",
+    "generic"
+  ];
+  if (items.length === 0) return true;
+  const signalCount = items.filter((item) => {
+    const lower = item.toLowerCase();
+    return !genericTokens.some((token) => lower.includes(token));
+  }).length;
+  return signalCount < Math.max(2, Math.floor(items.length * 0.6));
+}
+
+function hasMeasurableAcceptance(items: string[]): boolean {
+  return items.some((item) => /(\d+%|\d+\s*(ms|s|sec|seconds|min|minutes)|p95|p99|under\s+\d+|>=?\s*\d+|<=?\s*\d+)/i.test(item));
+}
+
+function requirementsNeedRefinement(draft: RequirementDraft): boolean {
+  const actors = parseCsvLikeItems(draft.actors ?? "");
+  const scopeIn = parseCsvLikeItems(draft.scope_in ?? "");
+  const acceptance = parseCsvLikeItems(draft.acceptance_criteria ?? "");
+  const constraints = parseCsvLikeItems(draft.constraints ?? "");
+  const risks = parseCsvLikeItems(draft.risks ?? "");
+  const weakObjective = (draft.objective ?? "").trim().length < 35;
+  if (weakObjective) return true;
+  if (actors.length < 3) return true;
+  if (scopeIn.length < 6 || containsGenericOnly(scopeIn)) return true;
+  if (acceptance.length < 8 || containsGenericOnly(acceptance)) return true;
+  if (!hasMeasurableAcceptance(acceptance)) return true;
+  if (constraints.length < 3) return true;
+  if (risks.length < 3) return true;
+  return false;
 }
 
 function safeRelativePath(input: string): string | null {
@@ -1571,6 +1635,14 @@ export function enrichDraftWithAI(
     "objective, actors, scope_in, scope_out, acceptance_criteria, nfr_security, nfr_performance, nfr_availability, constraints, risks.",
     "No markdown. No explanation.",
     "Do not mention tool limits or inability; provide the JSON payload directly.",
+    "Each key must be a plain string. For list-like fields, return comma-separated items (not arrays).",
+    "Quality bar:",
+    "- objective: clear business value and user impact.",
+    "- actors: at least 3 specific roles.",
+    "- scope_in: at least 6 concrete capabilities.",
+    "- acceptance_criteria: at least 8 testable criteria with measurable thresholds where possible.",
+    "- constraints: at least 3 concrete constraints.",
+    "- risks: at least 3 concrete risks.",
     "Write all values in English.",
     `Intent: ${input}`,
     `Flow: ${flow}`,
@@ -1580,8 +1652,7 @@ export function enrichDraftWithAI(
   if (!parsed) {
     return baseDraft;
   }
-
-  return {
+  let enriched: RequirementDraft = {
     ...baseDraft,
     objective: asText(parsed.objective, baseDraft.objective ?? ""),
     actors: asText(parsed.actors, baseDraft.actors ?? ""),
@@ -1594,6 +1665,37 @@ export function enrichDraftWithAI(
     constraints: asText(parsed.constraints, baseDraft.constraints ?? ""),
     risks: asText(parsed.risks, baseDraft.risks ?? "")
   };
+  if (requirementsNeedRefinement(enriched)) {
+    const retryPrompt = [
+      "Refine the following requirement draft to production-grade quality.",
+      "Return ONLY valid JSON with the same keys:",
+      "objective, actors, scope_in, scope_out, acceptance_criteria, nfr_security, nfr_performance, nfr_availability, constraints, risks.",
+      "Output plain strings only. Use comma-separated lists where applicable.",
+      "Do not use placeholders, generic wording, or MVP-first language.",
+      "Guarantee: actors>=3, scope_in>=6, acceptance_criteria>=8 (measurable), constraints>=3, risks>=3.",
+      `Intent: ${input}`,
+      `Flow: ${flow}`,
+      `Domain: ${domain}`,
+      `Current draft JSON: ${JSON.stringify(enriched)}`
+    ].join("\n");
+    const refined = askProviderForJson(providerExec, retryPrompt);
+    if (refined) {
+      enriched = {
+        ...enriched,
+        objective: asText(refined.objective, enriched.objective ?? ""),
+        actors: asText(refined.actors, enriched.actors ?? ""),
+        scope_in: asText(refined.scope_in, enriched.scope_in ?? ""),
+        scope_out: asText(refined.scope_out, enriched.scope_out ?? ""),
+        acceptance_criteria: asText(refined.acceptance_criteria, enriched.acceptance_criteria ?? ""),
+        nfr_security: asText(refined.nfr_security, enriched.nfr_security ?? ""),
+        nfr_performance: asText(refined.nfr_performance, enriched.nfr_performance ?? ""),
+        nfr_availability: asText(refined.nfr_availability, enriched.nfr_availability ?? ""),
+        constraints: asText(refined.constraints, enriched.constraints ?? ""),
+        risks: asText(refined.risks, enriched.risks ?? "")
+      };
+    }
+  }
+  return enriched;
 }
 
 export type CodeBootstrapResult = {

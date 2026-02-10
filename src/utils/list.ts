@@ -1,8 +1,5 @@
 export function formatList(input: string): string {
-  const items = input
-    .split(",")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
+  const items = parseList(input);
 
   if (items.length === 0) {
     return "- N/A";
@@ -11,8 +8,8 @@ export function formatList(input: string): string {
 }
 
 export function parseList(input: string): string[] {
-  return input
-    .split(",")
-    .map((item) => item.trim())
+  return String(input || "")
+    .split(/[\n,;|]+/g)
+    .map((item) => item.replace(/^\s*[-*]\s*/, "").trim())
     .filter((item) => item.length > 0);
 }
