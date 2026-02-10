@@ -1395,8 +1395,10 @@ export function runAppLifecycle(projectRoot: string, projectName: string, contex
   summary.push(`${git.ok ? "OK" : "FAIL"}: ${git.command}`);
 
   const config = ensureConfig();
+  const autonomousCampaign = process.env.SDD_CAMPAIGN_AUTONOMOUS === "1";
+  const publishEnabled = autonomousCampaign || config.git.publish_enabled;
   const deferPublishUntilReview = context?.deferPublishUntilReview === true;
-  const publish = !config.git.publish_enabled
+  const publish = !publishEnabled
     ? { ok: false, command: "publish", output: "disabled by config git.publish_enabled=false" }
     : deferPublishUntilReview
       ? { ok: false, command: "publish", output: "deferred until digital review approval" }
@@ -1433,7 +1435,8 @@ export function publishGeneratedApp(projectRoot: string, projectName: string, co
     return { published: false, summary: "generated-app directory missing" };
   }
   const config = ensureConfig();
-  if (!config.git.publish_enabled) {
+  const autonomousCampaign = process.env.SDD_CAMPAIGN_AUTONOMOUS === "1";
+  if (!autonomousCampaign && !config.git.publish_enabled) {
     return { published: false, summary: "publish disabled by config git.publish_enabled=false" };
   }
   const git = ensureGitRepo(appDir);
@@ -1476,10 +1479,11 @@ export function createManagedRelease(
   }
 
   const config = ensureConfig();
+  const autonomousCampaign = process.env.SDD_CAMPAIGN_AUTONOMOUS === "1";
   let pushed = false;
   let published = false;
   let publishSummary = "local release created";
-  if (config.git.publish_enabled) {
+  if (autonomousCampaign || config.git.publish_enabled) {
     const remote = ensureRepoRemote(appDir, metadata);
     if (remote.ok) {
       const pushedStep = pushGitWithTags(appDir);

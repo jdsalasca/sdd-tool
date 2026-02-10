@@ -61,6 +61,10 @@
   - `--campaign-autonomous` to force fully non-interactive publishing/runtime behavior.
   - stall detection with `--campaign-stall-cycles` and automatic recovery from `create`.
   - per-cycle machine state at `<project>/suite-campaign-state.json`.
+- Add quality-first monitoring in `status`:
+  - `status --all` for cross-project portfolio view with quality gate signals.
+  - `status --quality` for selected-project lifecycle/review/stage/campaign diagnostics.
+  - `status --watch <seconds>` for continuous refresh monitoring.
 
 ## 0.1.32
 - Release notes: `docs/releases/v0.1.32.md`

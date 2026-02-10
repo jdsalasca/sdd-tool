@@ -7,7 +7,7 @@ import { runInit } from "./commands/init";
 import { runRoute } from "./commands/route";
 import { runDoctor } from "./commands/doctor";
 import { runQuickstart } from "./commands/quickstart";
-import { runStatus } from "./commands/status";
+import { runStatusWithOptions } from "./commands/status";
 import { runSuite } from "./commands/suite";
 import { runImportIssue } from "./commands/import-issue";
 import { runImportJira } from "./commands/import-jira";
@@ -153,7 +153,19 @@ program
   .command("status")
   .description("Show project requirement counts and next recommended command")
   .option("--next", "Print exact next command to run")
-  .action((options) => runStatus(Boolean(options.next)));
+  .option("--all", "Show quality/status overview for all workspace projects")
+  .option("--quality", "Include quality and stage diagnostics for selected project")
+  .option("--watch <seconds>", "Refresh status continuously every N seconds")
+  .action((options) =>
+    runStatusWithOptions(Boolean(options.next), {
+      all: Boolean(options.all),
+      quality: Boolean(options.quality),
+      watchSeconds:
+        typeof options.watch === "string" && options.watch.trim().length > 0
+          ? Number.parseInt(options.watch, 10)
+          : undefined
+    })
+  );
 
 const scopeCmd = program.command("scope").description("Monorepo scope workspace commands");
 scopeCmd

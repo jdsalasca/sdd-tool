@@ -728,6 +728,101 @@ test("status emits SDD error code when selected project directory does not exist
   assert.match(result.stdout, /\[SDD-1402\]/i);
 });
 
+test("status --all reports quality overview across projects", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-status-all-quality-"));
+  const projectName = "QualityOverviewProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  fs.mkdirSync(path.join(projectRoot, "generated-app", "deploy"), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, "generated-app", "deploy", "lifecycle-report.md"),
+    ["# Lifecycle Report", "- OK: preflight-quality-check", "- FAIL: npm test -> boom"].join("\n"),
+    "utf-8"
+  );
+  fs.writeFileSync(
+    path.join(projectRoot, ".sdd-stage-state.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        stages: {
+          discovery: "passed",
+          functional_requirements: "passed",
+          technical_backlog: "passed",
+          implementation: "failed",
+          quality_validation: "pending",
+          role_review: "pending",
+          release_candidate: "pending",
+          final_release: "pending",
+          runtime_start: "pending"
+        },
+        history: []
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+  writeJson(path.join(workspaceRoot, "workspaces.json"), {
+    projects: [{ name: projectName, status: "in-progress" }]
+  });
+
+  const result = runCli(workspaceRoot, "", ["status", "--all"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Projects overview: 1/i);
+  assert.match(result.stdout, /quality=red/i);
+  assert.match(result.stdout, /stage=implementation:failed/i);
+});
+
+test("status --quality prints detailed quality diagnostics for selected project", () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-status-quality-detail-"));
+  const projectName = "QualityDetailProject";
+  const projectRoot = path.join(workspaceRoot, projectName);
+  fs.mkdirSync(path.join(projectRoot, "requirements", "done", "REQ-1"), { recursive: true });
+  fs.mkdirSync(path.join(projectRoot, "generated-app", "deploy"), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, "generated-app", "deploy", "lifecycle-report.md"),
+    ["# Lifecycle Report", "- OK: preflight-quality-check", "- OK: npm test"].join("\n"),
+    "utf-8"
+  );
+  fs.writeFileSync(
+    path.join(projectRoot, "generated-app", "deploy", "digital-review-report.json"),
+    JSON.stringify({ passed: true, score: 9.2 }, null, 2),
+    "utf-8"
+  );
+  fs.writeFileSync(
+    path.join(projectRoot, ".sdd-stage-state.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        stages: {
+          discovery: "passed",
+          functional_requirements: "passed",
+          technical_backlog: "passed",
+          implementation: "passed",
+          quality_validation: "passed",
+          role_review: "passed",
+          release_candidate: "passed",
+          final_release: "passed",
+          runtime_start: "pending"
+        },
+        history: []
+      },
+      null,
+      2
+    ),
+    "utf-8"
+  );
+  writeJson(path.join(workspaceRoot, "workspaces.json"), {
+    projects: [{ name: projectName, status: "done" }]
+  });
+
+  const result = runCli(workspaceRoot, projectName, ["status", "--quality"], "");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Quality:/i);
+  assert.match(result.stdout, /- gate: green/i);
+  assert.match(result.stdout, /- digital-review: pass/i);
+  assert.match(result.stdout, /- stage: final_release:passed/i);
+});
+
 test("list emits SDD error code when prompt packs cannot be loaded", () => {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-list-missing-packs-"));
   const fakeRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-repo-missing-packs-"));

@@ -379,6 +379,11 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
   let { workspace, projects } = loadWorkspace();
   const runtimeFlags = getFlags();
   const config = ensureConfig();
+  const autonomousCampaign = process.env.SDD_CAMPAIGN_AUTONOMOUS === "1";
+  const gitPolicy = {
+    release_management_enabled: autonomousCampaign || config.git.release_management_enabled,
+    run_after_finalize: autonomousCampaign || config.git.run_after_finalize
+  };
   const hasDirectIntent = input.trim().length > 0;
   const shouldRunQuestions = runQuestions === true;
   const autoGuidedMode = !shouldRunQuestions && (runtimeFlags.nonInteractive || hasDirectIntent);
@@ -998,7 +1003,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
               result: "passed"
             });
             recordIterationMetric({ round, phase: "lifecycle", passed: true });
-            if (config.git.release_management_enabled) {
+            if (gitPolicy.release_management_enabled) {
               const candidateRelease = createManagedRelease(projectRoot, activeProject, {
                 round,
                 finalRelease: false,
@@ -1084,7 +1089,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             intentFlow: intent.flow
           });
           printWhy(`Publish after review: ${publish.summary}`);
-          const finalRelease = config.git.release_management_enabled
+          const finalRelease = gitPolicy.release_management_enabled
             ? createManagedRelease(projectRoot, activeProject, {
                 round: Math.max(iterations, 1),
                 finalRelease: true,
@@ -1105,7 +1110,7 @@ export async function runHello(input: string, runQuestions?: boolean): Promise<v
             `${finalRelease.version}: ${finalRelease.summary}`
           );
           appendOrchestrationJournal(projectRoot, "stage.final_release", `${finalRelease.version}: ${finalRelease.summary}`);
-          const runtime = config.git.run_after_finalize
+          const runtime = gitPolicy.run_after_finalize
             ? startGeneratedApp(projectRoot, activeProject)
             : { started: false, processes: [], summary: "runtime auto-start disabled by config" };
           printWhy(`Runtime start: ${runtime.summary}`);

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { ask } from "../ui/prompt";
 import { getFlags } from "../context/flags";
-import { ensureConfig, saveConfig } from "../config";
+import { ensureConfig } from "../config";
 import { setFlags } from "../context/flags";
 import { runHello } from "./hello";
 import { getProjectInfo, getWorkspaceInfo } from "../workspace";
@@ -258,24 +258,6 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
   const qualityRetryPrompt =
     "Continue from the current project state, fix all quality failures, improve architecture/docs/tests, and only deliver production-grade changes.";
   const config = ensureConfig();
-  if (policy.autonomous) {
-    const nextConfig = {
-      ...config,
-      mode: { ...config.mode, default: "non-interactive" as const },
-      git: {
-        ...config.git,
-        publish_enabled: true,
-        release_management_enabled: true,
-        run_after_finalize: true
-      }
-    };
-    saveConfig(nextConfig);
-    appendCampaignJournal(
-      resolveProjectRoot(baseFlags.project) ?? config.workspace.default_root,
-      "campaign.autonomous.config",
-      "Enabled non-interactive mode + git publish + release management + runtime auto-start."
-    );
-  }
 
   if (policy.minRuntimeMinutes > 0) {
     console.log(
@@ -319,6 +301,9 @@ async function runCampaign(input: string, options?: SuiteRunOptions): Promise<vo
       project: lastProject,
       nonInteractive: true
     });
+    if (policy.autonomous) {
+      process.env.SDD_CAMPAIGN_AUTONOMOUS = "1";
+    }
     if (model) {
       process.env.SDD_GEMINI_MODEL = model;
     }
