@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { spawn } from "child_process";
 import { getFlags } from "../context/flags";
 import { ensureWorkspace, getProjectInfo, getWorkspaceInfo } from "../workspace";
 import { printError } from "../errors";
 import { getRepoRoot } from "../paths";
 import { runSuite } from "./suite";
+import { spawnCommand } from "../platform/process-exec";
 
 type RecoverOptions = {
   foreground?: boolean;
@@ -179,11 +179,10 @@ export async function runRecover(input: string, options?: RecoverOptions): Promi
   const errFile = path.join(outDir, `${project.name}.recover.${stamp}.err.log`);
   const outFd = fs.openSync(outFile, "a");
   const errFd = fs.openSync(errFile, "a");
-  const child = spawn(process.execPath, commandArgs, {
+  const child = spawnCommand(process.execPath, commandArgs, {
     cwd: getRepoRoot(),
     detached: true,
-    stdio: ["ignore", outFd, errFd],
-    windowsHide: true
+    stdio: ["ignore", outFd, errFd]
   });
   child.unref();
   try {

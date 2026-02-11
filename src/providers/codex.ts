@@ -1,5 +1,5 @@
-import { spawnSync } from "child_process";
 import { AIProvider, ModelSelectionContext, ProviderResult } from "./types";
+import { runCommandLineSync, runCommandSync } from "../platform/process-exec";
 
 export type CodexResult = ProviderResult;
 
@@ -31,11 +31,10 @@ export function codexVersion(): CodexResult {
   const command = resolveCommand(process.env.SDD_CODEX_BIN?.trim() || "codex");
   const useShell = process.platform === "win32" && command.toLowerCase().endsWith(".cmd");
   const timeout = parseTimeoutMs("SDD_AI_VERSION_TIMEOUT_MS", 15000);
-  const result = spawnSync(command, ["--version"], {
+  const result = runCommandSync(command, ["--version"], {
     encoding: "utf-8",
     shell: useShell,
-    timeout,
-    windowsHide: true
+    timeout
   });
   if (result.status !== 0) {
     return { ok: false, output: "", error: result.error?.message || result.stderr || "codex not available" };
@@ -48,16 +47,13 @@ export function codexExec(prompt: string): CodexResult {
   const useShell = process.platform === "win32" && command.toLowerCase().endsWith(".cmd");
   const timeout = parseTimeoutMs("SDD_AI_EXEC_TIMEOUT_MS", 180000);
   const result = useShell
-    ? spawnSync(`${command} exec "${prompt.replace(/"/g, "\"\"")}"`, {
+    ? runCommandLineSync(`${command} exec "${prompt.replace(/"/g, "\"\"")}"`, {
         encoding: "utf-8",
-        shell: true,
-        timeout,
-        windowsHide: true
+        timeout
       })
-    : spawnSync(command, ["exec", prompt], {
+    : runCommandSync(command, ["exec", prompt], {
         encoding: "utf-8",
-        timeout,
-        windowsHide: true
+        timeout
       });
   if (result.status !== 0) {
     return { ok: false, output: result.stdout || "", error: result.error?.message || result.stderr || "codex exec failed" };

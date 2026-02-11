@@ -2,6 +2,7 @@ import { execSync, spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { AIProvider, ModelSelectionContext, ProviderResult } from "./types";
+import { runCommandSync } from "../platform/process-exec";
 
 export type GeminiResult = ProviderResult;
 
@@ -161,9 +162,16 @@ function resolveGeminiRunner(): GeminiRunner {
   const explicitNode = process.env.SDD_GEMINI_NODE?.trim();
   const nodeCommand = explicitNode && explicitNode.length > 0 ? explicitNode : process.execPath;
   const normalizedCommand = resolveWindowsCommandPath(command.replace(/"/g, "").trim());
+  const nodeDirCandidate = path.dirname(process.execPath);
   const commandCandidates = explicitBin
     ? [normalizedCommand]
-    : [normalizedCommand, resolveWindowsCommandPath("gemini.cmd"), resolveWindowsCommandPath("gemini")]
+    : [
+        normalizedCommand,
+        resolveWindowsCommandPath("gemini.cmd"),
+        resolveWindowsCommandPath("gemini"),
+        path.join(nodeDirCandidate, "gemini.cmd"),
+        path.join(nodeDirCandidate, "gemini")
+      ]
     .map((value) => value.trim())
     .filter(Boolean);
   const directScript = commandCandidates
@@ -177,17 +185,22 @@ function resolveGeminiRunner(): GeminiRunner {
     };
   }
 
+  if (!explicitBin && !normalizedCommand.includes("\\") && !normalizedCommand.includes("/")) {
+    const localCmd = path.join(nodeDirCandidate, normalizedCommand);
+    if (fs.existsSync(localCmd)) {
+      return { command: localCmd, prefixArgs: [], useShell: true };
+    }
+  }
   return { command: normalizedCommand, prefixArgs: [], useShell: true };
 }
 
 export function geminiVersion(): GeminiResult {
   const runner = resolveGeminiRunner();
   const timeout = parseTimeoutMs("SDD_AI_VERSION_TIMEOUT_MS", 15000);
-  const result = spawnSync(runner.command, [...runner.prefixArgs, "--version"], {
+  const result = runCommandSync(runner.command, [...runner.prefixArgs, "--version"], {
     encoding: "utf-8",
     shell: runner.useShell,
-    timeout,
-    windowsHide: true
+    timeout
   });
   if (result.status !== 0) {
     return { ok: false, output: "", error: result.error?.message || result.stderr || "gemini not available" };
@@ -218,20 +231,18 @@ export function geminiExec(prompt: string): GeminiResult {
     return args;
   };
   const runPrimary = (withModel: boolean) =>
-    spawnSync(runner.command, buildArgs(withModel, true), {
+    runCommandSync(runner.command, buildArgs(withModel, true), {
       encoding: "utf-8",
       shell: runner.useShell,
       env,
-      timeout,
-      windowsHide: true
+      timeout
     });
   const runFallback = (withModel: boolean) =>
-    spawnSync(runner.command, buildArgs(withModel, false), {
+    runCommandSync(runner.command, buildArgs(withModel, false), {
       encoding: "utf-8",
       shell: runner.useShell,
       env,
-      timeout,
-      windowsHide: true
+      timeout
     });
   const attempts: Array<{ name: string; run: () => ReturnType<typeof spawnSync> }> = [
     { name: "primary_model_json", run: () => runPrimary(true) },

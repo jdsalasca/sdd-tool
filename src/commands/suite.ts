@@ -10,6 +10,13 @@ import { clearCheckpoint, loadCheckpoint, nextStep } from "./autopilot-checkpoin
 import { DeliveryStage, loadStageSnapshot } from "./stage-machine";
 import { resolveProvider } from "../providers";
 import type { ModelSelectionReason } from "../providers/types";
+import {
+  clearExpiredModelAvailability,
+  isModelUnavailable,
+  listUnavailableModels,
+  markModelUnavailable,
+  nextAvailabilityMs
+} from "../providers/model-availability-cache";
 
 type SuiteContext = {
   appType?: "web" | "desktop";
@@ -889,6 +896,41 @@ function detectProviderIssueType(projectName?: string): ProviderIssueType {
   return "none";
 }
 
+function readRecentQuotaResetHint(projectName?: string): string {
+  const projectRoot = resolveProjectRoot(projectName);
+  if (!projectRoot) {
+    return "";
+  }
+  const files = [
+    path.join(projectRoot, "debug", "provider-prompts.metadata.jsonl"),
+    path.join(projectRoot, "generated-app", "provider-debug.md"),
+    path.join(projectRoot, "sdd-run-status.json")
+  ];
+  const pattern = /quota will reset after\s+([^.,\n]+)/i;
+  for (const file of files) {
+    try {
+      if (!fs.existsSync(file)) {
+        continue;
+      }
+      const raw = fs.readFileSync(file, "utf-8");
+      const lines = raw.split(/\r?\n/).slice(-120).reverse();
+      for (const line of lines) {
+        const hit = line.match(pattern);
+        if (hit?.[1]) {
+          return String(hit[1]).trim();
+        }
+      }
+      const globalHit = raw.match(pattern);
+      if (globalHit?.[1]) {
+        return String(globalHit[1]).trim();
+      }
+    } catch {
+      // best effort
+    }
+  }
+  return "";
+}
+
 function inferAppType(text: string): SuiteContext["appType"] | undefined {
   const lower = text.toLowerCase();
   if (/\bdesktop\b|\bwindows\b|\belectron\b/.test(lower)) {
@@ -945,6 +987,7 @@ function enrichIntent(intent: string, context: SuiteContext): string {
 }
 
 async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoalAnchor?: string): Promise<void> {
+  clearExpiredModelAvailability();
   const policy = resolveCampaignPolicy(options);
   const startedAt = Date.now();
   const baseFlags = getFlags();
@@ -984,17 +1027,35 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
     if (!modelChooser) {
       return currentModel || baseFlags.model;
     }
-    const next = modelChooser({
-      configuredModel: baseFlags.model,
-      currentModel,
-      reason,
-      failureStreak: providerFailureStreak,
-      triedModels: [...triedModels]
-    });
-    if (next && !triedModels.includes(next)) {
-      triedModels.push(next);
+    const unavailable = providerName === "gemini" ? listUnavailableModels("gemini") : [];
+    const unavailableSet = new Set(unavailable);
+    const localTried = [...new Set([...triedModels, ...unavailable])];
+    const attempts = Math.max(2, modelPoolSizeHint + 2);
+    let selected: string | undefined;
+    for (let i = 0; i < attempts; i += 1) {
+      const next = modelChooser({
+        configuredModel: baseFlags.model,
+        currentModel,
+        reason,
+        failureStreak: providerFailureStreak,
+        triedModels: [...localTried]
+      });
+      if (!next) {
+        break;
+      }
+      if (!triedModels.includes(next)) {
+        triedModels.push(next);
+      }
+      if (!unavailableSet.has(next) || !isModelUnavailable("gemini", next)) {
+        selected = next;
+        break;
+      }
+      localTried.push(next);
     }
-    return next || currentModel || baseFlags.model;
+    if (selected) {
+      return selected;
+    }
+    return currentModel || baseFlags.model;
   };
   let activeModel = selectModel("initial");
   while (true) {
@@ -1155,6 +1216,10 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
     if (providerName === "gemini" && providerIssue !== "none") {
       providerFailureStreak += 1;
       const previousModel = model;
+      const quotaResetHint = providerIssue === "quota" ? readRecentQuotaResetHint(lastProject) : "";
+      if (providerIssue === "quota" && previousModel) {
+        markModelUnavailable("gemini", previousModel, quotaResetHint, 60_000);
+      }
       const issueLabel =
         providerIssue === "quota"
           ? "quota/capacity"
@@ -1233,8 +1298,15 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
       }
       if (providerFailureStreak >= Math.max(3, modelPoolSizeHint)) {
         const backoffSecondsRaw = Number.parseInt(process.env.SDD_PROVIDER_BACKOFF_SECONDS ?? "", 10);
-        const backoffSeconds = Number.isFinite(backoffSecondsRaw) && backoffSecondsRaw > 0 ? Math.min(900, backoffSecondsRaw) : 90;
-        const msg = `Provider delivery blocked: repeated ${issueLabel} failures across models (${providerFailureStreak} cycles). Backing off ${backoffSeconds}s before next attempt.`;
+        const baseBackoffSeconds = Number.isFinite(backoffSecondsRaw) && backoffSecondsRaw > 0 ? Math.min(900, backoffSecondsRaw) : 90;
+        const backoffMaxRaw = Number.parseInt(process.env.SDD_PROVIDER_BACKOFF_MAX_SECONDS ?? "", 10);
+        const backoffMaxSeconds = Number.isFinite(backoffMaxRaw) && backoffMaxRaw > 0 ? Math.min(24 * 60 * 60, backoffMaxRaw) : 1800;
+        const nextReadyMs = providerIssue === "quota" ? nextAvailabilityMs("gemini") : null;
+        const cachedBackoffSeconds = nextReadyMs && nextReadyMs > 0 ? Math.ceil(nextReadyMs / 1000) : 0;
+        const backoffSeconds = Math.max(baseBackoffSeconds, Math.min(backoffMaxSeconds, cachedBackoffSeconds || baseBackoffSeconds));
+        const msg = `Provider delivery blocked: repeated ${issueLabel} failures across models (${providerFailureStreak} cycles). Backing off ${backoffSeconds}s before next attempt.${
+          quotaResetHint ? ` reset_hint=${quotaResetHint}` : ""
+        }`;
         console.log(`Suite provider backoff: ${msg}`);
         if (quotaRoot) {
           appendCampaignJournal(quotaRoot, "campaign.provider.blocked", msg);
