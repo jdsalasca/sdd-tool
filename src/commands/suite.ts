@@ -537,7 +537,11 @@ function deriveCanonicalGoal(input: string): string {
 
 function composeCampaignInput(goalAnchor: string, baseInput: string, additions: string[]): string {
   const anchor = goalAnchor ? `Primary product objective (do not drift): ${goalAnchor}` : "";
-  const seeded = anchor ? `${anchor}. ${baseInput}` : baseInput;
+  const cleanedBase = String(baseInput || "")
+    .replace(/primary product objective \(do not drift\):/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const seeded = anchor ? `${anchor}. ${cleanedBase}` : cleanedBase;
   return normalizeCampaignInput(seeded, additions);
 }
 
@@ -1248,10 +1252,13 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
         }
         await sleep(backoffSeconds * 1000);
       }
-      if (providerIssue === "unusable" && providerFailureStreak >= 5 && !emergencyBaselineEnabled) {
+      if (providerIssue !== "command_too_long" && providerFailureStreak >= 5 && !emergencyBaselineEnabled) {
         emergencyBaselineEnabled = true;
         process.env.SDD_ALLOW_TEMPLATE_FALLBACK = "1";
-        const emergencyMsg = "Emergency baseline mode enabled: template fallback allowed until provider output stabilizes.";
+        const emergencyMsg =
+          providerIssue === "quota"
+            ? "Emergency baseline mode enabled: provider quota exhaustion detected, template fallback allowed until provider output stabilizes."
+            : "Emergency baseline mode enabled: template fallback allowed until provider output stabilizes.";
         console.log(`Suite autonomous recovery: ${emergencyMsg}`);
         if (quotaRoot) {
           appendCampaignJournal(quotaRoot, "campaign.recovery.emergency_baseline_enabled", emergencyMsg);
