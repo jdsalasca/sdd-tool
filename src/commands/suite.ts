@@ -19,6 +19,7 @@ import { composeCampaignInput, deriveCanonicalGoal } from "./suite/campaign-prom
 import { buildRecoveryPlan, resolveRecoveryTier, type RecoveryTier } from "./suite/recovery-planner";
 import { acquireSuiteLock, releaseSuiteLock, type SuiteLockHandle } from "./suite/suite-lock";
 import { sanitizeStaleCampaignStates } from "./suite/stale-state";
+import { persistBugBacklog } from "./suite/bug-backlog";
 import {
   appendCampaignJournal,
   appendRecoveryAudit,
@@ -114,6 +115,12 @@ function sleep(ms: number): Promise<void> {
 function hasQualityGateBlockers(blockers: string[]): boolean {
   const joined = blockers.join("\n").toLowerCase();
   return /preflight-quality-check|advanced-quality-check|build|test|lint|smoke|missing dependency|cannot find module|eresolve/.test(joined);
+}
+
+function shouldRefineRequirements(projectName?: string): boolean {
+  const rank = stageRank(projectName);
+  // After implementation starts, requirement prompts should stop accumulating bug-like technical failures.
+  return rank < 4;
 }
 
 function inferAppType(text: string): SuiteContext["appType"] | undefined {
@@ -357,13 +364,21 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
       }
       throw error;
     }
-    const qualityFeedback = collectQualityFeedback(lastProject);
-    const reqFeedback = requirementQualityFeedback(lastProject);
-    cycleInput = composeCampaignInput(goalAnchor, input, [qualityRetryPrompt, ...qualityFeedback, ...reqFeedback]);
+    const rawQualityFeedback = collectQualityFeedback(lastProject);
     const feedbackRoot = resolveProjectRoot(lastProject);
+    const splitFeedback =
+      feedbackRoot && lastProject
+        ? persistBugBacklog(feedbackRoot, lastProject, rawQualityFeedback, cycle)
+        : { bugs: rawQualityFeedback, quality: [] };
+    const qualityFeedback = [...splitFeedback.quality, ...splitFeedback.bugs.map((bug) => `Bug fix priority: ${bug}`)];
+    const reqFeedback = shouldRefineRequirements(lastProject) ? requirementQualityFeedback(lastProject) : [];
+    cycleInput = composeCampaignInput(goalAnchor, input, [qualityRetryPrompt, ...qualityFeedback, ...reqFeedback]);
     if (feedbackRoot && (qualityFeedback.length > 0 || reqFeedback.length > 0)) {
       if (qualityFeedback.length > 0) {
         appendCampaignJournal(feedbackRoot, "campaign.quality.feedback", qualityFeedback.join(" | "));
+      }
+      if (splitFeedback.bugs.length > 0) {
+        appendCampaignJournal(feedbackRoot, "campaign.bugs.feedback", splitFeedback.bugs.join(" | "));
       }
       if (reqFeedback.length > 0) {
         appendCampaignJournal(feedbackRoot, "campaign.requirements.feedback", reqFeedback.join(" | "));
