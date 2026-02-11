@@ -133,7 +133,8 @@ function resolveWindowsCommandPath(command: string): string {
     const raw = execSync(`where.exe ${command}`, {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
-      timeout: 5000
+      timeout: 5000,
+      windowsHide: true
     });
     const first = raw
       .split(/\r?\n/)
@@ -150,6 +151,25 @@ type GeminiRunner = {
   prefixArgs: string[];
   useShell: boolean;
 };
+
+function resolveGeminiDirectScriptCandidates(commandCandidates: string[]): string[] {
+  const candidates = new Set<string>();
+  for (const entry of commandCandidates) {
+    const candidate = path.resolve(path.dirname(entry), "node_modules", "@google", "gemini-cli", "dist", "index.js");
+    candidates.add(candidate);
+  }
+  if (process.platform === "win32") {
+    const appData = process.env.APPDATA || path.join(process.env.USERPROFILE || "", "AppData", "Roaming");
+    if (appData) {
+      candidates.add(path.join(appData, "npm", "node_modules", "@google", "gemini-cli", "dist", "index.js"));
+    }
+    const localAppData = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || "", "AppData", "Local");
+    if (localAppData) {
+      candidates.add(path.join(localAppData, "npm", "node_modules", "@google", "gemini-cli", "dist", "index.js"));
+    }
+  }
+  return [...candidates];
+}
 
 function resolveGeminiRunner(): GeminiRunner {
   const explicitBin = process.env.SDD_GEMINI_BIN?.trim() || "";
@@ -174,8 +194,7 @@ function resolveGeminiRunner(): GeminiRunner {
       ]
     .map((value) => value.trim())
     .filter(Boolean);
-  const directScript = commandCandidates
-    .map((entry) => path.resolve(path.dirname(entry), "node_modules", "@google", "gemini-cli", "dist", "index.js"))
+  const directScript = resolveGeminiDirectScriptCandidates(commandCandidates)
     .find((entry) => fs.existsSync(entry));
   if (directScript) {
     return {
