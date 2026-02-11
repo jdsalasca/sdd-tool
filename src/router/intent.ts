@@ -7,7 +7,7 @@ const SIGNALS: Array<{ intent: RouterIntent["intent"]; flow: string; domain: Rou
     domain: "bug_fix",
     keywords: ["bug", "issue", "error", "crash", "stack trace", "stacktrace"]
   },
-  { intent: "pr_review", flow: "PR_REVIEW", domain: "pr_review", keywords: ["pr", "pull request", "review"] },
+  { intent: "pr_review", flow: "PR_REVIEW", domain: "pr_review", keywords: ["pull request", "review"] },
   {
     intent: "learning",
     flow: "HUMANITIES",
@@ -71,6 +71,19 @@ export const FLOW_PROMPT_PACKS: Record<string, string[]> = {
 
 export function classifyIntent(input: string): RouterIntent {
   const normalized = input.toLowerCase();
+  const prContext =
+    /\bpull request\b/i.test(normalized) ||
+    /\bcode review\b/i.test(normalized) ||
+    (/\breview\b/i.test(normalized) && /\bpr\b/i.test(normalized));
+  if (prContext) {
+    return {
+      intent: "pr_review",
+      confidence: 0.8,
+      flow: "PR_REVIEW",
+      domain: "pr_review",
+      signals: ["review"]
+    };
+  }
   const containsKeyword = (keyword: string): boolean => {
     const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     if (escaped.length <= 3 && !escaped.includes(" ")) {

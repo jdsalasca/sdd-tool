@@ -693,10 +693,17 @@ function hasUnrecoverableProviderError(errors: string[]): boolean {
 }
 
 function lastProviderError(errors: string[]): string {
-  const line = errors
+  const lines = errors
     .map((value) => String(value || "").replace(/\s+/g, " ").trim())
-    .filter(Boolean)
+    .filter(Boolean);
+  const signal = lines
+    .filter(
+      (line) =>
+        !/\bdep0040\b|punycode|loaded cached credentials|hook registry initialized/i.test(line) &&
+        /\bterminalquotaerror\b|\betimedout\b|\btimed out\b|\bcode:\s*429\b|\berror when talking to gemini api\b|spawnsync/i.test(line)
+    )
     .at(-1);
+  const line = signal || lines.filter((value) => !/\bdep0040\b|punycode/i.test(value)).at(-1) || lines.at(-1);
   if (!line) {
     return "";
   }

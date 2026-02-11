@@ -188,7 +188,7 @@ export function geminiExec(prompt: string): GeminiResult {
     ...process.env,
     NO_COLOR: "1"
   };
-  const timeout = parseTimeoutMs("SDD_AI_EXEC_TIMEOUT_MS", 120000);
+  const timeout = parseTimeoutMs("SDD_AI_EXEC_TIMEOUT_MS", 300000);
   const maxAttempts = parseMaxAttempts();
   const modelArgs = model ? ["-m", model] : [];
   const buildArgs = (withModel: boolean, withOutput: boolean): string[] => {
