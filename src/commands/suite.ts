@@ -1019,14 +1019,20 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
     }
     previousRank = rankBefore;
     if (stalledCycles >= policy.stallCycles) {
-      nextFromStep = "create";
-      cycleInput = composeCampaignInput(goalAnchor, input, [
-        "Force deep recovery: rebuild from a clean requirement and regenerate production-ready project structure."
-      ]);
-      if (lastProject) {
-        clearCheckpoint(lastProject);
+      if (providerFailureStreak > 0) {
+        console.log(
+          `Suite campaign recovery: detected stage stall for ${stalledCycles} cycles, but provider instability is active; keeping current resume step.`
+        );
+      } else {
+        nextFromStep = "create";
+        cycleInput = composeCampaignInput(goalAnchor, input, [
+          "Force deep recovery: rebuild from a clean requirement and regenerate production-ready project structure."
+        ]);
+        if (lastProject) {
+          clearCheckpoint(lastProject);
+        }
+        console.log(`Suite campaign recovery: detected stage stall for ${stalledCycles} cycles, forcing fresh create.`);
       }
-      console.log(`Suite campaign recovery: detected stage stall for ${stalledCycles} cycles, forcing fresh create.`);
     }
 
     setFlags({
