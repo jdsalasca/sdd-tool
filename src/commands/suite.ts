@@ -427,7 +427,8 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
       const previousModel = model;
       const quotaResetHint = providerIssue === "quota" ? readRecentQuotaResetHint(lastProject) : "";
       if (providerIssue === "quota" && previousModel) {
-        markModelUnavailable("gemini", previousModel, quotaResetHint, 60_000);
+        // Keep cooldown short when provider hint is short-lived; avoid over-blocking a model that recovers in seconds.
+        markModelUnavailable("gemini", previousModel, quotaResetHint, 5_000);
       }
       const issueLabel =
         providerIssue === "quota"
