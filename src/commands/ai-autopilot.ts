@@ -696,6 +696,16 @@ function lastProviderError(errors: string[]): string {
   const lines = errors
     .map((value) => String(value || "").replace(/\s+/g, " ").trim())
     .filter(Boolean);
+  const cleanedLines = lines.filter((line) => !/\bdep0040\b|punycode|loaded cached credentials|hook registry initialized/i.test(line));
+  const source = cleanedLines.length > 0 ? cleanedLines : lines;
+  const quotaSignal = source
+    .find((line) => /\bterminalquotaerror\b|\bretryablequotaerror\b|\bexhausted your capacity\b|\bquota will reset after\b|\bcode:\s*429\b|\b429\b/i.test(line));
+  if (quotaSignal) {
+    const resetMatch = quotaSignal.match(/quota will reset after\s+([^.,\n]+)/i);
+    const reset = resetMatch?.[1]?.trim();
+    const compact = reset ? `provider quota exhausted (reset after ${reset})` : "provider quota exhausted (429)";
+    return compact;
+  }
   const signal = lines
     .filter(
       (line) =>
@@ -703,7 +713,7 @@ function lastProviderError(errors: string[]): string {
         /\bterminalquotaerror\b|\betimedout\b|\btimed out\b|\bcode:\s*429\b|\berror when talking to gemini api\b|spawnsync/i.test(line)
     )
     .at(-1);
-  const line = signal || lines.filter((value) => !/\bdep0040\b|punycode/i.test(value)).at(-1) || lines.at(-1);
+  const line = signal || source.at(-1);
   if (!line) {
     return "";
   }

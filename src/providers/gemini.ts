@@ -99,7 +99,14 @@ function normalizeFailure(result: ReturnType<typeof spawnSync>, fallback: string
   if (chunks.length === 0) {
     return fallback;
   }
-  return chunks.join("\n");
+  const merged = chunks.join("\n");
+  const lines = merged
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/\bdep0040\b|punycode|loaded cached credentials|hook registry initialized/i.test(line));
+  const cleaned = lines.join("\n").trim();
+  return cleaned || merged;
 }
 
 function resolveCommand(input: string): string {
@@ -144,7 +151,8 @@ type GeminiRunner = {
 };
 
 function resolveGeminiRunner(): GeminiRunner {
-  const command = resolveCommand(process.env.SDD_GEMINI_BIN?.trim() || "gemini");
+  const explicitBin = process.env.SDD_GEMINI_BIN?.trim() || "";
+  const command = resolveCommand(explicitBin || "gemini");
   const useShell = process.platform === "win32" && command.toLowerCase().endsWith(".cmd");
   if (process.platform !== "win32" || !useShell) {
     return { command, prefixArgs: [], useShell };
@@ -153,9 +161,15 @@ function resolveGeminiRunner(): GeminiRunner {
   const explicitNode = process.env.SDD_GEMINI_NODE?.trim();
   const nodeCommand = explicitNode && explicitNode.length > 0 ? explicitNode : process.execPath;
   const normalizedCommand = resolveWindowsCommandPath(command.replace(/"/g, "").trim());
-  const cmdDir = path.dirname(normalizedCommand);
-  const directScript = path.resolve(cmdDir, "node_modules", "@google", "gemini-cli", "dist", "index.js");
-  if (fs.existsSync(directScript)) {
+  const commandCandidates = explicitBin
+    ? [normalizedCommand]
+    : [normalizedCommand, resolveWindowsCommandPath("gemini.cmd"), resolveWindowsCommandPath("gemini")]
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const directScript = commandCandidates
+    .map((entry) => path.resolve(path.dirname(entry), "node_modules", "@google", "gemini-cli", "dist", "index.js"))
+    .find((entry) => fs.existsSync(entry));
+  if (directScript) {
     return {
       command: nodeCommand,
       prefixArgs: [directScript],
