@@ -267,7 +267,7 @@ function readBlockingSignals(projectName?: string): BlockingSignals {
   }
   const runStatus = readJsonFile<{ blockers?: string[] }>(path.join(projectRoot, "sdd-run-status.json"));
   const isTransientProviderSignal = (value: string): boolean =>
-    /provider temporarily unavailable|terminalquotaerror|quota|capacity|429|timed out|etimedout/i.test(value);
+    /provider temporarily unavailable|terminalquotaerror|quota|capacity|429|timed out|etimedout|\bdep0040\b|punycode|loaded cached credentials|hook registry initialized/i.test(value);
   const blockers = Array.isArray(runStatus?.blockers)
     ? runStatus.blockers
         .map((item) => String(item || "").trim())
