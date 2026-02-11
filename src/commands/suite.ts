@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { ask } from "../ui/prompt";
 import { getFlags } from "../context/flags";
 import { ensureConfig } from "../config";
@@ -19,10 +17,11 @@ import {
 } from "../providers/model-availability-cache";
 import { composeCampaignInput, deriveCanonicalGoal } from "./suite/campaign-prompt";
 import { buildRecoveryPlan, resolveRecoveryTier, type RecoveryTier } from "./suite/recovery-planner";
+import { acquireSuiteLock, releaseSuiteLock, type SuiteLockHandle } from "./suite/suite-lock";
+import { sanitizeStaleCampaignStates } from "./suite/stale-state";
 import {
   appendCampaignJournal,
   appendRecoveryAudit,
-  readJsonFile,
   writeCampaignDebugReport,
   writeCampaignState
 } from "./suite/campaign-telemetry";
@@ -60,8 +59,6 @@ type CampaignPolicy = {
   autonomous: boolean;
   stallCycles: number;
 };
-
-type SuiteLockHandle = { lockPath: string; pid: number };
 
 function clampInt(input: number, fallback: number, min: number, max: number): number {
   if (!Number.isFinite(input)) {
@@ -110,105 +107,13 @@ function resolveCampaignPolicy(options?: SuiteRunOptions): CampaignPolicy {
   return { minRuntimeMinutes, maxCycles, sleepSeconds, targetStage, autonomous: Boolean(autonomous), stallCycles };
 }
 
-// Keep stale-state cleanup local because lock/pid semantics are owned by suite runtime.
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isPidRunning(pid: number): boolean {
-  if (!Number.isFinite(pid) || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function resolveSuiteLockPath(workspaceRoot: string, projectName?: string): string {
-  const cleanProject = String(projectName || "").trim();
-  if (!cleanProject) {
-    return path.join(workspaceRoot, ".sdd-suite-lock.json");
-  }
-  return path.join(workspaceRoot, cleanProject, ".sdd-suite-lock.json");
-}
-
-function acquireSuiteLock(workspaceRoot: string, projectName?: string): SuiteLockHandle {
-  const lockPath = resolveSuiteLockPath(workspaceRoot, projectName);
-  try {
-    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
-    if (fs.existsSync(lockPath)) {
-      const raw = JSON.parse(fs.readFileSync(lockPath, "utf-8")) as { pid?: number; startedAt?: string };
-      const existingPid = Number(raw?.pid ?? 0);
-      if (existingPid > 0 && existingPid !== process.pid && isPidRunning(existingPid)) {
-        const scope = projectName ? `project=${projectName}` : "workspace";
-        throw new Error(
-          `Another suite process is already running (${scope}, pid=${existingPid}, startedAt=${raw?.startedAt || "unknown"}).`
-        );
-      }
-    }
-    fs.writeFileSync(
-      lockPath,
-      JSON.stringify(
-        {
-          pid: process.pid,
-          startedAt: new Date().toISOString()
-        },
-        null,
-        2
-      ),
-      "utf-8"
-    );
-    return { lockPath, pid: process.pid };
-  } catch (error) {
-    throw new Error(`Failed to acquire suite lock: ${(error as Error).message}`);
-  }
-}
-
-function releaseSuiteLock(handle: SuiteLockHandle | null): void {
-  if (!handle) return;
-  try {
-    if (!fs.existsSync(handle.lockPath)) return;
-    const raw = JSON.parse(fs.readFileSync(handle.lockPath, "utf-8")) as { pid?: number };
-    if (Number(raw?.pid ?? 0) !== handle.pid) {
-      return;
-    }
-    fs.rmSync(handle.lockPath, { force: true });
-  } catch {
-    // best effort
-  }
-}
-
-function sanitizeStaleCampaignStates(workspaceRoot: string): void {
-  try {
-    const entries = fs.readdirSync(workspaceRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory());
-    for (const entry of entries) {
-      const projectRoot = path.join(workspaceRoot, entry.name);
-      const stateFile = path.join(projectRoot, "suite-campaign-state.json");
-      if (!fs.existsSync(stateFile)) continue;
-      const parsed = readJsonFile<{
-        running?: boolean;
-        suitePid?: number;
-        phase?: string;
-        lastError?: string;
-      }>(stateFile);
-      if (!parsed || parsed.running !== true) continue;
-      const suitePid = Number(parsed.suitePid || 0);
-      const alive = Number.isFinite(suitePid) && suitePid > 0 ? isPidRunning(suitePid) : false;
-      if (alive) continue;
-      const nextState = {
-        ...parsed,
-        running: false,
-        phase: "stale_state_sanitized",
-        lastError: parsed.lastError || "campaign marked stale because suitePid is no longer running"
-      };
-      fs.writeFileSync(stateFile, JSON.stringify(nextState, null, 2), "utf-8");
-      appendCampaignJournal(projectRoot, "campaign.state.sanitized", `stale running=true cleared (suitePid=${suitePid || 0})`);
-    }
-  } catch {
-    // best effort
-  }
+function hasQualityGateBlockers(blockers: string[]): boolean {
+  const joined = blockers.join("\n").toLowerCase();
+  return /preflight-quality-check|advanced-quality-check|build|test|lint|smoke|missing dependency|cannot find module|eresolve/.test(joined);
 }
 
 function inferAppType(text: string): SuiteContext["appType"] | undefined {
@@ -345,6 +250,7 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
     let model = activeModel || baseFlags.model;
 
     let nextFromStep = chooseResumeStep(lastProject);
+    const preBlockingSignals = readBlockingSignals(lastProject);
     if (forceCreateNextCycle) {
       nextFromStep = "create";
       if (lastProject) {
@@ -363,6 +269,14 @@ async function runCampaign(input: string, options?: SuiteRunOptions, explicitGoa
       if (providerFailureStreak > 0) {
         console.log(
           `Suite campaign recovery: detected stage stall for ${stalledCycles} cycles, but provider instability is active; keeping current resume step.`
+        );
+      } else if (hasQualityGateBlockers(preBlockingSignals.blockers)) {
+        nextFromStep = "finish";
+        cycleInput = composeCampaignInput(goalAnchor, input, [
+          "Stall recovery quality mode: do not restart project scaffolding; stay in finish and close lifecycle blockers in-place."
+        ]);
+        console.log(
+          `Suite campaign recovery: stage stall detected (${stalledCycles} cycles) with quality blockers, enforcing in-place quality remediation.`
         );
       } else {
         nextFromStep = "create";
