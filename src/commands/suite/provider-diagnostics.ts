@@ -9,6 +9,7 @@ const CMD_TOO_LONG_PATTERN = /the command line is too long|linea de comandos es 
 const UNUSABLE_PATTERN =
   /provider response unusable|provider did not return valid files|no template fallback was applied|ready for your command|empty output|unable to (proceed|fix|continue).*(tool|tools).*(not available|limitations)|cannot .*tool|tool limitations|limitations in my current toolset/i;
 const QUOTA_RESET_HINT_PATTERN = /quota will reset after\s+([^.,\n]+)/i;
+type TimedSignal = { text: string; atMs: number };
 
 function resolveRecentWindowMs(): number {
   const raw = Number.parseInt(process.env.SDD_PROVIDER_SIGNAL_WINDOW_MINUTES ?? "", 10);
@@ -40,7 +41,7 @@ function cleanText(text: string): string {
     .join(" ");
 }
 
-function readRecentMetadataSignals(file: string, nowMs: number, windowMs: number): string[] {
+function readRecentMetadataSignals(file: string, nowMs: number, windowMs: number): TimedSignal[] {
   if (!fs.existsSync(file)) return [];
   try {
     const lines = fs
@@ -48,7 +49,7 @@ function readRecentMetadataSignals(file: string, nowMs: number, windowMs: number
       .split(/\r?\n/)
       .filter(Boolean)
       .slice(-240);
-    const out: string[] = [];
+    const out: TimedSignal[] = [];
     for (const line of lines) {
       const parsed = parseJsonLine(line);
       if (!parsed) continue;
@@ -60,7 +61,7 @@ function readRecentMetadataSignals(file: string, nowMs: number, windowMs: number
       const joined = cleanText(
         [parsed.error, parsed.outputPreview, parsed.promptPreview].map((v) => String(v || "")).filter(Boolean).join(" ")
       );
-      if (joined) out.push(joined);
+      if (joined) out.push({ text: joined, atMs: Number.isFinite(atMs) ? atMs : nowMs });
     }
     return out.slice(-60);
   } catch {
@@ -68,17 +69,37 @@ function readRecentMetadataSignals(file: string, nowMs: number, windowMs: number
   }
 }
 
-function readRecentFileSignal(file: string, nowMs: number, windowMs: number): string {
-  if (!fs.existsSync(file)) return "";
+function readRecentFileSignal(file: string, nowMs: number, windowMs: number): TimedSignal | null {
+  if (!fs.existsSync(file)) return null;
   try {
     const stat = fs.statSync(file);
     if (!isFreshMs(stat.mtimeMs, nowMs, windowMs)) {
-      return "";
+      return null;
     }
-    return cleanText(fs.readFileSync(file, "utf-8"));
+    const raw = fs.readFileSync(file, "utf-8");
+    if (file.endsWith(".json")) {
+      try {
+        const parsed = JSON.parse(raw) as { at?: string };
+        const atMs = Date.parse(String(parsed?.at || ""));
+        return {
+          text: cleanText(raw),
+          atMs: Number.isFinite(atMs) ? atMs : stat.mtimeMs
+        };
+      } catch {
+        // fallback below
+      }
+    }
+    return { text: cleanText(raw), atMs: stat.mtimeMs };
   } catch {
-    return "";
+    return null;
   }
+}
+
+function classifyProviderIssue(text: string): ProviderIssueType {
+  if (CMD_TOO_LONG_PATTERN.test(text)) return "command_too_long";
+  if (QUOTA_PATTERN.test(text)) return "quota";
+  if (UNUSABLE_PATTERN.test(text)) return "unusable";
+  return "none";
 }
 
 export function detectProviderIssueType(projectRoot?: string): ProviderIssueType {
@@ -88,19 +109,22 @@ export function detectProviderIssueType(projectRoot?: string): ProviderIssueType
   const debugMeta = path.join(projectRoot, "debug", "provider-prompts.metadata.jsonl");
   const providerDebug = path.join(projectRoot, "generated-app", "provider-debug.md");
   const runStatus = path.join(projectRoot, "sdd-run-status.json");
-
-  const samples = [
-    ...readRecentMetadataSignals(debugMeta, nowMs, windowMs),
-    readRecentFileSignal(providerDebug, nowMs, windowMs),
-    readRecentFileSignal(runStatus, nowMs, windowMs)
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-
-  if (samples.length === 0) return "none";
-  if (samples.some((value) => CMD_TOO_LONG_PATTERN.test(value))) return "command_too_long";
-  if (samples.some((value) => QUOTA_PATTERN.test(value))) return "quota";
-  if (samples.some((value) => UNUSABLE_PATTERN.test(value))) return "unusable";
+  const metadataSignals = readRecentMetadataSignals(debugMeta, nowMs, windowMs)
+    .map((signal) => ({ ...signal, issue: classifyProviderIssue(signal.text) }))
+    .filter((signal) => signal.issue !== "none")
+    .sort((a, b) => b.atMs - a.atMs);
+  if (metadataSignals.length > 0) {
+    return metadataSignals[0].issue;
+  }
+  const providerDebugSignal = readRecentFileSignal(providerDebug, nowMs, windowMs);
+  if (providerDebugSignal) {
+    const issue = classifyProviderIssue(providerDebugSignal.text);
+    if (issue !== "none") return issue;
+  }
+  const runStatusSignal = readRecentFileSignal(runStatus, nowMs, windowMs);
+  if (runStatusSignal) {
+    return classifyProviderIssue(runStatusSignal.text);
+  }
   return "none";
 }
 
