@@ -17,6 +17,11 @@ import {
   markModelUnavailable,
   nextAvailabilityMs
 } from "../providers/model-availability-cache";
+import {
+  detectProviderIssueType as detectProviderIssueTypeForProject,
+  readRecentQuotaResetHint as readRecentQuotaResetHintForProject,
+  ProviderIssueType
+} from "./suite/provider-diagnostics";
 
 type SuiteContext = {
   appType?: "web" | "desktop";
@@ -41,7 +46,6 @@ type CampaignPolicy = {
   stallCycles: number;
 };
 
-type ProviderIssueType = "none" | "unusable" | "quota" | "command_too_long";
 type RecoveryTier = "none" | "tier1" | "tier2" | "tier3" | "tier4";
 type SuiteLockHandle = { lockPath: string; pid: number };
 type BlockingSignals = {
@@ -836,99 +840,12 @@ function requirementQualityFeedback(projectName?: string): string[] {
 
 function detectProviderIssueType(projectName?: string): ProviderIssueType {
   const projectRoot = resolveProjectRoot(projectName);
-  if (!projectRoot) {
-    return "none";
-  }
-  const isQuotaLike = (value: string) => /quota|capacity|terminalquotaerror|429/i.test(value);
-  const isCmdTooLongLike = (value: string) =>
-    /the command line is too long|linea de comandos es demasiado larga|la línea de comandos es demasiado larga/i.test(value);
-  const isUnusableLike = (value: string) =>
-    /provider response unusable|provider did not return valid files|no template fallback was applied|ready for your command|empty output/i.test(
-      value
-    );
-  const debugMeta = path.join(projectRoot, "debug", "provider-prompts.metadata.jsonl");
-  const providerDebug = path.join(projectRoot, "generated-app", "provider-debug.md");
-  const runStatus = path.join(projectRoot, "sdd-run-status.json");
-  try {
-    if (fs.existsSync(debugMeta)) {
-      const lines = fs
-        .readFileSync(debugMeta, "utf-8")
-        .split(/\r?\n/)
-        .filter(Boolean)
-        .slice(-40);
-      if (lines.some((line) => isCmdTooLongLike(line))) {
-        return "command_too_long";
-      }
-      if (lines.some((line) => isQuotaLike(line))) {
-        return "quota";
-      }
-      if (lines.some((line) => isUnusableLike(line))) {
-        return "unusable";
-      }
-    }
-    if (fs.existsSync(providerDebug)) {
-      const text = fs.readFileSync(providerDebug, "utf-8");
-      if (isCmdTooLongLike(text)) {
-        return "command_too_long";
-      }
-      if (isQuotaLike(text)) {
-        return "quota";
-      }
-      if (isUnusableLike(text)) {
-        return "unusable";
-      }
-    }
-    if (fs.existsSync(runStatus)) {
-      const statusRaw = fs.readFileSync(runStatus, "utf-8");
-      if (isCmdTooLongLike(statusRaw)) {
-        return "command_too_long";
-      }
-      if (isQuotaLike(statusRaw)) {
-        return "quota";
-      }
-      if (isUnusableLike(statusRaw)) {
-        return "unusable";
-      }
-    }
-  } catch {
-    return "none";
-  }
-  return "none";
+  return detectProviderIssueTypeForProject(projectRoot || undefined);
 }
 
 function readRecentQuotaResetHint(projectName?: string): string {
   const projectRoot = resolveProjectRoot(projectName);
-  if (!projectRoot) {
-    return "";
-  }
-  const files = [
-    path.join(projectRoot, "debug", "provider-prompts.metadata.jsonl"),
-    path.join(projectRoot, "generated-app", "provider-debug.md"),
-    path.join(projectRoot, "sdd-run-status.json")
-  ];
-  const pattern = /quota will reset after\s+([^.,\n]+)/i;
-  for (const file of files) {
-    try {
-      if (!fs.existsSync(file)) {
-        continue;
-      }
-      const raw = fs.readFileSync(file, "utf-8");
-      const lines = raw.split(/\r?\n/).slice(-120).reverse();
-      for (const line of lines) {
-        const hit = line.match(pattern);
-        if (hit?.[1]) {
-          return String(hit[1]).trim();
-        }
-      }
-      const globalHit = raw.match(pattern);
-      if (globalHit?.[1]) {
-        return String(globalHit[1]).trim();
-      }
-    } catch {
-      // best effort
-    }
-  }
-  return "";
+  return readRecentQuotaResetHintForProject(projectRoot || undefined);
 }
 
 function inferAppType(text: string): SuiteContext["appType"] | undefined {

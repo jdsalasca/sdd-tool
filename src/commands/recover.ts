@@ -146,7 +146,8 @@ export async function runRecover(input: string, options?: RecoverOptions): Promi
   }
 
   const provider = String(flags.provider || "gemini").trim() || "gemini";
-  const model = String(flags.model || "").trim();
+  const pinModel = process.env.SDD_RECOVER_PIN_MODEL === "1";
+  const model = provider.toLowerCase() === "gemini" && !pinModel ? "" : String(flags.model || "").trim();
   const goal = String(input || "").trim();
   const hintMeta = loadRecoveryHint(project.root);
   const prompt = sanitizeRecoveryPrompt(goal || hintMeta.hint);
