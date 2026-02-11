@@ -34,7 +34,8 @@ export function codexVersion(): CodexResult {
   const result = spawnSync(command, ["--version"], {
     encoding: "utf-8",
     shell: useShell,
-    timeout
+    timeout,
+    windowsHide: true
   });
   if (result.status !== 0) {
     return { ok: false, output: "", error: result.error?.message || result.stderr || "codex not available" };
@@ -50,11 +51,13 @@ export function codexExec(prompt: string): CodexResult {
     ? spawnSync(`${command} exec "${prompt.replace(/"/g, "\"\"")}"`, {
         encoding: "utf-8",
         shell: true,
-        timeout
+        timeout,
+        windowsHide: true
       })
     : spawnSync(command, ["exec", prompt], {
         encoding: "utf-8",
-        timeout
+        timeout,
+        windowsHide: true
       });
   if (result.status !== 0) {
     return { ok: false, output: result.stdout || "", error: result.error?.message || result.stderr || "codex exec failed" };

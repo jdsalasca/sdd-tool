@@ -182,7 +182,8 @@ export async function runRecover(input: string, options?: RecoverOptions): Promi
   const child = spawn(process.execPath, commandArgs, {
     cwd: getRepoRoot(),
     detached: true,
-    stdio: ["ignore", outFd, errFd]
+    stdio: ["ignore", outFd, errFd],
+    windowsHide: true
   });
   child.unref();
   try {

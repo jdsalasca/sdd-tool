@@ -30,8 +30,8 @@ export type RuntimeVisualProbeResult = {
 function run(command: string, args: string[]): { ok: boolean; output: string } {
   const useShell = process.platform === "win32" && command.toLowerCase().endsWith(".cmd");
   const result = useShell
-    ? spawnSync([command, ...args].join(" "), { encoding: "utf-8", shell: true })
-    : spawnSync(command, args, { encoding: "utf-8", shell: false });
+    ? spawnSync([command, ...args].join(" "), { encoding: "utf-8", shell: true, windowsHide: true })
+    : spawnSync(command, args, { encoding: "utf-8", shell: false, windowsHide: true });
   const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
   return { ok: result.status === 0, output };
 }

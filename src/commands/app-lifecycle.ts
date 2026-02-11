@@ -195,8 +195,8 @@ function run(command: string, args: string[], cwd: string): StepResult {
   }
   const useShell = process.platform === "win32" && resolved.toLowerCase().endsWith(".cmd");
   const result = useShell
-    ? spawnSync([resolved, ...args].join(" "), { cwd, encoding: "utf-8", shell: true })
-    : spawnSync(resolved, args, { cwd, encoding: "utf-8", shell: false });
+    ? spawnSync([resolved, ...args].join(" "), { cwd, encoding: "utf-8", shell: true, windowsHide: true })
+    : spawnSync(resolved, args, { cwd, encoding: "utf-8", shell: false, windowsHide: true });
   const rawOutput = `${result.stdout || ""}${result.stderr || ""}`.trim();
   const merged = rawOutput || (result.error ? String(result.error.message || result.error) : "");
   const output = merged.length > 3500 ? `${merged.slice(0, 3500)}\n...[truncated]` : merged;
@@ -2019,7 +2019,8 @@ export async function startGeneratedApp(projectRoot: string, _projectName: strin
       cwd: target.cwd,
       shell: process.platform === "win32",
       detached: true,
-      stdio: "ignore"
+      stdio: "ignore",
+      windowsHide: true
     });
     child.unref();
     if (typeof child.pid === "number") {
