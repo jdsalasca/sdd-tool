@@ -68,6 +68,30 @@ function loadRecoveryHint(projectRoot: string): { fromStep: string; hint: string
   return { fromStep, hint };
 }
 
+function sanitizeRecoveryPrompt(input: string): string {
+  const cleaned = String(input || "")
+    .replace(/primary product objective \(do not drift\):/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) {
+    return "continue delivery to final release and runtime start with production quality";
+  }
+  const seen = new Set<string>();
+  const segments = cleaned
+    .split(/[.!?]/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .filter((segment) => {
+      const key = segment.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  const normalized = segments.join(". ").trim();
+  const maxChars = 320;
+  return normalized.length > maxChars ? normalized.slice(0, maxChars) : normalized;
+}
+
 function lockPid(workspaceRoot: string, projectName?: string): number {
   const project = String(projectName || "").trim();
   if (project) {
@@ -125,7 +149,7 @@ export async function runRecover(input: string, options?: RecoverOptions): Promi
   const model = String(flags.model || "").trim();
   const goal = String(input || "").trim();
   const hintMeta = loadRecoveryHint(project.root);
-  const prompt = goal || hintMeta.hint;
+  const prompt = sanitizeRecoveryPrompt(goal || hintMeta.hint);
   const fromStep = hintMeta.fromStep;
   const commandArgs = buildRecoverCommand(project.name, provider, model, fromStep, prompt, options);
   appendRecoveryEvent(project.root, "recover.requested", {
