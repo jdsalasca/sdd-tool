@@ -186,7 +186,8 @@ export function geminiVersion(): GeminiResult {
   const result = spawnSync(runner.command, [...runner.prefixArgs, "--version"], {
     encoding: "utf-8",
     shell: runner.useShell,
-    timeout
+    timeout,
+    windowsHide: true
   });
   if (result.status !== 0) {
     return { ok: false, output: "", error: result.error?.message || result.stderr || "gemini not available" };
@@ -221,14 +222,16 @@ export function geminiExec(prompt: string): GeminiResult {
       encoding: "utf-8",
       shell: runner.useShell,
       env,
-      timeout
+      timeout,
+      windowsHide: true
     });
   const runFallback = (withModel: boolean) =>
     spawnSync(runner.command, buildArgs(withModel, false), {
       encoding: "utf-8",
       shell: runner.useShell,
       env,
-      timeout
+      timeout,
+      windowsHide: true
     });
   const attempts: Array<{ name: string; run: () => ReturnType<typeof spawnSync> }> = [
     { name: "primary_model_json", run: () => runPrimary(true) },

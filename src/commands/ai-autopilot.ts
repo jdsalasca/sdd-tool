@@ -585,7 +585,16 @@ function askProviderForJson(
       lower.includes("i cannot fulfill the request to generate the project files directly") ||
       lower.includes("tool \"write_file\" not found") ||
       lower.includes("write_file tool") ||
-      lower.includes("unable to activate any skills at this time")
+      lower.includes("unable to activate any skills at this time") ||
+      lower.includes("tool \"run_shell_command\" not found") ||
+      lower.includes("run_shell_command") ||
+      lower.includes("write_todos") ||
+      lower.includes("i am unable to proceed with the task") ||
+      lower.includes("i am unable to proceed") ||
+      lower.includes("i cannot proceed") ||
+      lower.includes("i'm completely blocked and must terminate") ||
+      lower.includes("do not have the necessary permissions to use the available tools") ||
+      lower.includes("unable to use the available tools")
     );
   };
   const first = providerExec(prompt);
@@ -626,6 +635,12 @@ function askProviderForJson(
       lower.includes("you have exhausted your capacity") ||
       lower.includes("error executing tool write_file") ||
       lower.includes("tool \"write_file\" not found") ||
+      lower.includes("tool \"run_shell_command\" not found") ||
+      lower.includes("write_todos was denied") ||
+      lower.includes("unable to proceed") ||
+      lower.includes("cannot proceed") ||
+      lower.includes("completely blocked and must terminate") ||
+      lower.includes("do not have the necessary permissions") ||
       lower.includes("code: 429")
     );
   };
