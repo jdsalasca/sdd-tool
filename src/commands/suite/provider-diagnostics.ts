@@ -7,7 +7,7 @@ const NOISE_PATTERN = /\bdep0040\b|punycode|loaded cached credentials|hook regis
 const QUOTA_PATTERN = /quota|capacity|terminalquotaerror|429/i;
 const CMD_TOO_LONG_PATTERN = /the command line is too long|linea de comandos es demasiado larga|la línea de comandos es demasiado larga/i;
 const UNUSABLE_PATTERN =
-  /provider response unusable|provider did not return valid files|no template fallback was applied|ready for your command|empty output/i;
+  /provider response unusable|provider did not return valid files|no template fallback was applied|ready for your command|empty output|unable to (proceed|fix|continue).*(tool|tools).*(not available|limitations)|cannot .*tool|tool limitations|limitations in my current toolset/i;
 const QUOTA_RESET_HINT_PATTERN = /quota will reset after\s+([^.,\n]+)/i;
 
 function resolveRecentWindowMs(): number {
